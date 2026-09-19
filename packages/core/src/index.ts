@@ -64,6 +64,7 @@ export {
 	type FeedRecord,
 	type ItemRecord,
 	type MediaEntry,
+	type MediaValue,
 	type PropertyValue,
 	type RecordIdentifier,
 	type SourceKind,

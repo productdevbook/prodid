@@ -60,6 +60,15 @@ export interface ClaimSource {
 	lapsed: boolean
 }
 
+/** The value of a `media` claim: what the index stored, not what the publisher wrote. */
+export interface MediaValue {
+	sha256: string
+	url: string
+	media_url: string
+	license: string
+	kind?: 'image' | 'document'
+}
+
 export interface EntityClaim {
 	property: string
 	value: JsonValue
@@ -89,6 +98,7 @@ export interface CrawlStatus {
 	records_seen?: number
 	records_changed?: number
 	lines_skipped?: number
+	feeds_failed?: number
 }
 
 export interface SourceRecord {

@@ -167,17 +167,43 @@ describe('decodeTxtPresentation', () => {
 })
 
 describe('isRedirectAllowed', () => {
-	test('allows staying put and adding www', () => {
-		expect(isRedirectAllowed('https://acme.example/a', 'https://acme.example/b')).toBe(true)
-		expect(isRedirectAllowed('https://acme.example/a', 'https://www.acme.example/a')).toBe(true)
+	const ASKED = 'https://a.example/.well-known/prodid.json'
+
+	test('allows staying put and adding www, with the same document', () => {
+		expect(isRedirectAllowed(ASKED, ASKED)).toBe(true)
+		expect(isRedirectAllowed(ASKED, 'https://www.a.example/.well-known/prodid.json')).toBe(true)
+		expect(isRedirectAllowed(ASKED, 'https://a.example./.well-known/prodid.json')).toBe(true)
+		expect(isRedirectAllowed('https://a.example/f.ndjson?page=2', 'https://www.a.example/f.ndjson?page=2')).toBe(true)
 	})
 
-	test('refuses leaving the host', () => {
-		expect(isRedirectAllowed('https://acme.example/a', 'https://evil.example/a')).toBe(false)
-		expect(isRedirectAllowed('https://www.acme.example/a', 'https://acme.example/a')).toBe(false)
-		expect(isRedirectAllowed('https://acme.example/a', 'https://acme.example.evil.example/a')).toBe(false)
-		expect(isRedirectAllowed('https://acme.example/a', 'http://acme.example/a')).toBe(false)
-		expect(isRedirectAllowed('https://acme.example/a', 'https://169.254.169.254/a')).toBe(false)
+	test('refuses a redirect to a different document', () => {
+		expect(isRedirectAllowed(ASKED, 'https://www.a.example/other')).toBe(false)
+		expect(isRedirectAllowed(ASKED, 'https://a.example/other')).toBe(false)
+		expect(isRedirectAllowed(ASKED, `${ASKED}?x=1`)).toBe(false)
+		expect(isRedirectAllowed('https://a.example/f.ndjson?page=2', 'https://a.example/f.ndjson?page=3')).toBe(false)
+		expect(isRedirectAllowed('https://a.example/f.ndjson?page=2', 'https://a.example/f.ndjson')).toBe(false)
+	})
+
+	test('refuses a redirect that changes the scheme or the port', () => {
+		expect(isRedirectAllowed(ASKED, 'http://www.a.example/.well-known/prodid.json')).toBe(false)
+		expect(isRedirectAllowed(ASKED, 'https://www.a.example:8443/.well-known/prodid.json')).toBe(false)
+		expect(isRedirectAllowed(ASKED, 'https://a.example:8443/.well-known/prodid.json')).toBe(false)
+	})
+
+	test('refuses userinfo and a fragment', () => {
+		expect(isRedirectAllowed(ASKED, 'https://user@www.a.example/.well-known/prodid.json')).toBe(false)
+		expect(isRedirectAllowed(ASKED, 'https://user:pw@a.example/.well-known/prodid.json')).toBe(false)
+		expect(isRedirectAllowed(ASKED, `${ASKED}#x`)).toBe(false)
+		expect(isRedirectAllowed(`${ASKED}#x`, ASKED)).toBe(false)
+	})
+
+	test('refuses leaving the host, the reverse of www, and anything deeper', () => {
+		expect(isRedirectAllowed(ASKED, 'https://evil.example/.well-known/prodid.json')).toBe(false)
+		expect(isRedirectAllowed(ASKED, 'https://a.example.evil.example/.well-known/prodid.json')).toBe(false)
+		expect(isRedirectAllowed(ASKED, 'https://www.www.a.example/.well-known/prodid.json')).toBe(false)
+		expect(isRedirectAllowed('https://www.a.example/.well-known/prodid.json', ASKED)).toBe(false)
+		expect(isRedirectAllowed('https://www.a.example/x', 'https://www.www.a.example/x')).toBe(false)
+		expect(isRedirectAllowed(ASKED, 'https://169.254.169.254/.well-known/prodid.json')).toBe(false)
 	})
 })
 

@@ -192,7 +192,7 @@ Machine-readable vectors, one file per case: [`fixtures/txt/`](fixtures/txt).
 
 ### Feeds
 
-The discovery document ([schema](schemas/org.prodid.feed.json), [example](examples/prodid.json), [delegated example](examples/prodid.delegated.json)) lists the feeds, each served from the same host as the document itself. Both hosts are normalized the same way as a delegation's `host` before they are compared. A document listing a feed on any other host is rejected whole: no feed from it is fetched, and discovery ends with no acceptable document. Serving feeds from a separate CDN hostname is not supported in v0.
+The discovery document ([schema](schemas/org.prodid.feed.json), [example](examples/prodid.json), [delegated example](examples/prodid.delegated.json)) lists the feeds, each served from the same host as the document itself. Both hosts are normalized the same way as a delegation's `host` before they are compared. A document listing a feed on any other host, or listing more than 100 feeds, is rejected whole: no feed from it is fetched, and discovery ends with no acceptable document. Serving feeds from a separate CDN hostname is not supported in v0.
 
 A feed is NDJSON: one [`org.prodid.item`](schemas/org.prodid.item.json) record per line ([one record](examples/item.jacket.json), [a feed](examples/items.ndjson)). The index validates every line and records each field as a claim made by the source domain.
 
@@ -228,8 +228,10 @@ Trust is a property of the source, not of a claim.
 | trust | meaning |
 | --- | --- |
 | `authoritative` | domain control proven and ownership of the brand confirmed |
-| `verified` | domain control proven, by the TXT record or by the domain serving the document |
+| `verified` | control of a **domain** proven: its `_prodid` record names the host that serves the document, or the domain itself served it |
 | `unverified` | hosted slug with no domain, dataset import, or community contribution |
+
+Only a source whose identity is a domain can be more than `unverified`. A `<slug>.prodid.org` host is prodid.org's domain, not the publisher's, so serving a document there proves nothing about the publisher: a hosted source stays `unverified` however well it publishes, until a domain's `_prodid` record names that host and the document names the domain back. That is the moment it [becomes that domain](#identity-continuity), and the same moment its trust rises.
 
 ### Crawling
 
@@ -266,7 +268,7 @@ Caps:
 | DNS TXT lookup | 5 s |
 | connect, TLS and first byte | 10 s |
 | discovery document | 1 MiB, complete within 30 s |
-| feeds listed in one document | 100 |
+| feeds listed in one document | 100; a document listing more than that is rejected whole |
 | one feed file | 256 MiB, complete within 10 min |
 | one feed line | 64 KiB |
 | domains in one ping request | 1000 |
@@ -307,7 +309,7 @@ A source whose discovery stops succeeding is **lapsed**, not deleted.
 
 A crawl **succeeds** only when everything the document lists was read: an acceptable document, and every feed in it answered `200` or `304`.
 
-A **definite negative** is discovery ending with no acceptable document: no prodid record and no acceptable document on the domain; a prodid record that is malformed, over-long or duplicated; or a document that is rejected — not 200, not JSON, not valid, not agreeing about `domain`, or listing a feed off its host. It sets the lapse at once, with its timestamp, and readers see it.
+A **definite negative** is discovery ending with no acceptable document, whether none was found at all or one was fetched and refused: no prodid record and no acceptable document on the domain; a prodid record that is malformed, over-long or duplicated; or a document that is rejected — not 200, not JSON, not valid, not agreeing about `domain`, or listing a feed off its host. It sets the lapse at once, with its timestamp, and readers see it.
 
 A **transport failure** is a crawl that could not be completed: DNS timeout or SERVFAIL, connection or TLS failure, 429, 5xx, a cap or a timeout reached — on the document **or on any feed it lists**. One changes nothing. Seven consecutive days in which every attempt ends this way set the lapse too, so serving errors forever is not a way to freeze claims where they are.
 
@@ -484,21 +486,26 @@ It never reports who asked for a crawl, how often anyone asks, or the crawler's 
 
 ### Errors
 
-An unknown `opid`, GTIN or source answers `404` with `application/problem+json` ([RFC 9457](https://www.rfc-editor.org/rfc/rfc9457)):
+Every error answers `application/problem+json` ([RFC 9457](https://www.rfc-editor.org/rfc/rfc9457)). The status says what kind of failure it is; the `type` says why:
 
 ```json
 { "type": "https://prodid.org/problem/unknown-opid", "title": "No entity with that opid", "status": 404 }
 ```
 
-| type | when |
-| --- | --- |
-| `…/problem/unknown-opid` | no entity with that `opid` |
-| `…/problem/unknown-gtin` | a well-formed GTIN that resolves to nothing |
-| `…/problem/invalid-gtin` | not a GTIN: wrong length, a bad check digit, or all zeros |
-| `…/problem/restricted-gtin` | a GS1 restricted circulation number, which identifies nothing globally |
-| `…/problem/unknown-source` | no source with that name |
-| `…/problem/invalid-request` | a malformed request, including a bad ping body |
-| `…/problem/rate-limited` | the caller is over its request budget |
+| type | status | when |
+| --- | --- | --- |
+| `…/problem/unknown-opid` | `404` | no entity with that `opid` |
+| `…/problem/unknown-gtin` | `404` | a well-formed GTIN that resolves to nothing |
+| `…/problem/restricted-gtin` | `404` | a GS1 restricted circulation number: well-formed, but it identifies nothing globally, so there is no record to answer with |
+| `…/problem/unknown-source` | `404` | no source with that name, including a domain whose discovery has never succeeded |
+| `…/problem/not-found` | `404` | nothing is served at that path |
+| `…/problem/invalid-gtin` | `400` | not a GTIN: wrong length, a bad check digit, or all zeros |
+| `…/problem/invalid-request` | `400` | a malformed request, including a bad ping body |
+| `…/problem/rate-limited` | `429` | the caller is over its request budget |
+
+`rate-limited` carries `Retry-After`; nothing else does.
+
+`invalid-gtin` and `restricted-gtin` are decided by the request alone — the same path will always answer the same way — so they may be cached. Every other problem depends on the state of the index or on what is routed, and is served `Cache-Control: no-store`: a `404` today is the answer for an `opid` or a domain that may exist tomorrow.
 
 ## Media
 

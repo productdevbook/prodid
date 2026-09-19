@@ -81,7 +81,7 @@
 					"pattern": "^https://"
 				},
 				"outcome": {
-					"description": "success: an acceptable document and every feed it lists read. definite-negative: discovery ended with no acceptable document, which lapses the source at once. transport-failure: something could not be read, including a feed, and nothing could be concluded.",
+					"description": "success: an acceptable document and every feed it lists read. definite-negative: discovery ended with no acceptable document — either none was found at all, or one was fetched and refused — which lapses the source at once. transport-failure: something could not be read, including a feed, and nothing could be concluded.",
 					"enum": ["success", "definite-negative", "transport-failure"]
 				},
 				"http_status": {

@@ -1,6 +1,6 @@
 import { canonicalize, type JsonValue, sha256Hex } from './canonical'
 import { normalizeIdentifier, type NormalizedIdentifier } from './identifier'
-import type { ItemRecord, MediaEntry, PropertyValue, RecordIdentifier } from './record/types'
+import type { ItemRecord, MediaEntry, MediaValue, PropertyValue, RecordIdentifier } from './record/types'
 
 /** Where the index serves a stored file, and the only shape a media claim's `media_url` may take. */
 export const MEDIA_URL_PREFIX = 'https://media.prodid.org/sha256/'
@@ -87,14 +87,14 @@ export function pendingMedia(record: ItemRecord): MediaEntry[] {
  */
 export function mediaClaim(entry: MediaEntry, sha256: string): Claim {
 	if (!SHA256_HEX.test(sha256)) throw new RangeError(`not a SHA-256 digest: ${sha256}`)
-	const value: JsonValue = {
+	const value: MediaValue = {
 		sha256,
 		url: entry.url,
 		media_url: `${MEDIA_URL_PREFIX}${sha256}`,
 		license: entry.license,
 		...(entry.kind === undefined ? {} : { kind: entry.kind }),
 	}
-	return { property: 'media', value, lang: null }
+	return { property: 'media', value: { ...value }, lang: null }
 }
 
 /**

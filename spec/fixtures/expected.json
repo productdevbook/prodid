@@ -127,6 +127,10 @@
 		"instancePath": "/feeds",
 		"keyword": "minItems"
 	},
+	"feed.too-many-feeds.json": {
+		"instancePath": "/feeds",
+		"keyword": "maxItems"
+	},
 	"feed.version-not-zero.json": {
 		"instancePath": "/version",
 		"keyword": "const"

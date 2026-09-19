@@ -27,6 +27,10 @@ create table source (
 create index source_due on source (last_crawled_at nulls first);
 create index source_lapsed on source (lapsed_at) where lapsed_at is not null;
 create index source_failing on source (failing_since) where failing_since is not null and lapsed_at is null;
+-- the delegated half of countVerifiedSourcesAtHost; source_name_key serves the other half,
+-- where a source is its own host, and the planner ORs the two together
+create index source_delegated_host on source (feed_host)
+    where feed_host is not null and trust <> 'unverified';
 
 create table feed (
     source          bigint not null references source (id) on delete restrict,
@@ -53,6 +57,8 @@ create table crawl (
     records_seen    int check (records_seen >= 0),
     records_changed int check (records_changed >= 0),
     lines_skipped   int check (lines_skipped >= 0),
+    feeds_failed    int check (feeds_failed >= 0),
+    conflicts       jsonb,
     error           text,
     -- carries the source only while this run is a success, so a source can key a foreign
     -- key on it and no later edit can turn its proof into a failed or unfinished run
@@ -285,6 +291,9 @@ create index identifier_entity on identifier (opid);
 create table record (
     source       bigint not null references source (id) on delete restrict,
     key          text not null check (key <> ''),
+    -- null for records that never came from a fetched URL: dataset imports and contributions.
+    -- Those sources are swept source-wide; a record with a feed is swept within its own feed.
+    feed         text,
     opid         text not null references entity (opid) on delete restrict,
     hash         text not null check (hash ~ '^[0-9a-f]{64}$'),
     body         jsonb not null,
@@ -298,10 +307,12 @@ create table record (
     live_key     text generated always as (case when withdrawn_at is null then key end) stored,
 
     primary key (source, key),
-    unique (source, live_key)
+    unique (source, live_key),
+    foreign key (source, feed) references feed (source, url) on delete restrict
 );
 
 create index record_entity on record (opid);
+create index record_live_in_feed on record (source, feed) where withdrawn_at is null;
 
 -- -------------------------------------------------------------- claims
 

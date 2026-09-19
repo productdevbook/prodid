@@ -83,12 +83,23 @@ export function checkFetchable(url: string): FetchCheck {
 	return host === null ? { ok: false, reason: 'not-a-dns-name' } : { ok: true, host }
 }
 
-/** A redirect may only stay on the host the crawler asked for, or add the `www.` label to it. */
+/**
+ * The one redirect a crawl may follow: the same document, over https, on the host it asked for or
+ * on that host with `www.` added. Same path and same query, so a redirect can never turn a fetch of
+ * the discovery document into a fetch of something else; never the reverse of `www.`, never deeper.
+ */
 export function isRedirectAllowed(from: string, to: string): boolean {
 	const source = checkFetchable(from)
 	const target = checkFetchable(to)
 	if (!source.ok || !target.ok) return false
-	return target.host === source.host || target.host === `www.${source.host}`
+
+	const asked = new URL(from)
+	const sent = new URL(to)
+	if (asked.pathname !== sent.pathname || asked.search !== sent.search) return false
+	if (asked.hash !== '' || sent.hash !== '') return false
+
+	if (target.host === source.host) return true
+	return !source.host.startsWith('www.') && target.host === `www.${source.host}`
 }
 
 // --- the TXT record --------------------------------------------------------

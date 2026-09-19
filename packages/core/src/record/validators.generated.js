@@ -1111,7 +1111,7 @@ return errors === 0;
 validate20.evaluated = {"props":true,"dynamicProps":false,"dynamicItems":false};
 
 export const feed = validate21;
-const schema35 = {"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://prodid.org/schemas/v0/org.prodid.feed.json","title":"org.prodid.feed","description":"Discovery document served at /.well-known/prodid.json. The source identity is the domain it speaks for, which is the domain serving it unless the document was reached through a _prodid DNS TXT record.","type":"object","required":["$type","version","publisher","license","feeds"],"additionalProperties":false,"properties":{"$type":{"const":"org.prodid.feed"},"version":{"const":0},"domain":{"description":"The domain this document speaks for. Required, and equal to the delegating domain, whenever the document is reached through a _prodid TXT record naming a host other than the domain itself; a delegated document without it is rejected. It may be absent only when the domain serves the document itself. A document naming a domain that does not delegate to this host speaks for nobody and is ignored. Lowercase hostname: labels and dots, at least two labels, no scheme, no port, no path, never an IP literal.","type":"string","maxLength":253,"pattern":"^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]([a-z0-9-]{0,61}[a-z0-9])?$"},"publisher":{"type":"object","required":["name"],"additionalProperties":false,"properties":{"name":{"type":"string","minLength":1,"maxLength":256},"contact":{"type":"string","format":"email"}}},"license":{"description":"SPDX license identifier covering the facts in the feeds.","type":"string","minLength":1,"maxLength":64},"feeds":{"description":"NDJSON files, one org.prodid.item record per line. Every feed must be served from the same host as the discovery document; a document listing a feed on any other host is rejected whole.","type":"array","minItems":1,"uniqueItems":true,"items":{"type":"string","format":"uri","pattern":"^https://"}}}};
+const schema35 = {"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://prodid.org/schemas/v0/org.prodid.feed.json","title":"org.prodid.feed","description":"Discovery document served at /.well-known/prodid.json. The source identity is the domain it speaks for, which is the domain serving it unless the document was reached through a _prodid DNS TXT record.","type":"object","required":["$type","version","publisher","license","feeds"],"additionalProperties":false,"properties":{"$type":{"const":"org.prodid.feed"},"version":{"const":0},"domain":{"description":"The domain this document speaks for. Required, and equal to the delegating domain, whenever the document is reached through a _prodid TXT record naming a host other than the domain itself; a delegated document without it is rejected. It may be absent only when the domain serves the document itself. A document naming a domain that does not delegate to this host speaks for nobody and is ignored. Lowercase hostname: labels and dots, at least two labels, no scheme, no port, no path, never an IP literal.","type":"string","maxLength":253,"pattern":"^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]([a-z0-9-]{0,61}[a-z0-9])?$"},"publisher":{"type":"object","required":["name"],"additionalProperties":false,"properties":{"name":{"type":"string","minLength":1,"maxLength":256},"contact":{"type":"string","format":"email"}}},"license":{"description":"SPDX license identifier covering the facts in the feeds.","type":"string","minLength":1,"maxLength":64},"feeds":{"description":"NDJSON files, one org.prodid.item record per line. Every feed must be served from the same host as the discovery document; a document listing a feed on any other host, or more than 100 of them, is rejected whole.","type":"array","minItems":1,"maxItems":100,"uniqueItems":true,"items":{"type":"string","format":"uri","pattern":"^https://"}}}};
 const pattern13 = new RegExp("^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]([a-z0-9-]{0,61}[a-z0-9])?$", "u");
 const formats2 = /^[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/i;
 
@@ -1383,8 +1383,8 @@ errors++;
 if(data.feeds !== undefined){
 let data7 = data.feeds;
 if(Array.isArray(data7)){
-if(data7.length < 1){
-const err22 = {instancePath:instancePath+"/feeds",schemaPath:"#/properties/feeds/minItems",keyword:"minItems",params:{limit: 1},message:"must NOT have fewer than 1 items"};
+if(data7.length > 100){
+const err22 = {instancePath:instancePath+"/feeds",schemaPath:"#/properties/feeds/maxItems",keyword:"maxItems",params:{limit: 100},message:"must NOT have more than 100 items"};
 if(vErrors === null){
 vErrors = [err22];
 }
@@ -1393,12 +1393,8 @@ vErrors.push(err22);
 }
 errors++;
 }
-const len0 = data7.length;
-for(let i0=0; i0<len0; i0++){
-let data8 = data7[i0];
-if(typeof data8 === "string"){
-if(!pattern12.test(data8)){
-const err23 = {instancePath:instancePath+"/feeds/" + i0,schemaPath:"#/properties/feeds/items/pattern",keyword:"pattern",params:{pattern: "^https://"},message:"must match pattern \""+"^https://"+"\""};
+if(data7.length < 1){
+const err23 = {instancePath:instancePath+"/feeds",schemaPath:"#/properties/feeds/minItems",keyword:"minItems",params:{limit: 1},message:"must NOT have fewer than 1 items"};
 if(vErrors === null){
 vErrors = [err23];
 }
@@ -1407,8 +1403,12 @@ vErrors.push(err23);
 }
 errors++;
 }
-if(!(formats0(data8))){
-const err24 = {instancePath:instancePath+"/feeds/" + i0,schemaPath:"#/properties/feeds/items/format",keyword:"format",params:{format: "uri"},message:"must match format \""+"uri"+"\""};
+const len0 = data7.length;
+for(let i0=0; i0<len0; i0++){
+let data8 = data7[i0];
+if(typeof data8 === "string"){
+if(!pattern12.test(data8)){
+const err24 = {instancePath:instancePath+"/feeds/" + i0,schemaPath:"#/properties/feeds/items/pattern",keyword:"pattern",params:{pattern: "^https://"},message:"must match pattern \""+"^https://"+"\""};
 if(vErrors === null){
 vErrors = [err24];
 }
@@ -1417,14 +1417,24 @@ vErrors.push(err24);
 }
 errors++;
 }
-}
-else {
-const err25 = {instancePath:instancePath+"/feeds/" + i0,schemaPath:"#/properties/feeds/items/type",keyword:"type",params:{type: "string"},message:"must be string"};
+if(!(formats0(data8))){
+const err25 = {instancePath:instancePath+"/feeds/" + i0,schemaPath:"#/properties/feeds/items/format",keyword:"format",params:{format: "uri"},message:"must match format \""+"uri"+"\""};
 if(vErrors === null){
 vErrors = [err25];
 }
 else {
 vErrors.push(err25);
+}
+errors++;
+}
+}
+else {
+const err26 = {instancePath:instancePath+"/feeds/" + i0,schemaPath:"#/properties/feeds/items/type",keyword:"type",params:{type: "string"},message:"must be string"};
+if(vErrors === null){
+vErrors = [err26];
+}
+else {
+vErrors.push(err26);
 }
 errors++;
 }
@@ -1440,12 +1450,12 @@ continue;
 }
 if(typeof indices0[item0] == "number"){
 j0 = indices0[item0];
-const err26 = {instancePath:instancePath+"/feeds",schemaPath:"#/properties/feeds/uniqueItems",keyword:"uniqueItems",params:{i: i1, j: j0},message:"must NOT have duplicate items (items ## "+j0+" and "+i1+" are identical)"};
+const err27 = {instancePath:instancePath+"/feeds",schemaPath:"#/properties/feeds/uniqueItems",keyword:"uniqueItems",params:{i: i1, j: j0},message:"must NOT have duplicate items (items ## "+j0+" and "+i1+" are identical)"};
 if(vErrors === null){
-vErrors = [err26];
+vErrors = [err27];
 }
 else {
-vErrors.push(err26);
+vErrors.push(err27);
 }
 errors++;
 break;
@@ -1455,24 +1465,24 @@ indices0[item0] = i1;
 }
 }
 else {
-const err27 = {instancePath:instancePath+"/feeds",schemaPath:"#/properties/feeds/type",keyword:"type",params:{type: "array"},message:"must be array"};
+const err28 = {instancePath:instancePath+"/feeds",schemaPath:"#/properties/feeds/type",keyword:"type",params:{type: "array"},message:"must be array"};
 if(vErrors === null){
-vErrors = [err27];
+vErrors = [err28];
 }
 else {
-vErrors.push(err27);
+vErrors.push(err28);
 }
 errors++;
 }
 }
 }
 else {
-const err28 = {instancePath,schemaPath:"#/type",keyword:"type",params:{type: "object"},message:"must be object"};
+const err29 = {instancePath,schemaPath:"#/type",keyword:"type",params:{type: "object"},message:"must be object"};
 if(vErrors === null){
-vErrors = [err28];
+vErrors = [err29];
 }
 else {
-vErrors.push(err28);
+vErrors.push(err29);
 }
 errors++;
 }
@@ -3586,10 +3596,10 @@ return errors === 0;
 validate22.evaluated = {"props":true,"dynamicProps":false,"dynamicItems":false};
 
 export const source = validate27;
-const schema53 = {"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://prodid.org/schemas/v0/org.prodid.source.json","title":"org.prodid.source","description":"The public status of one source: who it is, how its control was proven, whether it has lapsed, and what the last crawl saw. It reports only what the source itself publishes and when the index looked; never who asked for a crawl.","type":"object","required":["$type","name","kind","trust","lapsed"],"additionalProperties":false,"properties":{"$type":{"const":"org.prodid.source"},"name":{"description":"The identity: a domain, a slug host, or a dataset id.","type":"string","minLength":1,"maxLength":253},"kind":{"enum":["domain","hosted","dataset","community"]},"trust":{"enum":["authoritative","verified","unverified"]},"verified_by":{"description":"How domain control was proven. Present exactly when trust is above unverified.","$ref":"#/$defs/verifiedBy"},"verified_at":{"$ref":"#/$defs/timestamp"},"lapsed":{"type":"boolean"},"lapsed_at":{"description":"When discovery stopped succeeding. Present exactly while lapsed is true; 30 days after it, the source's active claims are withdrawn.","$ref":"#/$defs/timestamp"},"license":{"description":"SPDX license identifier the source publishes its facts under.","type":"string","minLength":1,"maxLength":64},"last_crawl":{"$ref":"#/$defs/crawl"}},"allOf":[{"if":{"required":["trust"],"properties":{"trust":{"enum":["authoritative","verified"]}}},"then":{"required":["verified_by","verified_at"],"properties":{"verified_by":{"$ref":"#/$defs/verifiedBy"},"verified_at":{"$ref":"#/$defs/timestamp"}}},"else":{"properties":{"verified_by":false,"verified_at":false}}},{"if":{"required":["kind"],"properties":{"kind":{"enum":["hosted","dataset","community"]}}},"then":{"properties":{"trust":{"const":"unverified"}}}},{"if":{"required":["lapsed"],"properties":{"lapsed":{"const":true}}},"then":{"required":["lapsed_at"],"properties":{"lapsed_at":{"$ref":"#/$defs/timestamp"}}},"else":{"properties":{"lapsed_at":false}}}],"$defs":{"timestamp":{"type":"string","format":"date-time"},"verifiedBy":{"enum":["well-known","dns-txt"]},"crawl":{"description":"The last discovery run. A crawl held back by the crawler's own rate limits is rescheduled and is not reported as an outcome.","type":"object","required":["at","outcome"],"additionalProperties":false,"allOf":[{"if":{"required":["outcome"],"properties":{"outcome":{"const":"success"}}},"then":{"properties":{"http_status":{"enum":[200,304]},"feeds_failed":{"const":0}}}},{"if":{"required":["outcome"],"properties":{"outcome":{"const":"transport-failure"}}},"then":{"properties":{"http_status":{"$ref":"#/$defs/failureStatus"}}}}],"properties":{"at":{"$ref":"#/$defs/timestamp"},"via":{"enum":["well-known","dns-txt"]},"document_url":{"description":"The discovery document this crawl asked for. Shown only for the host the source was last verified at, so the status of one source can never report how a host someone else chose answers the crawler.","type":"string","format":"uri","pattern":"^https://"},"outcome":{"description":"success: an acceptable document and every feed it lists read. definite-negative: discovery ended with no acceptable document, which lapses the source at once. transport-failure: something could not be read, including a feed, and nothing could be concluded.","enum":["success","definite-negative","transport-failure"]},"http_status":{"description":"The status of the discovery document fetch, when there was one, and only for the host the source was last verified at. The crawler's own error text is never published.","type":"integer","minimum":100,"maximum":599},"records_seen":{"type":"integer","minimum":0},"records_changed":{"description":"Records whose body changed since the last crawl. Never more than records_seen.","type":"integer","minimum":0},"lines_skipped":{"description":"Feed lines that were too long, unparseable or invalid. While this is above zero, absent keys are not withdrawn, for at most seven days.","type":"integer","minimum":0},"feeds_failed":{"description":"Feeds the document lists that could not be read. Above zero makes the crawl a transport failure, so seven days of it lapses the source; the feeds that did answer are still ingested and none of them withdraws anything.","type":"integer","minimum":0}}},"failureStatus":{"description":"What a transport failure can carry: a status that says nothing was concluded, or none at all.","type":"integer","oneOf":[{"const":429},{"minimum":500,"maximum":599}]}}};
+const schema53 = {"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://prodid.org/schemas/v0/org.prodid.source.json","title":"org.prodid.source","description":"The public status of one source: who it is, how its control was proven, whether it has lapsed, and what the last crawl saw. It reports only what the source itself publishes and when the index looked; never who asked for a crawl.","type":"object","required":["$type","name","kind","trust","lapsed"],"additionalProperties":false,"properties":{"$type":{"const":"org.prodid.source"},"name":{"description":"The identity: a domain, a slug host, or a dataset id.","type":"string","minLength":1,"maxLength":253},"kind":{"enum":["domain","hosted","dataset","community"]},"trust":{"enum":["authoritative","verified","unverified"]},"verified_by":{"description":"How domain control was proven. Present exactly when trust is above unverified.","$ref":"#/$defs/verifiedBy"},"verified_at":{"$ref":"#/$defs/timestamp"},"lapsed":{"type":"boolean"},"lapsed_at":{"description":"When discovery stopped succeeding. Present exactly while lapsed is true; 30 days after it, the source's active claims are withdrawn.","$ref":"#/$defs/timestamp"},"license":{"description":"SPDX license identifier the source publishes its facts under.","type":"string","minLength":1,"maxLength":64},"last_crawl":{"$ref":"#/$defs/crawl"}},"allOf":[{"if":{"required":["trust"],"properties":{"trust":{"enum":["authoritative","verified"]}}},"then":{"required":["verified_by","verified_at"],"properties":{"verified_by":{"$ref":"#/$defs/verifiedBy"},"verified_at":{"$ref":"#/$defs/timestamp"}}},"else":{"properties":{"verified_by":false,"verified_at":false}}},{"if":{"required":["kind"],"properties":{"kind":{"enum":["hosted","dataset","community"]}}},"then":{"properties":{"trust":{"const":"unverified"}}}},{"if":{"required":["lapsed"],"properties":{"lapsed":{"const":true}}},"then":{"required":["lapsed_at"],"properties":{"lapsed_at":{"$ref":"#/$defs/timestamp"}}},"else":{"properties":{"lapsed_at":false}}}],"$defs":{"timestamp":{"type":"string","format":"date-time"},"verifiedBy":{"enum":["well-known","dns-txt"]},"crawl":{"description":"The last discovery run. A crawl held back by the crawler's own rate limits is rescheduled and is not reported as an outcome.","type":"object","required":["at","outcome"],"additionalProperties":false,"allOf":[{"if":{"required":["outcome"],"properties":{"outcome":{"const":"success"}}},"then":{"properties":{"http_status":{"enum":[200,304]},"feeds_failed":{"const":0}}}},{"if":{"required":["outcome"],"properties":{"outcome":{"const":"transport-failure"}}},"then":{"properties":{"http_status":{"$ref":"#/$defs/failureStatus"}}}}],"properties":{"at":{"$ref":"#/$defs/timestamp"},"via":{"enum":["well-known","dns-txt"]},"document_url":{"description":"The discovery document this crawl asked for. Shown only for the host the source was last verified at, so the status of one source can never report how a host someone else chose answers the crawler.","type":"string","format":"uri","pattern":"^https://"},"outcome":{"description":"success: an acceptable document and every feed it lists read. definite-negative: discovery ended with no acceptable document — either none was found at all, or one was fetched and refused — which lapses the source at once. transport-failure: something could not be read, including a feed, and nothing could be concluded.","enum":["success","definite-negative","transport-failure"]},"http_status":{"description":"The status of the discovery document fetch, when there was one, and only for the host the source was last verified at. The crawler's own error text is never published.","type":"integer","minimum":100,"maximum":599},"records_seen":{"type":"integer","minimum":0},"records_changed":{"description":"Records whose body changed since the last crawl. Never more than records_seen.","type":"integer","minimum":0},"lines_skipped":{"description":"Feed lines that were too long, unparseable or invalid. While this is above zero, absent keys are not withdrawn, for at most seven days.","type":"integer","minimum":0},"feeds_failed":{"description":"Feeds the document lists that could not be read. Above zero makes the crawl a transport failure, so seven days of it lapses the source; the feeds that did answer are still ingested and none of them withdraws anything.","type":"integer","minimum":0}}},"failureStatus":{"description":"What a transport failure can carry: a status that says nothing was concluded, or none at all.","type":"integer","oneOf":[{"const":429},{"minimum":500,"maximum":599}]}}};
 const schema54 = {"enum":["well-known","dns-txt"]};
 const schema55 = {"type":"string","format":"date-time"};
-const schema60 = {"description":"The last discovery run. A crawl held back by the crawler's own rate limits is rescheduled and is not reported as an outcome.","type":"object","required":["at","outcome"],"additionalProperties":false,"allOf":[{"if":{"required":["outcome"],"properties":{"outcome":{"const":"success"}}},"then":{"properties":{"http_status":{"enum":[200,304]},"feeds_failed":{"const":0}}}},{"if":{"required":["outcome"],"properties":{"outcome":{"const":"transport-failure"}}},"then":{"properties":{"http_status":{"$ref":"#/$defs/failureStatus"}}}}],"properties":{"at":{"$ref":"#/$defs/timestamp"},"via":{"enum":["well-known","dns-txt"]},"document_url":{"description":"The discovery document this crawl asked for. Shown only for the host the source was last verified at, so the status of one source can never report how a host someone else chose answers the crawler.","type":"string","format":"uri","pattern":"^https://"},"outcome":{"description":"success: an acceptable document and every feed it lists read. definite-negative: discovery ended with no acceptable document, which lapses the source at once. transport-failure: something could not be read, including a feed, and nothing could be concluded.","enum":["success","definite-negative","transport-failure"]},"http_status":{"description":"The status of the discovery document fetch, when there was one, and only for the host the source was last verified at. The crawler's own error text is never published.","type":"integer","minimum":100,"maximum":599},"records_seen":{"type":"integer","minimum":0},"records_changed":{"description":"Records whose body changed since the last crawl. Never more than records_seen.","type":"integer","minimum":0},"lines_skipped":{"description":"Feed lines that were too long, unparseable or invalid. While this is above zero, absent keys are not withdrawn, for at most seven days.","type":"integer","minimum":0},"feeds_failed":{"description":"Feeds the document lists that could not be read. Above zero makes the crawl a transport failure, so seven days of it lapses the source; the feeds that did answer are still ingested and none of them withdraws anything.","type":"integer","minimum":0}}};
+const schema60 = {"description":"The last discovery run. A crawl held back by the crawler's own rate limits is rescheduled and is not reported as an outcome.","type":"object","required":["at","outcome"],"additionalProperties":false,"allOf":[{"if":{"required":["outcome"],"properties":{"outcome":{"const":"success"}}},"then":{"properties":{"http_status":{"enum":[200,304]},"feeds_failed":{"const":0}}}},{"if":{"required":["outcome"],"properties":{"outcome":{"const":"transport-failure"}}},"then":{"properties":{"http_status":{"$ref":"#/$defs/failureStatus"}}}}],"properties":{"at":{"$ref":"#/$defs/timestamp"},"via":{"enum":["well-known","dns-txt"]},"document_url":{"description":"The discovery document this crawl asked for. Shown only for the host the source was last verified at, so the status of one source can never report how a host someone else chose answers the crawler.","type":"string","format":"uri","pattern":"^https://"},"outcome":{"description":"success: an acceptable document and every feed it lists read. definite-negative: discovery ended with no acceptable document — either none was found at all, or one was fetched and refused — which lapses the source at once. transport-failure: something could not be read, including a feed, and nothing could be concluded.","enum":["success","definite-negative","transport-failure"]},"http_status":{"description":"The status of the discovery document fetch, when there was one, and only for the host the source was last verified at. The crawler's own error text is never published.","type":"integer","minimum":100,"maximum":599},"records_seen":{"type":"integer","minimum":0},"records_changed":{"description":"Records whose body changed since the last crawl. Never more than records_seen.","type":"integer","minimum":0},"lines_skipped":{"description":"Feed lines that were too long, unparseable or invalid. While this is above zero, absent keys are not withdrawn, for at most seven days.","type":"integer","minimum":0},"feeds_failed":{"description":"Feeds the document lists that could not be read. Above zero makes the crawl a transport failure, so seven days of it lapses the source; the feeds that did answer are still ingested and none of them withdraws anything.","type":"integer","minimum":0}}};
 const schema61 = {"description":"What a transport failure can carry: a status that says nothing was concluded, or none at all.","type":"integer","oneOf":[{"const":429},{"minimum":500,"maximum":599}]};
 
 function validate28(data, {instancePath="", parentData, parentDataProperty, rootData=data, dynamicAnchors={}}={}){

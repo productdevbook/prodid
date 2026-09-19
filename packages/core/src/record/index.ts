@@ -21,6 +21,7 @@ export type {
 	FeedRecord,
 	ItemRecord,
 	MediaEntry,
+	MediaValue,
 	PropertyValue,
 	RecordIdentifier,
 	SourceKind,

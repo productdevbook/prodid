@@ -172,6 +172,24 @@ async function crawls(sql: Sql, source: string): Promise<string> {
 	)
 
 	await accepts(
+		'a crawl records failed feeds and identifier conflicts',
+		() => sql`
+      insert into crawl (source, via, finished_at, outcome, feeds_failed, conflicts)
+      values (${source}, 'dns-txt', now(), 'changed', 1, ${sql.json([
+				{ key: 'jacket-navy-m', gtin: '00012345678905', opid: 'fam0000000000000', mpn: 'var0000000000000' },
+			])})
+    `,
+	)
+
+	await rejects(
+		'a negative feeds_failed is rejected',
+		() => sql`
+      insert into crawl (source, via, finished_at, outcome, feeds_failed)
+      values (${source}, 'dns-txt', now(), 'changed', -1)
+    `,
+	)
+
+	await accepts(
 		'a crawl that found no discovery path inserts without a via',
 		() => sql`
       insert into crawl (source, finished_at, outcome, error)
@@ -468,6 +486,34 @@ async function records(sql: Sql, source: string, built: Chain): Promise<string> 
       values (${source}, ${key}, ${built.variant}, ${HASH}, '{}'::jsonb)
     `,
 	)
+
+	await accepts(
+		'a record can name the feed it was read from',
+		() => sql`
+      insert into record (source, key, feed, opid, hash, body)
+      values (${source}, 'jacket-navy-l', 'https://acme.example/feed.ndjson', ${built.item}, ${HASH}, '{}'::jsonb)
+    `,
+	)
+
+	await rejects(
+		'a record naming a url that is not a feed of its source is rejected',
+		() => sql`
+      insert into record (source, key, feed, opid, hash, body)
+      values (${source}, 'jacket-navy-s', 'https://acme.example/nowhere.ndjson', ${built.item}, ${HASH}, '{}'::jsonb)
+    `,
+	)
+
+	await rejects(
+		'a feed cannot be deleted while a record still names it',
+		() => sql`delete from feed where source = ${source} and url = 'https://acme.example/feed.ndjson'`,
+	)
+
+	const [imported] = await sql<{ feed: string | null }[]>`
+    insert into record (source, key, opid, hash, body)
+    values (${source}, 'dataset-row-1', ${built.item}, ${HASH}, '{}'::jsonb)
+    returning feed
+  `
+	equals('a record that came from no fetched url has a null feed', imported?.feed, null)
 
 	return key
 }
