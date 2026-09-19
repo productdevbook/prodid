@@ -15,6 +15,7 @@
 		"http_status": 200,
 		"records_seen": 3,
 		"records_changed": 1,
-		"lines_skipped": 0
+		"lines_skipped": 0,
+		"feeds_failed": 0
 	}
 }

@@ -80,6 +80,14 @@ describe('strings that cannot be stored', () => {
 		expect(() => canonicalize([1, { deep: ['\uDFFF'] }])).toThrow(TypeError)
 	})
 
+	test('refuses U+0000, which jsonb cannot hold either', () => {
+		// Index-derived claims reach the database through canonicalize alone: nothing else checks them.
+		expect(() => canonicalize('T\u0000R')).toThrow(TypeError)
+		expect(() => canonicalize({ madeIn: 'T\u0000R' })).toThrow(TypeError)
+		expect(() => canonicalize({ 'a\u0000b': 1 })).toThrow(TypeError)
+		expect(() => canonicalize([{ deep: ['\u0000'] }])).toThrow(TypeError)
+	})
+
 	test('refuses a key that is not well-formed', () => {
 		expect(() => canonicalize({ '\uD800': 1 })).toThrow(TypeError)
 	})

@@ -326,6 +326,50 @@ async function sameGroup(sql: Sql, source: string, s1: ReservedSql, s2: Reserved
 	return counts
 }
 
+async function lockRelease(admin: Sql, base: URL): Promise<void> {
+	const scenario = 'a failed migration releases the advisory lock'
+	const name = `prodid_race_${randomBytes(8).toString('hex')}`
+	await admin.unsafe(`create database "${name}"`)
+	const target = new URL(base.toString())
+	target.pathname = `/${name}`
+
+	const holder = postgres(target.toString(), { max: 1 })
+	const other = postgres(target.toString(), { max: 1 })
+	const watcher = postgres(target.toString(), { max: 1 })
+	try {
+		await holder.unsafe('create table source (blocker int)')
+
+		const broken = await attempt(migrate(holder))
+		if (!broken) {
+			fail(scenario, 0, 'the migration was expected to fail and did not')
+			return
+		}
+
+		const [locks] = await watcher<{ n: number }[]>`
+      select count(*)::int as n from pg_locks
+      where locktype = 'advisory'
+        and database = (select oid from pg_database where datname = current_database())
+    `
+		if (locks?.n !== 0) fail(scenario, 0, `${locks?.n} advisory locks still held after the failure`)
+
+		const started = Date.now()
+		const second = await Promise.race([
+			attempt(migrate(other)),
+			new Promise<Outcome>((resolve) => setTimeout(() => resolve(new Error('hung')), 5000)),
+		])
+		const took = Date.now() - started
+
+		if (second === null) fail(scenario, 0, 'the second run unexpectedly succeeded')
+		else if (second.message === 'hung') fail(scenario, 0, 'the second run hung on a leaked lock')
+		else console.log(`ok    ${scenario}: a second run on another pool failed in ${took} ms instead of hanging`)
+	} finally {
+		// timeout 0: when this test fails, one migration is still stuck on the leaked lock and a
+		// graceful end would wait for it, turning a failure into a hang
+		await Promise.all([holder, other, watcher].map((client) => client.end({ timeout: 0 })))
+		await admin.unsafe(`drop database if exists "${name}" with (force)`)
+	}
+}
+
 async function db10(admin: Sql, base: URL): Promise<void> {
 	const scenario = 'DB-10 concurrent migrations'
 	let applied = 0
@@ -421,6 +465,7 @@ try {
 		await Promise.all([sql.end(), one.end(), two.end()])
 	}
 
+	await lockRelease(admin, new URL(url))
 	await db10(admin, new URL(url))
 } finally {
 	await admin.unsafe(`drop database if exists "${name}" with (force)`)

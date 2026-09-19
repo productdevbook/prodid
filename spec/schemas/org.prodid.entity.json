@@ -52,7 +52,8 @@
 						"type": "object",
 						"required": ["family", "variant"],
 						"properties": { "family": { "$ref": "#/$defs/opid" }, "variant": { "$ref": "#/$defs/opid" } }
-					}
+					},
+					"children": false
 				}
 			}
 		},
@@ -61,7 +62,11 @@
 			"then": {
 				"required": ["parents"],
 				"properties": {
-					"parents": { "type": "object", "required": ["family"], "properties": { "family": { "$ref": "#/$defs/opid" } } }
+					"parents": {
+						"type": "object",
+						"required": ["family"],
+						"properties": { "family": { "$ref": "#/$defs/opid" }, "variant": false }
+					}
 				}
 			}
 		},
@@ -80,21 +85,37 @@
 			"type": "object",
 			"required": ["scheme", "value"],
 			"additionalProperties": false,
+			"allOf": [
+				{
+					"if": { "required": ["scheme"], "properties": { "scheme": { "enum": ["mpn", "sku", "rcn"] } } },
+					"then": { "required": ["scope"], "properties": { "scope": { "$ref": "#/$defs/scope" } } },
+					"else": { "properties": { "scope": false } }
+				},
+				{
+					"if": { "required": ["scheme"], "properties": { "scheme": { "enum": ["gtin", "rcn"] } } },
+					"then": { "properties": { "value": { "$ref": "#/$defs/gtinValue" } } }
+				}
+			],
 			"properties": {
 				"scheme": { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,31}$" },
 				"value": {
-					"description": "Normalized: a GTIN is the 14-digit form, left-padded with zeros.",
+					"description": "Normalized: a GTIN or a restricted circulation number is the 14-digit form, left-padded with zeros.",
 					"type": "string",
 					"minLength": 1,
 					"maxLength": 256
 				},
 				"scope": {
-					"description": "What the value is unique within. Absent for a global scheme, the brand for mpn, the source for sku.",
-					"type": "string",
-					"minLength": 1,
-					"maxLength": 256
+					"description": "What the value is unique within. Required for mpn, sku and rcn, and present for nothing else: the normalized brand for mpn, the source's name for sku and rcn. Without it a restricted number would read as a global one.",
+					"$ref": "#/$defs/scope"
 				}
 			}
+		},
+		"scope": { "type": "string", "minLength": 1, "maxLength": 256 },
+		"gtinValue": {
+			"description": "The normalized 14-digit form. All zeros is a placeholder, not an identifier.",
+			"type": "string",
+			"pattern": "^[0-9]{14}$",
+			"not": { "const": "00000000000000" }
 		},
 		"claim": {
 			"type": "object",

@@ -99,3 +99,75 @@ describe('brand vectors', () => {
 		expect(scoped('ARÇELİK')).toBe(scoped('Arçelik')!)
 	})
 })
+
+describe('normalizeBrand is idempotent', () => {
+	const ALPHABET = [
+		'i',
+		'I',
+		'İ',
+		'ı',
+		'̇',
+		'̧',
+		'́',
+		'̈',
+		'̣',
+		's',
+		'ş',
+		'Ş',
+		'c',
+		'ç',
+		'Ç',
+		'g',
+		'ğ',
+		'o',
+		'ö',
+		'u',
+		'ü',
+		'a',
+		'A',
+		' ',
+		'\t',
+		' ',
+		'　',
+		' ',
+		'ﬁ',
+		'Ａ',
+		'ｉ',
+		'ĳ',
+		'ḭ',
+		'ị',
+		'İ',
+		'K',
+		'ß',
+		'ẞ',
+		'-',
+		'.',
+		'1',
+	]
+
+	test('normalizing a second time changes nothing, over a Turkish and NFKC heavy sample', () => {
+		// The scope is stored once at ingest and recomputed by batch passes: the two must agree.
+		for (let i = 0; i < 50_000; i += 1) {
+			let brand = ''
+			for (let j = 0, length = 1 + Math.floor(Math.random() * 8); j < length; j += 1) {
+				brand += ALPHABET[Math.floor(Math.random() * ALPHABET.length)]
+			}
+			const once = normalizeBrand(brand)
+			const twice = normalizeBrand(once)
+			if (once !== twice) throw new Error(`${JSON.stringify(brand)} normalized to ${JSON.stringify(once)} then ${JSON.stringify(twice)}`)
+		}
+	})
+
+	test('folds a whole run of combining dots in one pass', () => {
+		const dot = '̇'
+		expect(normalizeBrand(`i${dot}${dot}`)).toBe('i')
+		expect(normalizeBrand(`i${dot}${dot}${dot}`)).toBe('i')
+		expect(normalizeBrand(`İ${dot}lik`)).toBe('ilik')
+		expect(normalizeBrand(`ı${dot}${dot}`)).toBe('i')
+	})
+
+	test('recomposes what folding the dotless i creates', () => {
+		expect(normalizeBrand('ı̈')).toBe('ï')
+		expect(normalizeBrand(normalizeBrand('ı̈'))).toBe('ï')
+	})
+})

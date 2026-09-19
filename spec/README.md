@@ -39,6 +39,8 @@ An identifier is a `{ scheme, value }` pair. Schemes are lowercase. Well-known s
 
 Unknown schemes are accepted and stored.
 
+`mpn`, `sku` and `rcn` are the scoped schemes: a value of one of them means nothing without the scope it belongs to, so a reader is always given both. The scope a reader sees is the normalized brand for `mpn` and the source's current name for `sku` and `rcn`. Every other scheme is global and carries no scope at all.
+
 ### Which GTINs are identifiers
 
 A correct check digit is not enough to make a number a global identifier.
@@ -65,10 +67,12 @@ Vectors: [`fixtures/gtin/`](fixtures/gtin), one file per case as `{ "value": "..
 
 1. Unicode NFKC;
 2. lowercase, locale-independent;
-3. `ı` (U+0131) becomes `i`, and a combining dot above (U+0307) directly after `i` is removed;
+3. `ı` (U+0131) becomes `i`, and every combining dot above (U+0307) in the run directly following an `i` is removed — the whole run, not one;
 4. runs of whitespace collapse to one space, and the ends are trimmed.
 
 Step 3 exists because locale-independent lowercasing turns `İ` (U+0130) into `i` + U+0307: without it `ARÇELİK` and `Arçelik` are two brands, and `IŞIK`, `Işık` and `ışık` are three — in this project's first market.
+
+Normalizing a normalized brand must return it unchanged. That is why step 3 takes the whole run: removing one dot at a time would make `İ̇lik` land on `i̇lik` and only then on `ilik`, and since the normalized brand is the `mpn` scope, a second pass would quietly move every `mpn` that brand ever published.
 
 | brand | normalized |
 | --- | --- |
@@ -77,6 +81,7 @@ Step 3 exists because locale-independent lowercasing turns `İ` (U+0130) into `i
 | `Acme  Tekstil` | `acme tekstil` |
 | `ARÇELİK`, `Arçelik` | `arçelik` |
 | `IŞIK`, `Işık`, `ışık` | `işik` |
+| `İ̇lik` (U+0130 U+0307) | `ilik` |
 
 The normalized form is what `scope` carries in a resolver response; the brand as the publisher wrote it stays in the `brand` claim. Vectors: [`fixtures/brand/`](fixtures/brand), as `{ "input": "...", "normalized": "..." }`.
 
@@ -148,7 +153,7 @@ The grammar is necessary, not sufficient. In addition:
 
 Because the record names a host and the path is fixed, there is nothing in it that can express a port, a path, a query, a fragment, userinfo or a scheme; a value carrying any of them is simply not a hostname, so the record is malformed.
 
-Delegations:
+Delegations, every one of them to `acme.prodid.org`:
 
 ```
 v=prodid0; host=acme.prodid.org
@@ -156,7 +161,10 @@ v=prodid0;host=acme.prodid.org
   v=prodid0 ;  host = acme.prodid.org
 v=prodid0; host=acme.prodid.org;
 v=prodid0; host=acme.prodid.org; contact=data@acme.example
+v=prodid0; host=ACME.prodid.org.
 ```
+
+The last one is the normalization at work: the case and the trailing dot are how a DNS panel writes the same name.
 
 Malformed, so discovery fails:
 
@@ -164,7 +172,8 @@ Malformed, so discovery fails:
 v=prodid0
 v=prodid0; host=acme.prodid.org; host=evil.example
 v=prodid0; Host=acme.prodid.org
-v=prodid0; host=ACME.prodid.org
+v=prodid0; host=açme.example
+v=prodid0; host=acme.prodid.org..
 v=prodid0; host=192.0.2.10
 v=prodid0; host=acme.prodid.org:8443
 v=prodid0; host=https://acme.prodid.org
@@ -188,6 +197,8 @@ The discovery document ([schema](schemas/org.prodid.feed.json), [example](exampl
 A feed is NDJSON: one [`org.prodid.item`](schemas/org.prodid.item.json) record per line ([one record](examples/item.jacket.json), [a feed](examples/items.ndjson)). The index validates every line and records each field as a claim made by the source domain.
 
 A line that is over the size cap, unparseable or invalid is skipped and counted. Because a skipped line's key is unknown, a feed with skipped lines withdraws nothing — but only for seven days. After seven days of crawls that keep skipping lines, absent keys are withdrawn as usual: a broken line may delay withdrawal, it may not disable it. The count is public in the source's status, so this never happens silently.
+
+A feed that cannot be fetched at all is a different failure and has its own bound: the crawl becomes a [transport failure](#lapse), which lapses the source after seven days of it.
 
 Two rules make a record invalid that the schemas cannot express, and a record that breaks either is skipped like any other:
 
@@ -267,15 +278,26 @@ Rate limits:
 | discovery of one domain | 1 per 10 minutes |
 | first contact with domains sharing one registrable domain | 1000 per hour |
 | ping requests from one caller | 60 per hour |
-| fetches of one host, crawler-wide | 60 per minute, of which at most 20 per minute serve discovery for domains not yet verified at that host |
+| fetches of one host, crawler-wide | two lanes, below |
 
 A caller is a client address: an IPv4 /32 or an IPv6 /64.
 
-The per-host budget has two lanes. Crawls of sources already verified at a host keep 40 fetches per minute that discovery on behalf of unverified domains cannot touch, so pointing thousands of strangers' domains at a publisher's host cannot starve that publisher's own crawl. A fetch held back by either lane is deferred and rescheduled. Being deferred is not an outcome: it is not a failure, not a negative, and never a lapse.
+The per-host budget has two lanes, and both grow with `v`, the number of sources currently verified at that host:
 
-**A platform introducing 100 000 merchants.** 100 000 domains at 1000 per request is 100 requests; at 60 requests per hour one caller is done in 1 hour 40 minutes. Merchants have their own registrable domains, so the first-contact limit does not bind, and the per-domain limit binds only on a repeat within ten minutes.
+| lane | fetches per minute |
+| --- | --- |
+| crawls of sources already verified at the host | `max(40, v / 100)`, never above 600 |
+| discovery on behalf of domains not yet verified at the host | `max(20, v / 500)`, never above 200 |
 
-**An attacker aiming the crawler at a victim.** The same 100 requests are the attacker's ceiling too, and one ~24 KB request buys at most 1000 DNS lookups and 1000 document fetches of at most 1 MiB each — but only as fast as the victim's lane allows. At one host that is 20 fetches per minute, 1200 an hour, at most 20 MiB a minute, no matter how many domains, callers or zones are involved, and the host's verified crawls keep their 40 per minute throughout. Spreading the load instead of concentrating it runs into the other two limits: 1000 new names per hour per registrable domain, 60 000 domains per hour per caller, and nothing at all that the domains themselves do not publish.
+The verified lane is reserved: discovery for strangers cannot consume it, so pointing thousands of domains at a publisher's host cannot starve that publisher's own crawl. Growth is safe because `v` counts only sources whose discovery has succeeded at that host, which means a document there named them and they agreed — a host serving documents for thousands of domains has asked to be crawled. Domains an attacker points at a host it does not control never verify, so they never raise `v`, and a host nobody is verified at never gets more than the base 40 and 20. A fetch held back by either lane is deferred and rescheduled. Being deferred is not an outcome: it is not a failure, not a negative, and never a lapse.
+
+A crawl costs one fetch for the discovery document plus one per feed the document lists. First contact is a document fetch in the unverified lane; everything after it, for that source at that host, is in the verified lane.
+
+**A platform on its merchants' own domains.** The document for each merchant is served on that merchant's domain, so every host has its own budget and `v = 1`; nothing contends with anything. What bounds it is the ping: 100 000 domains at 1000 per request is 100 requests, and at 60 requests per hour one caller is done in **1 hour 40 minutes**. This is the topology to prefer where a platform can choose, and it is also the only one where a merchant can leave with its data path intact.
+
+**A platform delegating 100 000 merchants to one host.** Every first contact is in that host's unverified lane. It starts at the base 20 per minute and accelerates as merchants verify: 20/min until `v` reaches 10 000 (500 minutes, **8 hours**), then `v/500` per minute, which is exponential with a 500-minute time constant and covers the remaining 90 000 in `500 · ln 10` ≈ 1150 minutes (**19 hours**) — about **27 hours** in all, against 83 hours at a flat 20 per minute. After that the host is at `v = 100 000`, so the verified lane is at its 600-per-minute cap: a full re-crawl is 100 000 document fetches in under 3 hours, or about 5 and a half with one feed each, against 42 hours at a flat 40. The first day is the price of one host; per-merchant hosts do not pay it.
+
+**An attacker aiming the crawler at a victim host.** Nothing the attacker does raises `v` at a host it does not control, so the victim's unverified lane stays at the base 20 fetches per minute: 1200 an hour, at most 20 MiB a minute, no matter how many domains, callers or zones are involved — and the victim's own crawls keep their verified lane throughout. The attacker's own ceiling is the same 100 requests per 1 hour 40 minutes, each ~24 KB buying at most 1000 DNS lookups and 1000 document fetches of at most 1 MiB. Spreading the load instead of concentrating it runs into the other two limits: 1000 new names per hour per registrable domain, 60 000 domains per hour per caller, and nothing at all that the domains themselves do not publish.
 
 Every known source is re-crawled on a schedule; a ping only makes the next crawl happen sooner. Conditional requests are not a shortcut past discovery: discovery reruns in full, DNS included, and only once it has re-confirmed the path are the document and the feeds fetched with `If-None-Match` from the stored `ETag` and `If-Modified-Since` from the stored `Last-Modified`. A `304` then means that file has not changed. Publishers should serve `ETag` or `Last-Modified` on discovery documents and feeds.
 
@@ -283,13 +305,15 @@ Every known source is re-crawled on a schedule; a ping only makes the next crawl
 
 A source whose discovery stops succeeding is **lapsed**, not deleted.
 
+A crawl **succeeds** only when everything the document lists was read: an acceptable document, and every feed in it answered `200` or `304`.
+
 A **definite negative** is discovery ending with no acceptable document: no prodid record and no acceptable document on the domain; a prodid record that is malformed, over-long or duplicated; or a document that is rejected — not 200, not JSON, not valid, not agreeing about `domain`, or listing a feed off its host. It sets the lapse at once, with its timestamp, and readers see it.
 
-A **transport failure** is discovery being unable to conclude anything: DNS timeout or SERVFAIL, connection or TLS failure, 429, 5xx, a cap or a timeout reached. One changes nothing. Seven consecutive days in which every attempt ends this way set the lapse too, so serving errors forever is not a way to freeze claims where they are.
+A **transport failure** is a crawl that could not be completed: DNS timeout or SERVFAIL, connection or TLS failure, 429, 5xx, a cap or a timeout reached — on the document **or on any feed it lists**. One changes nothing. Seven consecutive days in which every attempt ends this way set the lapse too, so serving errors forever is not a way to freeze claims where they are.
 
-While a source is lapsed it makes no new claims, its existing claims stay readable and stay marked, and its `publisher.contact` is notified. After 30 days of continuous lapse its active claims are withdrawn; they remain as history. Any successful discovery clears the lapse. Those 30 days are the window in which a publisher can notice and put the record or the document back.
+A feed that cannot be read is therefore not a free pass. The feeds that did answer are still ingested, and no feed withdraws anything on a crawl that failed — but the crawl counts as a transport failure and `feeds_failed` says so in the source's status, so a valid document in front of a permanently broken feed lapses on the same seven-day clock as a domain that stopped answering at all. Nothing can hold a source's claims still and healthy-looking for ever.
 
-Lapse is decided by discovery alone. A feed that fails to fetch withdraws nothing and lapses nobody.
+While a source is lapsed it makes no new claims, its existing claims stay readable and stay marked, and its `publisher.contact` is notified. After 30 days of continuous lapse its active claims are withdrawn; they remain as history. Any successful discovery clears the lapse. Those 30 days are the window in which a publisher can notice and put the record, the document or the feed back.
 
 ### Identity continuity
 
@@ -374,7 +398,7 @@ A reader fetches `media_url`, which is immutable and always answers the same byt
 | --- | --- |
 | `GET /id/{opid}` | that entity |
 | `GET /01/{gtin}` | the item that GTIN identifies, with `Content-Location: /id/{opid}` |
-| `GET /source/{name}` | that source's status |
+| `GET /source/{name}` | that source's status, once it has one |
 
 All three answer `application/json` when the request accepts it and an HTML page otherwise.
 
@@ -409,7 +433,17 @@ An `opid` that was merged into another answers `308 Permanent Redirect` to `/id/
 
 The response has no bare fields. There is no top-level `name` or `brand`: every value a reader sees is inside a claim that carries its `source` — the source's identity, its `trust` and whether it is lapsed — and the `seen_at` at which that source first asserted it. Two sources disagreeing produce two claims, and choosing between them is the reader's decision, made with the source in hand.
 
-`parents` and `children` are the hierarchy as opids: an item names its variant and its family, a variant names its family and lists its items, a family lists its variants. Identifiers carry a `scope` when they are not globally unique — the brand for `mpn`, the source for `sku`. Property names are the namespaced ones above, so a reader can tell `name` from `properties.name` without guessing.
+`parents` and `children` are the hierarchy as opids: an item names its variant and its family, a variant names its family and lists its items, a family lists its variants and has no parents. An item has no children. Property names are the namespaced ones above, so a reader can tell `name` from `properties.name` without guessing.
+
+An identifier is global or scoped, never ambiguously either. `gtin` is the normalized 14-digit form, never all zeros, and carries no scope; `mpn`, `sku` and `rcn` carry a non-empty `scope` — the normalized brand, or the source's name — and nothing else carries one at all. That is what keeps a restricted number from reading as a global one, which is the whole reason `rcn` exists.
+
+Three rules hold that the schema cannot state, because each compares two values in the same document:
+
+- no `opid` appears in its own `parents`, `children` or `merged_from`;
+- `withdrawn_at` is never before `seen_at`;
+- a `media` claim's `media_url` addresses its own `sha256`.
+
+The conformance harness checks all three.
 
 ### A source's status
 
@@ -433,12 +467,20 @@ The response has no bare fields. There is no top-level `name` or `brand`: every 
     "http_status": 200,
     "records_seen": 3,
     "records_changed": 1,
-    "lines_skipped": 0
+    "lines_skipped": 0,
+    "feeds_failed": 0
   }
 }
 ```
 
-This is how a publisher sees that something is wrong: the outcome of the last crawl, how many lines were skipped, and whether the source is lapsed and since when. It reports only what the source itself publishes and when the index looked. It never reports who asked for a crawl, how often anyone asks, or the crawler's internal error text — nothing here can be used to learn anything about another caller.
+This is how a publisher sees that something is wrong: the outcome of the last crawl, how many lines were skipped, how many feeds could not be read, and whether the source is lapsed and since when. `trust` above `unverified` exists exactly when the proof does, so `verified_by` and `verified_at` are present together or not at all, and only a source whose identity is a domain can be more than `unverified`. `records_changed` is never more than `records_seen`, which is a rule the schema cannot state.
+
+Two things keep this page from becoming a probe:
+
+- **A domain becomes a source at its first successful discovery, not before.** Until then there is no row, and `/source/{name}` answers `404` — the same `404` as a name nobody has ever pinged. Pinging a domain therefore tells the caller nothing, because it creates nothing to read.
+- **`http_status` and `document_url` are shown only for the host the source was last verified at.** Otherwise anyone could register `evil.example`, point `_prodid` at a host they do not control, ping it, and read back through this page how that host answers — and the crawler's egress is not theirs, so the answer would see past address, network and geography blocks that the host set up on purpose. The assurance is not only that this page says nothing about other callers; it is that it says nothing about any host but the one this source is published from.
+
+It never reports who asked for a crawl, how often anyone asks, or the crawler's internal error text.
 
 ### Errors
 
@@ -481,7 +523,7 @@ The claim keeps the hash, the original URL, the license, the source and the fetc
 | [`fixtures/brand/`](fixtures/brand) | brand normalization |
 | [`fixtures/ndjson/`](fixtures/ndjson) | a feed and the line numbers that must be skipped |
 
-Every file in `fixtures/invalid/` has an entry in [`fixtures/expected.json`](fixtures/expected.json) naming the instance path, the schema keyword and, where it disambiguates, the error parameters that must reject it. A fixture that fails for a new and unrelated reason is a failure, not a pass. Two of the keywords name rules that live on top of the schemas rather than inside them: `storable` for a string that cannot be stored, `gtin` for a value that is not a GTIN.
+Every file in `fixtures/invalid/` has an entry in [`fixtures/expected.json`](fixtures/expected.json) naming the instance path, the schema keyword and, where it disambiguates, the error parameters that must reject it. A fixture that fails for a new and unrelated reason is a failure, not a pass. Five of the keywords name rules that live on top of the schemas rather than inside them, because JSON Schema cannot express them: `storable` for a string that cannot be stored, `gtin` for a value that is not a GTIN, `self-reference` for an entity that lists its own `opid`, `order` for a `withdrawn_at` before its `seen_at`, and `digest` for a `media_url` that does not address its claim's `sha256`.
 
 A TXT vector is `{ "value": [...], "outcome": "delegation" | "ignored" | "malformed", "host": "..." }`, where `value` is the RR's character-strings in order and `host` is the normalized host, present exactly when the outcome is `delegation`. The three outcomes are behavioural, not cosmetic: `ignored` means the RR is not a prodid record and discovery carries on without it, `malformed` means discovery fails.
 

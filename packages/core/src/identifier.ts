@@ -1,6 +1,11 @@
 import { parseGtin } from './gtin'
 import type { RecordIdentifier } from './record/types'
 
+// Written as escapes so the combining mark stays visible: U+0130 İ, U+0131 ı, U+0307 the dot above.
+const DOTTED_OR_DOTLESS_I = new RegExp('[\\u0130\\u0131]', 'gu')
+// The whole run of dots, not one: `i` + two dots has to fold in a single pass, or normalizing twice differs.
+const I_WITH_COMBINING_DOTS = new RegExp('i\\u0307+', 'gu')
+
 export interface NormalizedIdentifier {
 	scheme: string
 	scope: string
@@ -20,13 +25,18 @@ export interface IdentifierScope {
  * splitting them costs a publisher their MPN scope. A collision would also need the same MPN.
  */
 export function normalizeBrand(brand: string): string {
-	return brand
-		.normalize('NFKC')
-		.toLowerCase()
-		.replaceAll(/[İı]/gu, 'i')
-		.replaceAll(/i̇/gu, 'i')
-		.replaceAll(/\s+/gu, ' ')
-		.trim()
+	return (
+		brand
+			.normalize('NFKC')
+			.toLowerCase()
+			.replaceAll(DOTTED_OR_DOTLESS_I, 'i')
+			.replaceAll(I_WITH_COMBINING_DOTS, 'i')
+			.replaceAll(/\s+/gu, ' ')
+			.trim()
+			// Folding `ı` to `i` leaves a sequence NFKC can compose, such as `i` + U+0308 into `ï`, so the
+			// result is normalized once more. Without it, normalizing twice does not give the same scope.
+			.normalize('NFKC')
+	)
 }
 
 /** Normalizes a published identifier into the `(scheme, scope, value)` triple the index is unique on. */

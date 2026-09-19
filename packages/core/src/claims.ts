@@ -1,6 +1,11 @@
-import { canonicalize, type JsonValue } from './canonical'
+import { canonicalize, type JsonValue, sha256Hex } from './canonical'
 import { normalizeIdentifier, type NormalizedIdentifier } from './identifier'
 import type { ItemRecord, MediaEntry, PropertyValue, RecordIdentifier } from './record/types'
+
+/** Where the index serves a stored file, and the only shape a media claim's `media_url` may take. */
+export const MEDIA_URL_PREFIX = 'https://media.prodid.org/sha256/'
+
+const SHA256_HEX = /^[0-9a-f]{64}$/
 
 export interface Claim {
 	property: string
@@ -10,6 +15,12 @@ export interface Claim {
 }
 
 export interface GroupingKeys {
+	family: string
+	variant: string
+}
+
+/** The `grouping.key` values for a record: lowercase hex SHA-256 of each grouping key's UTF-8 bytes. */
+export interface GroupingDigests {
 	family: string
 	variant: string
 }
@@ -24,6 +35,12 @@ export interface DerivedRecord {
 	/** Identifiers that could not be normalized, such as a GTIN with a wrong check digit. */
 	rejected: RecordIdentifier[]
 	claims: Claim[]
+	/**
+	 * Media the publisher named, still to be fetched. It is not a claim yet and is kept out of
+	 * `claims` on purpose: a media claim carries the digest of the stored file, which only ingest
+	 * knows. Feed each entry to `mediaClaim` once the file is stored.
+	 */
+	media: MediaEntry[]
 	keys: GroupingKeys
 }
 
@@ -55,10 +72,29 @@ export function deriveClaims(record: ItemRecord): Claim[] {
 		const value = record.properties![name]!
 		claims.push({ property: `properties.${name}`, value: propertyToJson(value), lang: isText(value) ? lang : null })
 	}
-	for (const entry of record.media ?? []) {
-		claims.push({ property: 'media', value: mediaToJson(entry), lang: null })
-	}
+	// No media claim here: it needs the digest of the stored file. See `DerivedRecord.media`.
 	return claims
+}
+
+/** Media the publisher named, in the order it was published, still to be fetched. */
+export function pendingMedia(record: ItemRecord): MediaEntry[] {
+	return (record.media ?? []).map((entry) => (entry.kind === undefined ? { url: entry.url, license: entry.license } : { ...entry }))
+}
+
+/**
+ * Completes one pending media entry into the `media` claim `org.prodid.entity` defines, once ingest
+ * has stored the file and knows its digest. This is the only way to build one: nothing else can.
+ */
+export function mediaClaim(entry: MediaEntry, sha256: string): Claim {
+	if (!SHA256_HEX.test(sha256)) throw new RangeError(`not a SHA-256 digest: ${sha256}`)
+	const value: JsonValue = {
+		sha256,
+		url: entry.url,
+		media_url: `${MEDIA_URL_PREFIX}${sha256}`,
+		license: entry.license,
+		...(entry.kind === undefined ? {} : { kind: entry.kind }),
+	}
+	return { property: 'media', value, lang: null }
 }
 
 /**
@@ -72,8 +108,23 @@ export function groupingKeys(record: ItemRecord, context: SourceContext): Groupi
 	return { family, variant: canonicalize({ family, variant: record.variant ?? {} }) }
 }
 
+/**
+ * The `grouping.key` a row is stored under, for both kinds. It is the digest of the key string, not
+ * of its JSON, so it is never `canonicalHash` of the key: that would hash the quotes around it.
+ */
+export async function groupingDigests(record: ItemRecord, context: SourceContext): Promise<GroupingDigests> {
+	const keys = groupingKeys(record, context)
+	const [family, variant] = await Promise.all([sha256Hex(keys.family), sha256Hex(keys.variant)])
+	return { family, variant }
+}
+
 export function deriveRecord(record: ItemRecord, context: SourceContext): DerivedRecord {
-	return { ...deriveIdentifiers(record, context), claims: deriveClaims(record), keys: groupingKeys(record, context) }
+	return {
+		...deriveIdentifiers(record, context),
+		claims: deriveClaims(record),
+		media: pendingMedia(record),
+		keys: groupingKeys(record, context),
+	}
 }
 
 function sortedKeys(value: Record<string, unknown> | undefined): string[] {
@@ -88,10 +139,4 @@ function propertyToJson(value: PropertyValue): JsonValue {
 	if (Array.isArray(value)) return [...value]
 	if (typeof value === 'object') return { value: value.value, unit: value.unit }
 	return value
-}
-
-function mediaToJson(entry: MediaEntry): JsonValue {
-	return entry.kind === undefined
-		? { url: entry.url, license: entry.license }
-		: { url: entry.url, license: entry.license, kind: entry.kind }
 }

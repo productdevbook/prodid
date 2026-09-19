@@ -147,6 +147,10 @@ create table grouping (
     foreign key (opid, kind) references entity (opid, kind)
 );
 
+-- read by the foreign key above whenever an entity's kind changes, and by anything asking
+-- which groupings resolved to an entity
+create index grouping_entity on grouping (opid, kind);
+
 -- ---------------------------------------------------------------- merges
 
 create table merge (

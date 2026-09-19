@@ -11,11 +11,25 @@ export function canonicalize(value: unknown): string {
 
 /** SHA-256 of the canonical JSON, lowercase hex. This is the record hash. */
 export async function canonicalHash(value: unknown): Promise<string> {
-	const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(canonicalize(value)))
-	const bytes = new Uint8Array(digest)
+	return sha256Hex(canonicalize(value))
+}
+
+/** Lowercase hex SHA-256 of a string's UTF-8 bytes. */
+export async function sha256Hex(text: string): Promise<string> {
+	const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text))
 	let out = ''
-	for (const byte of bytes) out += HEX[byte]!
+	for (const byte of new Uint8Array(digest)) out += HEX[byte]!
 	return out
+}
+
+/**
+ * Canonical JSON is the gate every value passes through on its way to the database, so it refuses
+ * what cannot be kept: RFC 8785 §3.2.2.2 makes a lone surrogate an error, and `jsonb` refuses both
+ * that and U+0000. Index-derived claims reach the database through here and nowhere else.
+ */
+function checkStorable(text: string, what: string): void {
+	if (!text.isWellFormed()) throw new TypeError(`cannot canonicalize ${what} that is not well-formed`)
+	if (text.includes('\u0000')) throw new TypeError(`cannot canonicalize ${what} containing U+0000`)
 }
 
 function write(value: unknown, out: string[]): void {
@@ -33,8 +47,7 @@ function write(value: unknown, out: string[]): void {
 			out.push(JSON.stringify(value))
 			return
 		case 'string':
-			// RFC 8785 §3.2.2.2: a lone surrogate has no serialization. JSON.stringify would escape it.
-			if (!value.isWellFormed()) throw new TypeError('cannot canonicalize a string that is not well-formed')
+			checkStorable(value, 'a string')
 			out.push(JSON.stringify(value))
 			return
 		case 'object':
@@ -60,7 +73,7 @@ function write(value: unknown, out: string[]): void {
 	for (const key of keys) {
 		const member = record[key]
 		if (member === undefined) continue
-		if (!key.isWellFormed()) throw new TypeError('cannot canonicalize a key that is not well-formed')
+		checkStorable(key, 'a key')
 		if (!first) out.push(',')
 		first = false
 		out.push(JSON.stringify(key), ':')

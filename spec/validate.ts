@@ -126,6 +126,46 @@ function recordProblems(record: unknown): Problem[] | string {
 	}
 	problems.push(...storabilityProblems(record, ''))
 	if (type === 'org.prodid.item') problems.push(...gtinProblems(record))
+	if (type === 'org.prodid.entity') problems.push(...entityProblems(record))
+	return problems
+}
+
+function entityProblems(record: unknown): Problem[] {
+	const entity = record as {
+		opid?: unknown
+		parents?: Record<string, unknown>
+		children?: unknown[]
+		merged_from?: unknown[]
+		claims?: unknown[]
+	}
+	const problems: Problem[] = []
+	const { opid } = entity
+	for (const [key, value] of Object.entries(entity.parents ?? {})) {
+		if (value === opid) problems.push(problem(`/parents/${key}`, 'self-reference', `/parents/${key} is the entity itself`))
+	}
+	for (const list of ['children', 'merged_from'] as const) {
+		const values = entity[list]
+		if (!Array.isArray(values)) continue
+		values.forEach((value, index) => {
+			if (value === opid) problems.push(problem(`/${list}/${index}`, 'self-reference', `/${list}/${index} is the entity itself`))
+		})
+	}
+	if (!Array.isArray(entity.claims)) return problems
+	entity.claims.forEach((claim, index) => {
+		if (typeof claim !== 'object' || claim === null) return
+		const { property, value, seen_at: seenAt, withdrawn_at: withdrawnAt } = claim as Record<string, unknown>
+		if (typeof seenAt === 'string' && typeof withdrawnAt === 'string' && withdrawnAt < seenAt) {
+			const at = `/claims/${index}/withdrawn_at`
+			problems.push(problem(at, 'order', `${at} is before seen_at`))
+		}
+		if (property !== 'media' || typeof value !== 'object' || value === null) return
+		const { sha256, media_url: mediaUrl } = value as Record<string, unknown>
+		if (typeof sha256 !== 'string' || typeof mediaUrl !== 'string') return
+		if (!mediaUrl.endsWith(`/${sha256}`)) {
+			const at = `/claims/${index}/value/media_url`
+			problems.push(problem(at, 'digest', `${at} does not address sha256`))
+		}
+	})
 	return problems
 }
 
@@ -244,7 +284,7 @@ function checkBrandVector(path: string): string[] {
 }
 
 function normalizeBrand(brand: string): string {
-	return brand.normalize('NFKC').toLowerCase().replaceAll('ı', 'i').replaceAll(/i̇/gu, 'i').replaceAll(/\s+/gu, ' ').trim()
+	return brand.normalize('NFKC').toLowerCase().replaceAll('ı', 'i').replaceAll(/i̇+/gu, 'i').replaceAll(/\s+/gu, ' ').trim()
 }
 
 function checkGtinVector(path: string): string[] {

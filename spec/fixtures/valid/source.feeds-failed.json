@@ -1,0 +1,17 @@
+{
+	"$type": "org.prodid.source",
+	"name": "acme.example",
+	"kind": "domain",
+	"trust": "verified",
+	"verified_by": "dns-txt",
+	"verified_at": "2026-09-14T09:12:03Z",
+	"lapsed": false,
+	"last_crawl": {
+		"at": "2026-09-19T06:00:11Z",
+		"via": "dns-txt",
+		"outcome": "transport-failure",
+		"records_seen": 3,
+		"records_changed": 0,
+		"feeds_failed": 1
+	}
+}

@@ -1,0 +1,12 @@
+{
+	"$type": "org.prodid.entity",
+	"opid": "kq7m3v9dn2hb4t5x",
+	"kind": "item",
+	"parents": {
+		"family": "3n7k2q9vdfhb4mta",
+		"variant": "9p2d4kv7mq3nbhxf"
+	},
+	"children": ["3n7k2q9vdfhb4mta"],
+	"identifiers": [],
+	"claims": []
+}

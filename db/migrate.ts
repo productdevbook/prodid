@@ -11,8 +11,10 @@ const LOCK_OBJECT = 1
 
 export async function migrate(sql: Sql): Promise<string[]> {
 	const run = await sql.reserve()
+	let locked = false
 	try {
 		await run`select pg_advisory_lock(${LOCK_CLASS}, ${LOCK_OBJECT})`
+		locked = true
 
 		const [tracked] = await run<{ present: boolean }[]>`
       select to_regclass('schema_migrations') is not null as present
@@ -44,9 +46,11 @@ export async function migrate(sql: Sql): Promise<string[]> {
 			}
 		}
 
-		await run`select pg_advisory_unlock(${LOCK_CLASS}, ${LOCK_OBJECT})`
 		return pending
 	} finally {
+		// The lock is session-level and the connection goes back to a shared pool, so it has to
+		// be given up here or a failed run strands it. A dead connection has already dropped it.
+		if (locked) await run`select pg_advisory_unlock(${LOCK_CLASS}, ${LOCK_OBJECT})`.catch(() => {})
 		run.release()
 	}
 }

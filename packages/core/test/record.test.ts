@@ -270,3 +270,52 @@ describe('a gtin identifier must be a GTIN', () => {
 		expect(validateItem({ ...base, identifiers: [{ scheme: 'gtin', value: '2001234567893' }] }).ok).toBe(true)
 	})
 })
+
+describe('what an entity may not say about itself', () => {
+	const claim = {
+		property: 'name',
+		value: 'Trail Jacket',
+		source: { name: 'acme.example', trust: 'verified', lapsed: false },
+		seen_at: '2026-09-14T09:12:03Z',
+	}
+	const opid = '3n7k2q9vdfhb4mta'
+	const other = '9p2d4kv7mq3nbhxf'
+	const family = { $type: 'org.prodid.entity', opid, kind: 'family', identifiers: [], claims: [] }
+
+	test('is never its own parent, child or survivor', () => {
+		const variant = { ...family, kind: 'variant', opid: other }
+		expect(validateEntity({ ...variant, parents: { family: other } }).ok).toBe(false)
+		expect(validateEntity({ ...variant, parents: { family: opid } }).ok).toBe(true)
+		expect(validateEntity({ ...family, merged_from: [opid] }).ok).toBe(false)
+		expect(validateEntity({ ...family, merged_from: [other] }).ok).toBe(true)
+		expect(validateEntity({ ...family, children: [opid] }).ok).toBe(false)
+		const rejected = validateEntity({ ...family, merged_from: [opid] })
+		expect(rejected.ok ? [] : rejected.errors).toContainEqual(
+			expect.objectContaining({ path: '/merged_from/0', keyword: 'self-reference' }),
+		)
+	})
+
+	test('never withdraws a claim before it was seen', () => {
+		expect(validateEntity({ ...family, claims: [{ ...claim, withdrawn_at: '2026-05-03T11:20:00Z' }] }).ok).toBe(false)
+		expect(validateEntity({ ...family, claims: [{ ...claim, withdrawn_at: '2026-09-14T09:12:03Z' }] }).ok).toBe(true)
+		expect(validateEntity({ ...family, claims: [{ ...claim, withdrawn_at: '2027-01-01T00:00:00Z' }] }).ok).toBe(true)
+	})
+
+	test('serves a media claim under the digest it names', () => {
+		const sha256 = 'e3943ea26ce08ae81809e62936dc4f934fa04da6cd57bd9ab2a90b79da751c09'
+		const value = {
+			sha256,
+			url: 'https://acme.example/img/tj2041-navy.webp',
+			media_url: `https://media.prodid.org/sha256/${sha256}`,
+			license: 'CC-BY-4.0',
+		}
+		const media = { ...claim, property: 'media', lang: undefined, value }
+		delete (media as { lang?: unknown }).lang
+		expect(validateEntity({ ...family, claims: [media] }).ok).toBe(true)
+		const mismatched = { ...media, value: { ...value, media_url: `https://media.prodid.org/sha256/${'0'.repeat(64)}` } }
+		const rejected = validateEntity({ ...family, claims: [mismatched] })
+		expect(rejected.ok ? [] : rejected.errors).toContainEqual(
+			expect.objectContaining({ path: '/claims/0/value/media_url', keyword: 'digest' }),
+		)
+	})
+})

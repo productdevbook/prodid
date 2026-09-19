@@ -1,0 +1,13 @@
+{
+	"$type": "org.prodid.entity",
+	"opid": "3n7k2q9vdfhb4mta",
+	"kind": "family",
+	"identifiers": [
+		{
+			"scheme": "gtin",
+			"value": "09506000134352",
+			"scope": "acme.example"
+		}
+	],
+	"claims": []
+}

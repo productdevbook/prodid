@@ -1,0 +1,12 @@
+{
+	"$type": "org.prodid.entity",
+	"opid": "3n7k2q9vdfhb4mta",
+	"kind": "family",
+	"identifiers": [
+		{
+			"scheme": "gtin",
+			"value": "00000000000000"
+		}
+	],
+	"claims": []
+}

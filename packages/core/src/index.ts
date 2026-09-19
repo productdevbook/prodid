@@ -1,13 +1,18 @@
 export { type AddressClass, classifyAddress, isPublicAddress, parseIpv4, parseIpv6 } from './address'
-export { canonicalHash, canonicalize, type JsonValue } from './canonical'
+export { canonicalHash, canonicalize, type JsonValue, sha256Hex } from './canonical'
 export {
 	type Claim,
 	deriveClaims,
 	deriveIdentifiers,
 	deriveRecord,
 	type DerivedRecord,
+	type GroupingDigests,
+	groupingDigests,
 	groupingKeys,
 	type GroupingKeys,
+	mediaClaim,
+	MEDIA_URL_PREFIX,
+	pendingMedia,
 	type SourceContext,
 } from './claims'
 export {

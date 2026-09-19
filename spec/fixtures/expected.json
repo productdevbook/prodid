@@ -14,6 +14,33 @@
 		"instancePath": "/parents",
 		"keyword": "false schema"
 	},
+	"entity.identifier-asin-with-scope.json": {
+		"instancePath": "/identifiers/0/scope",
+		"keyword": "false schema"
+	},
+	"entity.identifier-gtin-13.json": {
+		"instancePath": "/identifiers/0/value",
+		"keyword": "pattern"
+	},
+	"entity.identifier-gtin-all-zero.json": {
+		"instancePath": "/identifiers/0/value",
+		"keyword": "not"
+	},
+	"entity.identifier-gtin-with-scope.json": {
+		"instancePath": "/identifiers/0/scope",
+		"keyword": "false schema"
+	},
+	"entity.identifier-sku-without-scope.json": {
+		"instancePath": "/identifiers/0",
+		"keyword": "required",
+		"params": {
+			"missingProperty": "scope"
+		}
+	},
+	"entity.item-with-children.json": {
+		"instancePath": "/children",
+		"keyword": "false schema"
+	},
 	"entity.item-without-variant.json": {
 		"instancePath": "/parents",
 		"keyword": "required",
@@ -32,6 +59,10 @@
 	"entity.markets-as-list.json": {
 		"instancePath": "/claims/0/value",
 		"keyword": "type"
+	},
+	"entity.media-digest-mismatch.json": {
+		"instancePath": "/claims/0/value/media_url",
+		"keyword": "digest"
 	},
 	"entity.media-value-not-stored.json": {
 		"instancePath": "/claims/0/value",
@@ -56,9 +87,25 @@
 		"instancePath": "/claims/0/seen_at",
 		"keyword": "format"
 	},
+	"entity.self-merged-from.json": {
+		"instancePath": "/merged_from/0",
+		"keyword": "self-reference"
+	},
+	"entity.self-parent.json": {
+		"instancePath": "/parents/family",
+		"keyword": "self-reference"
+	},
 	"entity.unknown-kind.json": {
 		"instancePath": "/kind",
 		"keyword": "enum"
+	},
+	"entity.variant-with-variant-parent.json": {
+		"instancePath": "/parents/variant",
+		"keyword": "false schema"
+	},
+	"entity.withdrawn-before-seen.json": {
+		"instancePath": "/claims/0/withdrawn_at",
+		"keyword": "order"
 	},
 	"feed.domain-ip-literal.json": {
 		"instancePath": "/domain",
@@ -127,6 +174,10 @@
 		"instancePath": "",
 		"keyword": "additionalProperties"
 	},
+	"source.dataset-authoritative.json": {
+		"instancePath": "/trust",
+		"keyword": "const"
+	},
 	"source.http-status-out-of-range.json": {
 		"instancePath": "/last_crawl/http_status",
 		"keyword": "minimum"
@@ -141,6 +192,18 @@
 	"source.outcome-unknown.json": {
 		"instancePath": "/last_crawl/outcome",
 		"keyword": "enum"
+	},
+	"source.success-with-failed-feeds.json": {
+		"instancePath": "/last_crawl/feeds_failed",
+		"keyword": "const"
+	},
+	"source.transport-failure-200.json": {
+		"instancePath": "/last_crawl/http_status",
+		"keyword": "oneOf"
+	},
+	"source.unverified-with-proof.json": {
+		"instancePath": "/verified_by",
+		"keyword": "false schema"
 	},
 	"source.verified-without-proof.json": {
 		"instancePath": "",

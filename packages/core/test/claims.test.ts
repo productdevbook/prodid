@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'bun:test'
 
-import { canonicalize } from '../src/canonical'
-import { deriveRecord, groupingKeys } from '../src/claims'
-import { validateItem } from '../src/record/index'
+import { canonicalHash, canonicalize, sha256Hex } from '../src/canonical'
+import { deriveRecord, groupingDigests, groupingKeys, mediaClaim } from '../src/claims'
+import { validateEntity, validateItem } from '../src/record/index'
 import type { ItemRecord } from '../src/record/types'
 
 const source = 'acme.example'
@@ -38,7 +38,6 @@ describe('deriveRecord', () => {
 			{ property: 'properties.madeIn', value: 'TR', lang: 'en' },
 			{ property: 'properties.material', value: '100% recycled polyester', lang: 'en' },
 			{ property: 'properties.weight', value: { value: 480, unit: 'g' }, lang: null },
-			{ property: 'media', value: { url: 'https://acme.example/img/tj2041-navy.webp', license: 'CC-BY-4.0', kind: 'image' }, lang: null },
 		])
 	})
 
@@ -61,6 +60,93 @@ describe('deriveRecord', () => {
 			{ property: 'brand', value: 'Acme', lang: null },
 			{ property: 'name', value: 'Trail Bottle 1L', lang: null },
 		])
+	})
+})
+
+describe('groupingDigests', () => {
+	test('is the digest of the key string, pinned so it can never drift', async () => {
+		// grouping.key in the index contract: lowercase hex SHA-256 of the key string's UTF-8 bytes.
+		expect(await groupingDigests(jacket, { source })).toEqual({
+			family: 'dfb8a40ccc3dfa21c2578d9d71ed008ec9d832fc6a9ec1b634a3880ee3c8409d',
+			variant: '4e8271cccf532ad4187607b5669b0d06f0145eacd76e34d490f1d49b63697133',
+		})
+	})
+
+	test('is not canonicalHash of the key, which hashes the quotes around it', async () => {
+		const keys = groupingKeys(jacket, { source })
+		const digests = await groupingDigests(jacket, { source })
+		expect(digests.family).toBe(await sha256Hex(keys.family))
+		expect(digests.family).not.toBe(await canonicalHash(keys.family))
+		expect(await canonicalHash(keys.family)).toBe('dc503717686b0db2ae3a280d0d64d71627a86400a3e386728e965fd147ccc6f3')
+	})
+
+	test('tracks the keys: one family for a group, one variant per axis combination', async () => {
+		const navy = await groupingDigests(jacket, { source })
+		const olive = await groupingDigests({ ...jacket, key: 'TJ-2041-OLV-M', variant: { color: 'olive', size: 'M' } }, { source })
+		expect(olive.family).toBe(navy.family)
+		expect(olive.variant).not.toBe(navy.variant)
+		expect(navy.family).toMatch(/^[0-9a-f]{64}$/)
+	})
+})
+
+describe('media', () => {
+	const SHA = 'e3943ea26ce08ae81809e62936dc4f934fa04da6cd57bd9ab2a90b79da751c09'
+
+	test('is carried as pending media, never as a claim, because a claim needs the stored digest', () => {
+		const derived = deriveRecord(jacket, { source })
+		expect(derived.claims.some((claim) => claim.property === 'media')).toBe(false)
+		expect(derived.media).toEqual([{ url: 'https://acme.example/img/tj2041-navy.webp', license: 'CC-BY-4.0', kind: 'image' }])
+		expect(deriveRecord(bottle, { source }).media).toEqual([])
+	})
+
+	test('mediaClaim completes one entry into what org.prodid.entity requires', () => {
+		expect(mediaClaim({ url: 'https://acme.example/a.webp', license: 'CC0-1.0', kind: 'image' }, SHA)).toEqual({
+			property: 'media',
+			lang: null,
+			value: {
+				sha256: SHA,
+				url: 'https://acme.example/a.webp',
+				media_url: `https://media.prodid.org/sha256/${SHA}`,
+				license: 'CC0-1.0',
+				kind: 'image',
+			},
+		})
+	})
+
+	test('leaves kind out when the publisher did not say', () => {
+		const claim = mediaClaim({ url: 'https://acme.example/a.pdf', license: 'CC0-1.0' }, SHA)
+		expect(Object.keys(claim.value as object)).toEqual(['sha256', 'url', 'media_url', 'license'])
+	})
+
+	test('refuses a digest that is not one, rather than building a claim that cannot validate', () => {
+		for (const digest of ['', 'nope', SHA.toUpperCase(), SHA.slice(0, 63), `${SHA}0`]) {
+			expect(() => mediaClaim({ url: 'https://acme.example/a.webp', license: 'CC0-1.0' }, digest)).toThrow(RangeError)
+		}
+	})
+
+	test('its output validates as an entity claim', () => {
+		const derived = deriveRecord(jacket, { source })
+		const claims = derived.media.map((entry) => {
+			const { property, value } = mediaClaim(entry, SHA)
+			return { property, value, source: { name: source, trust: 'verified', lapsed: false }, seen_at: '2026-09-14T09:12:03Z' }
+		})
+		expect(claims).toHaveLength(1)
+		const entity = { $type: 'org.prodid.entity', opid: '3n7k2q9vdfhb4mta', kind: 'family', identifiers: [], claims }
+		const result = validateEntity(entity)
+		expect(result.ok ? [] : result.errors).toEqual([])
+	})
+
+	test('every derived claim validates as an entity claim', () => {
+		const claims = deriveRecord(jacket, { source }).claims.map(({ property, value, lang }) => ({
+			property,
+			value,
+			...(lang === null ? {} : { lang }),
+			source: { name: source, trust: 'verified', lapsed: false },
+			seen_at: '2026-09-14T09:12:03Z',
+		}))
+		const entity = { $type: 'org.prodid.entity', opid: '3n7k2q9vdfhb4mta', kind: 'family', identifiers: [], claims }
+		const result = validateEntity(entity)
+		expect(result.ok ? [] : result.errors).toEqual([])
 	})
 })
 
