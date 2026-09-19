@@ -70,3 +70,22 @@ describe('canonicalHash', () => {
 		expect(await canonicalHash({})).toBe('44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a')
 	})
 })
+
+describe('strings that cannot be stored', () => {
+	test('refuses a lone surrogate instead of escaping it, as RFC 8785 requires', () => {
+		// JSON.stringify turns \uD800 into "\ud800"; the index then hashes a record it cannot store.
+		expect(() => canonicalize('\uD800')).toThrow(TypeError)
+		expect(() => canonicalize('a\uDC00b')).toThrow(TypeError)
+		expect(() => canonicalize({ name: 'Trail Bottle \uD800' })).toThrow(TypeError)
+		expect(() => canonicalize([1, { deep: ['\uDFFF'] }])).toThrow(TypeError)
+	})
+
+	test('refuses a key that is not well-formed', () => {
+		expect(() => canonicalize({ '\uD800': 1 })).toThrow(TypeError)
+	})
+
+	test('still accepts every well-formed string', () => {
+		expect(canonicalize('😀')).toBe('"😀"')
+		expect(canonicalize({ '😀': '�' })).toBe('{"😀":"�"}')
+	})
+})

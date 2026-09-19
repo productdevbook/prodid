@@ -1,5 +1,7 @@
+import entitySchema from '@prodid/spec/schemas/org.prodid.entity.json'
 import feedSchema from '@prodid/spec/schemas/org.prodid.feed.json'
 import itemSchema from '@prodid/spec/schemas/org.prodid.item.json'
+import sourceSchema from '@prodid/spec/schemas/org.prodid.source.json'
 import { _ } from 'ajv'
 import addFormats from 'ajv-formats'
 import Ajv2020 from 'ajv/dist/2020'
@@ -20,11 +22,15 @@ const ajv = new Ajv2020({
 	},
 })
 
-addFormats(ajv, ['uri', 'email'])
+addFormats(ajv, ['uri', 'email', 'date-time'])
 ajv.addSchema(itemSchema)
 ajv.addSchema(feedSchema)
+ajv.addSchema(entitySchema)
+ajv.addSchema(sourceSchema)
 
-const source = toEsm(standaloneCode(ajv, { item: itemSchema.$id, feed: feedSchema.$id }))
+const source = toEsm(
+	standaloneCode(ajv, { item: itemSchema.$id, feed: feedSchema.$id, entity: entitySchema.$id, source: sourceSchema.$id }),
+)
 
 if (/\brequire\s*\(/.test(source)) throw new Error('generated validators still contain require()')
 if (/\beval\s*\(|\bFunction\s*\(/.test(source)) throw new Error('generated validators contain eval or Function')
@@ -53,7 +59,7 @@ function toEsm(code: string): string {
 
 function declarations(): string {
 	return `${BANNER}
-import type { FeedRecord, ItemRecord } from './types'
+import type { EntityRecord, FeedRecord, ItemRecord, SourceRecord } from './types'
 
 export interface SchemaError {
 	instancePath: string
@@ -70,5 +76,7 @@ export interface SchemaValidator<T> {
 
 export declare const item: SchemaValidator<ItemRecord>
 export declare const feed: SchemaValidator<FeedRecord>
+export declare const entity: SchemaValidator<EntityRecord>
+export declare const source: SchemaValidator<SourceRecord>
 `
 }

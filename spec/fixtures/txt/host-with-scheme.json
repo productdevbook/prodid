@@ -1,0 +1,4 @@
+{
+	"value": ["v=prodid0; host=https://acme.prodid.org"],
+	"outcome": "malformed"
+}

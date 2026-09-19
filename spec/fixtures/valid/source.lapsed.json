@@ -1,0 +1,21 @@
+{
+	"$type": "org.prodid.source",
+	"name": "acme.example",
+	"kind": "domain",
+	"trust": "verified",
+	"verified_by": "dns-txt",
+	"verified_at": "2026-09-14T09:12:03Z",
+	"lapsed": true,
+	"lapsed_at": "2026-09-18T06:00:09Z",
+	"license": "CC0-1.0",
+	"last_crawl": {
+		"at": "2026-09-19T06:00:07Z",
+		"via": "well-known",
+		"document_url": "https://acme.example/.well-known/prodid.json",
+		"outcome": "definite-negative",
+		"http_status": 404,
+		"records_seen": 0,
+		"records_changed": 0,
+		"lines_skipped": 0
+	}
+}

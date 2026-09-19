@@ -1,0 +1,88 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://prodid.org/schemas/v0/org.prodid.source.json",
+	"title": "org.prodid.source",
+	"description": "The public status of one source: who it is, how its control was proven, whether it has lapsed, and what the last crawl saw. It reports only what the source itself publishes and when the index looked; never who asked for a crawl.",
+	"type": "object",
+	"required": ["$type", "name", "kind", "trust", "lapsed"],
+	"additionalProperties": false,
+	"properties": {
+		"$type": { "const": "org.prodid.source" },
+		"name": {
+			"description": "The identity: a domain, a slug host, or a dataset id.",
+			"type": "string",
+			"minLength": 1,
+			"maxLength": 253
+		},
+		"kind": { "enum": ["domain", "hosted", "dataset", "community"] },
+		"trust": { "enum": ["authoritative", "verified", "unverified"] },
+		"verified_by": {
+			"description": "How domain control was proven. Present exactly when trust is above unverified.",
+			"$ref": "#/$defs/verifiedBy"
+		},
+		"verified_at": { "$ref": "#/$defs/timestamp" },
+		"lapsed": { "type": "boolean" },
+		"lapsed_at": {
+			"description": "When discovery stopped succeeding. Present exactly while lapsed is true; 30 days after it, the source's active claims are withdrawn.",
+			"$ref": "#/$defs/timestamp"
+		},
+		"license": {
+			"description": "SPDX license identifier the source publishes its facts under.",
+			"type": "string",
+			"minLength": 1,
+			"maxLength": 64
+		},
+		"last_crawl": { "$ref": "#/$defs/crawl" }
+	},
+	"allOf": [
+		{
+			"if": { "required": ["trust"], "properties": { "trust": { "enum": ["authoritative", "verified"] } } },
+			"then": {
+				"required": ["verified_by", "verified_at"],
+				"properties": { "verified_by": { "$ref": "#/$defs/verifiedBy" }, "verified_at": { "$ref": "#/$defs/timestamp" } }
+			}
+		},
+		{
+			"if": { "required": ["lapsed"], "properties": { "lapsed": { "const": true } } },
+			"then": { "required": ["lapsed_at"], "properties": { "lapsed_at": { "$ref": "#/$defs/timestamp" } } },
+			"else": { "properties": { "lapsed_at": false } }
+		}
+	],
+	"$defs": {
+		"timestamp": { "type": "string", "format": "date-time" },
+		"verifiedBy": { "enum": ["well-known", "dns-txt"] },
+		"crawl": {
+			"description": "The last discovery run. A crawl held back by the crawler's own rate limits is rescheduled and is not reported as an outcome.",
+			"type": "object",
+			"required": ["at", "outcome"],
+			"additionalProperties": false,
+			"properties": {
+				"at": { "$ref": "#/$defs/timestamp" },
+				"via": { "enum": ["well-known", "dns-txt"] },
+				"document_url": {
+					"description": "The discovery document this crawl asked for.",
+					"type": "string",
+					"format": "uri",
+					"pattern": "^https://"
+				},
+				"outcome": {
+					"description": "success: an acceptable document. definite-negative: discovery ended with none, which lapses the source. transport-failure: nothing could be concluded.",
+					"enum": ["success", "definite-negative", "transport-failure"]
+				},
+				"http_status": {
+					"description": "The status of the discovery document fetch, when there was one. The crawler's own error text is not published.",
+					"type": "integer",
+					"minimum": 100,
+					"maximum": 599
+				},
+				"records_seen": { "type": "integer", "minimum": 0 },
+				"records_changed": { "type": "integer", "minimum": 0 },
+				"lines_skipped": {
+					"description": "Feed lines that were too long, unparseable or invalid. While this is above zero, absent keys are not withdrawn, for at most seven days.",
+					"type": "integer",
+					"minimum": 0
+				}
+			}
+		}
+	}
+}

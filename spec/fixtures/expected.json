@@ -1,4 +1,65 @@
 {
+	"entity.claim-no-source.json": {
+		"instancePath": "/claims/0",
+		"keyword": "required",
+		"params": {
+			"missingProperty": "source"
+		}
+	},
+	"entity.claim-trust-unknown.json": {
+		"instancePath": "/claims/0/source/trust",
+		"keyword": "enum"
+	},
+	"entity.family-with-parents.json": {
+		"instancePath": "/parents",
+		"keyword": "false schema"
+	},
+	"entity.item-without-variant.json": {
+		"instancePath": "/parents",
+		"keyword": "required",
+		"params": {
+			"missingProperty": "variant"
+		}
+	},
+	"entity.lang-on-markets.json": {
+		"instancePath": "/claims/0/lang",
+		"keyword": "false schema"
+	},
+	"entity.lang-on-number.json": {
+		"instancePath": "/claims/0/value",
+		"keyword": "oneOf"
+	},
+	"entity.markets-as-list.json": {
+		"instancePath": "/claims/0/value",
+		"keyword": "type"
+	},
+	"entity.media-value-not-stored.json": {
+		"instancePath": "/claims/0/value",
+		"keyword": "required",
+		"params": {
+			"missingProperty": "sha256"
+		}
+	},
+	"entity.opid-uppercase.json": {
+		"instancePath": "/opid",
+		"keyword": "pattern"
+	},
+	"entity.property-two-dots.json": {
+		"instancePath": "/claims/0/property",
+		"keyword": "pattern"
+	},
+	"entity.property-unknown-prefix.json": {
+		"instancePath": "/claims/0/property",
+		"keyword": "pattern"
+	},
+	"entity.seen-at-not-datetime.json": {
+		"instancePath": "/claims/0/seen_at",
+		"keyword": "format"
+	},
+	"entity.unknown-kind.json": {
+		"instancePath": "/kind",
+		"keyword": "enum"
+	},
 	"feed.domain-ip-literal.json": {
 		"instancePath": "/domain",
 		"keyword": "pattern"
@@ -23,6 +84,14 @@
 		"instancePath": "/version",
 		"keyword": "const"
 	},
+	"item.gtin-all-zero.json": {
+		"instancePath": "/identifiers/0/value",
+		"keyword": "gtin"
+	},
+	"item.gtin-check-digit.json": {
+		"instancePath": "/identifiers/0/value",
+		"keyword": "gtin"
+	},
 	"item.gtin-wrong-length.json": {
 		"instancePath": "/identifiers/0/value",
 		"keyword": "pattern"
@@ -31,13 +100,24 @@
 		"instancePath": "/key",
 		"keyword": "pattern"
 	},
+	"item.lone-surrogate.json": {
+		"instancePath": "/name",
+		"keyword": "storable"
+	},
 	"item.media-http-url.json": {
 		"instancePath": "/media/0/url",
 		"keyword": "pattern"
 	},
 	"item.media-no-license.json": {
 		"instancePath": "/media/0",
-		"keyword": "required"
+		"keyword": "required",
+		"params": {
+			"missingProperty": "license"
+		}
+	},
+	"item.null-character.json": {
+		"instancePath": "/properties/madeIn",
+		"keyword": "storable"
 	},
 	"item.scheme-uppercase.json": {
 		"instancePath": "/identifiers/0/scheme",
@@ -46,5 +126,27 @@
 	"item.unknown-field.json": {
 		"instancePath": "",
 		"keyword": "additionalProperties"
+	},
+	"source.http-status-out-of-range.json": {
+		"instancePath": "/last_crawl/http_status",
+		"keyword": "minimum"
+	},
+	"source.lapsed-without-timestamp.json": {
+		"instancePath": "",
+		"keyword": "required",
+		"params": {
+			"missingProperty": "lapsed_at"
+		}
+	},
+	"source.outcome-unknown.json": {
+		"instancePath": "/last_crawl/outcome",
+		"keyword": "enum"
+	},
+	"source.verified-without-proof.json": {
+		"instancePath": "",
+		"keyword": "required",
+		"params": {
+			"missingProperty": "verified_by"
+		}
 	}
 }

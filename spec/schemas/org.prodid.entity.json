@@ -1,0 +1,187 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://prodid.org/schemas/v0/org.prodid.entity.json",
+	"title": "org.prodid.entity",
+	"description": "What the resolver answers for one entity. Every value a reader sees sits inside a claim that names the source that made it and when it was first seen; there are no bare fields.",
+	"type": "object",
+	"required": ["$type", "opid", "kind", "identifiers", "claims"],
+	"additionalProperties": false,
+	"properties": {
+		"$type": { "const": "org.prodid.entity" },
+		"opid": { "$ref": "#/$defs/opid" },
+		"kind": { "enum": ["family", "variant", "item"] },
+		"parents": {
+			"description": "The entity's ancestors as opids: an item has a variant and a family, a variant has a family, a family has neither.",
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"family": { "$ref": "#/$defs/opid" },
+				"variant": { "$ref": "#/$defs/opid" }
+			}
+		},
+		"children": {
+			"description": "The opids one level down: a family's variants, a variant's items. Absent or empty for an item.",
+			"type": "array",
+			"uniqueItems": true,
+			"items": { "$ref": "#/$defs/opid" }
+		},
+		"merged_from": {
+			"description": "Opids merged into this one. Each of them resolves here with 308.",
+			"type": "array",
+			"uniqueItems": true,
+			"items": { "$ref": "#/$defs/opid" }
+		},
+		"identifiers": {
+			"type": "array",
+			"uniqueItems": true,
+			"items": { "$ref": "#/$defs/identifier" }
+		},
+		"claims": {
+			"description": "Active claims about this entity. With ?history=1 the withdrawn ones are included, each carrying withdrawn_at.",
+			"type": "array",
+			"items": { "$ref": "#/$defs/claim" }
+		}
+	},
+	"allOf": [
+		{
+			"if": { "required": ["kind"], "properties": { "kind": { "const": "item" } } },
+			"then": {
+				"required": ["parents"],
+				"properties": {
+					"parents": {
+						"type": "object",
+						"required": ["family", "variant"],
+						"properties": { "family": { "$ref": "#/$defs/opid" }, "variant": { "$ref": "#/$defs/opid" } }
+					}
+				}
+			}
+		},
+		{
+			"if": { "required": ["kind"], "properties": { "kind": { "const": "variant" } } },
+			"then": {
+				"required": ["parents"],
+				"properties": {
+					"parents": { "type": "object", "required": ["family"], "properties": { "family": { "$ref": "#/$defs/opid" } } }
+				}
+			}
+		},
+		{
+			"if": { "required": ["kind"], "properties": { "kind": { "const": "family" } } },
+			"then": { "properties": { "parents": false } }
+		}
+	],
+	"$defs": {
+		"opid": {
+			"description": "Opaque index identifier, never parsed by a reader.",
+			"type": "string",
+			"pattern": "^[0-9a-hjkmnp-tv-z]{16}$"
+		},
+		"identifier": {
+			"type": "object",
+			"required": ["scheme", "value"],
+			"additionalProperties": false,
+			"properties": {
+				"scheme": { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,31}$" },
+				"value": {
+					"description": "Normalized: a GTIN is the 14-digit form, left-padded with zeros.",
+					"type": "string",
+					"minLength": 1,
+					"maxLength": 256
+				},
+				"scope": {
+					"description": "What the value is unique within. Absent for a global scheme, the brand for mpn, the source for sku.",
+					"type": "string",
+					"minLength": 1,
+					"maxLength": 256
+				}
+			}
+		},
+		"claim": {
+			"type": "object",
+			"required": ["property", "value", "source", "seen_at"],
+			"additionalProperties": false,
+			"allOf": [
+				{
+					"if": { "required": ["property"], "properties": { "property": { "enum": ["category", "markets", "media"] } } },
+					"then": { "properties": { "lang": false } }
+				},
+				{
+					"if": { "required": ["lang"], "properties": { "lang": true } },
+					"then": { "properties": { "value": { "$ref": "#/$defs/text" } } }
+				},
+				{
+					"if": { "required": ["property"], "properties": { "property": { "const": "media" } } },
+					"then": { "properties": { "value": { "$ref": "#/$defs/mediaValue" } } }
+				},
+				{
+					"if": { "required": ["property"], "properties": { "property": { "const": "markets" } } },
+					"then": { "properties": { "value": { "type": "string", "pattern": "^[A-Z]{2}$" } } }
+				}
+			],
+			"properties": {
+				"property": {
+					"description": "A built-in property, or a publisher key under variant. or properties. — the namespace that keeps a publisher's own `name` from colliding with the built-in one.",
+					"type": "string",
+					"pattern": "^(brand|name|category|markets|media|(variant|properties)\\.[a-z][A-Za-z0-9]*)$"
+				},
+				"value": true,
+				"lang": {
+					"description": "BCP 47 tag. Carried only by claims whose value is text the publisher wrote: brand, name, variant.*, and those properties.* whose value is a string or a list of strings.",
+					"type": "string",
+					"pattern": "^[A-Za-z]{2,8}(-[A-Za-z0-9]{1,8})*$"
+				},
+				"source": { "$ref": "#/$defs/source" },
+				"seen_at": {
+					"description": "When this source first asserted this value. It does not change while the claim keeps being asserted.",
+					"type": "string",
+					"format": "date-time"
+				},
+				"withdrawn_at": {
+					"description": "When the source stopped asserting it. Present only on withdrawn claims, which are returned only with ?history=1.",
+					"type": "string",
+					"format": "date-time"
+				}
+			}
+		},
+		"text": {
+			"description": "What a lang tag can apply to: a string, or a list of strings.",
+			"oneOf": [{ "type": "string" }, { "type": "array", "items": { "type": "string" } }]
+		},
+		"mediaValue": {
+			"description": "The value of a media claim. The index stores the file under its digest; a reader fetches media_url, and url says where the source published it.",
+			"type": "object",
+			"required": ["sha256", "url", "media_url", "license"],
+			"additionalProperties": false,
+			"properties": {
+				"sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+				"url": {
+					"description": "Where the source published the file.",
+					"type": "string",
+					"format": "uri",
+					"pattern": "^https://"
+				},
+				"media_url": {
+					"description": "Where the index serves the stored copy.",
+					"type": "string",
+					"pattern": "^https://media\\.prodid\\.org/sha256/[0-9a-f]{64}$"
+				},
+				"license": { "type": "string", "minLength": 1, "maxLength": 64 },
+				"kind": { "enum": ["image", "document"] }
+			}
+		},
+		"source": {
+			"description": "Who said it. The full status of a source is at /source/{name}.",
+			"type": "object",
+			"required": ["name", "trust", "lapsed"],
+			"additionalProperties": false,
+			"properties": {
+				"name": { "type": "string", "minLength": 1, "maxLength": 253 },
+				"trust": { "enum": ["authoritative", "verified", "unverified"] },
+				"lapsed": {
+					"description": "True while the source's discovery is failing. Its claims stay readable and stay marked.",
+					"type": "boolean"
+				}
+			}
+		}
+	}
+}

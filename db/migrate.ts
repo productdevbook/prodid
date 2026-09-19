@@ -6,33 +6,49 @@ import postgres, { type Sql } from 'postgres'
 
 const migrationsDir = join(dirname(fileURLToPath(import.meta.url)), 'migrations')
 
+const LOCK_CLASS = 1_886_350_180
+const LOCK_OBJECT = 1
+
 export async function migrate(sql: Sql): Promise<string[]> {
-	const [tracked] = await sql<{ present: boolean }[]>`
-    select to_regclass('schema_migrations') is not null as present
-  `
-	if (!tracked?.present) {
-		await sql`
-      create table schema_migrations (
-        name       text primary key,
-        applied_at timestamptz not null default now()
-      )
+	const run = await sql.reserve()
+	try {
+		await run`select pg_advisory_lock(${LOCK_CLASS}, ${LOCK_OBJECT})`
+
+		const [tracked] = await run<{ present: boolean }[]>`
+      select to_regclass('schema_migrations') is not null as present
     `
+		if (!tracked?.present) {
+			await run`
+        create table if not exists schema_migrations (
+          name       text primary key,
+          applied_at timestamptz not null default now()
+        )
+      `
+		}
+
+		const files = (await readdir(migrationsDir)).filter((name) => name.endsWith('.sql')).sort()
+		const applied = await run<{ name: string }[]>`select name from schema_migrations`
+		const done = new Set(applied.map((row) => row.name))
+		const pending = files.filter((name) => !done.has(name))
+
+		for (const name of pending) {
+			const body = await Bun.file(join(migrationsDir, name)).text()
+			await run.unsafe('begin')
+			try {
+				await run.unsafe(body)
+				await run`insert into schema_migrations (name) values (${name})`
+				await run.unsafe('commit')
+			} catch (error) {
+				await run.unsafe('rollback')
+				throw error
+			}
+		}
+
+		await run`select pg_advisory_unlock(${LOCK_CLASS}, ${LOCK_OBJECT})`
+		return pending
+	} finally {
+		run.release()
 	}
-
-	const files = (await readdir(migrationsDir)).filter((name) => name.endsWith('.sql')).sort()
-	const applied = await sql<{ name: string }[]>`select name from schema_migrations`
-	const done = new Set(applied.map((row) => row.name))
-	const pending = files.filter((name) => !done.has(name))
-
-	for (const name of pending) {
-		const body = await Bun.file(join(migrationsDir, name)).text()
-		await sql.begin(async (tx) => {
-			await tx.unsafe(body)
-			await tx`insert into schema_migrations (name) values (${name})`
-		})
-	}
-
-	return pending
 }
 
 if (import.meta.main) {

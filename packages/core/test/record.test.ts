@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 
-import { validateFeed, validateItem } from '../src/record/index'
+import { canonicalHash } from '../src/canonical'
+import { validateEntity, validateFeed, validateItem, validateSource, type ValidationResult } from '../src/record/index'
 
 const SPEC = new URL('../../../spec/', import.meta.url)
 const GENERATED = new URL('../src/record/validators.generated.js', import.meta.url)
@@ -11,8 +12,11 @@ async function fixtures(folder: string): Promise<string[]> {
 	return names.sort()
 }
 
-function validateByName(name: string, value: unknown): ReturnType<typeof validateItem> | ReturnType<typeof validateFeed> {
-	return name.startsWith('item.') ? validateItem(value) : validateFeed(value)
+function validateByName(name: string, value: unknown): ValidationResult<unknown> {
+	if (name.startsWith('item.')) return validateItem(value)
+	if (name.startsWith('entity.')) return validateEntity(value)
+	if (name.startsWith('source.')) return validateSource(value)
+	return validateFeed(value)
 }
 
 const valid = await fixtures('fixtures/valid/')
@@ -22,7 +26,7 @@ const expected = (await Bun.file(new URL('fixtures/expected.json', SPEC)).json()
 	{ instancePath: string; keyword: string }
 >
 
-describe('validateItem and validateFeed', () => {
+describe('the record validators', () => {
 	test('the spec ships fixtures on both sides', () => {
 		expect(valid.length).toBeGreaterThan(0)
 		expect(invalid.length).toBeGreaterThan(0)
@@ -94,6 +98,51 @@ describe('validateItem and validateFeed', () => {
 	})
 })
 
+describe('validateEntity and validateSource', () => {
+	const claim = {
+		property: 'brand',
+		value: 'Acme',
+		source: { name: 'acme.example', trust: 'verified', lapsed: false },
+		seen_at: '2026-09-19T10:00:00Z',
+	}
+	const family = { $type: 'org.prodid.entity', opid: 'h027qsrdrp9c06x1', kind: 'family', identifiers: [], claims: [claim] }
+	const source = { $type: 'org.prodid.source', name: 'acme.example', kind: 'domain', trust: 'unverified', lapsed: false }
+
+	test('ties an entity kind to the ancestors it must carry', () => {
+		expect(validateEntity(family).ok).toBe(true)
+		expect(validateEntity({ ...family, parents: { family: 'h027qsrdrp9c06x2' } }).ok).toBe(false)
+		expect(validateEntity({ ...family, kind: 'variant' }).ok).toBe(false)
+		expect(validateEntity({ ...family, kind: 'variant', parents: { family: 'h027qsrdrp9c06x2' } }).ok).toBe(true)
+		expect(validateEntity({ ...family, kind: 'item', parents: { family: 'h027qsrdrp9c06x2' } }).ok).toBe(false)
+		expect(validateEntity({ ...family, kind: 'item', parents: { family: 'h027qsrdrp9c06x2', variant: 'h027qsrdrp9c06x3' } }).ok).toBe(true)
+	})
+
+	test('refuses an opid that is not an opid and a claim with no source', () => {
+		expect(validateEntity({ ...family, opid: 'H027QSRDRP9C06X1' }).ok).toBe(false)
+		expect(validateEntity({ ...family, opid: 'illouillouillou' }).ok).toBe(false)
+		const { source: _removed, ...orphan } = claim
+		expect(validateEntity({ ...family, claims: [orphan] }).ok).toBe(false)
+		expect(validateEntity({ ...family, claims: [{ ...claim, seen_at: 'yesterday' }] }).ok).toBe(false)
+	})
+
+	test('ties a source status to the proof and the lapse it claims', () => {
+		expect(validateSource(source).ok).toBe(true)
+		expect(validateSource({ ...source, trust: 'verified' }).ok).toBe(false)
+		expect(validateSource({ ...source, trust: 'verified', verified_by: 'dns-txt', verified_at: '2026-09-19T10:00:00Z' }).ok).toBe(true)
+		expect(validateSource({ ...source, lapsed: true }).ok).toBe(false)
+		expect(validateSource({ ...source, lapsed: true, lapsed_at: '2026-09-19T10:00:00Z' }).ok).toBe(true)
+		expect(validateSource({ ...source, lapsed_at: '2026-09-19T10:00:00Z' }).ok).toBe(false)
+	})
+
+	test('bounds what a crawl may report', () => {
+		const at = '2026-09-19T10:00:00Z'
+		expect(validateSource({ ...source, last_crawl: { at, outcome: 'success' } }).ok).toBe(true)
+		expect(validateSource({ ...source, last_crawl: { at, outcome: 'rate-limited' } }).ok).toBe(false)
+		expect(validateSource({ ...source, last_crawl: { at, outcome: 'success', http_status: 99 } }).ok).toBe(false)
+		expect(validateSource({ ...source, last_crawl: { at, outcome: 'success', document_url: 'http://acme.example/x' } }).ok).toBe(false)
+	})
+})
+
 describe('the validators run where eval is forbidden', () => {
 	test('the generated module holds no dynamic code and no require', async () => {
 		const source = await Bun.file(GENERATED).text()
@@ -119,7 +168,11 @@ describe('the validators run where eval is forbidden', () => {
 		let refused = false
 		try {
 			accepted = validateItem(await Bun.file(new URL('examples/item.jacket.json', SPEC)).json()).ok
-			refused = !validateItem({ $type: 'org.prodid.item' }).ok && !validateFeed({ $type: 'org.prodid.feed', version: 3 }).ok
+			refused =
+				!validateItem({ $type: 'org.prodid.item' }).ok &&
+				!validateFeed({ $type: 'org.prodid.feed', version: 3 }).ok &&
+				!validateEntity({ $type: 'org.prodid.entity', kind: 'family' }).ok &&
+				!validateSource({ $type: 'org.prodid.source', trust: 'verified' }).ok
 		} finally {
 			host.Function = realFunction
 			host.eval = realEval
@@ -127,5 +180,93 @@ describe('the validators run where eval is forbidden', () => {
 		expect(reached).toEqual([])
 		expect(accepted).toBe(true)
 		expect(refused).toBe(true)
+	})
+})
+
+describe('strings the store cannot hold', () => {
+	const base = {
+		$type: 'org.prodid.item',
+		key: 'TB-100',
+		brand: 'Acme',
+		name: 'Trail Bottle 1L',
+		identifiers: [{ scheme: 'gtin', value: '9506000134420' }],
+	}
+
+	test('a lone surrogate is a validation error, so the line is skipped and the ingest survives', () => {
+		const result = validateItem({ ...base, name: 'Trail Bottle \uD800' })
+		expect(result.ok).toBe(false)
+		if (result.ok) return
+		expect(result.errors).toContainEqual(expect.objectContaining({ path: '/name', keyword: 'storable' }))
+	})
+
+	test('U+0000 is a validation error too, because jsonb refuses it', () => {
+		const result = validateItem({ ...base, properties: { madeIn: 'T\u0000R' } })
+		expect(result.ok).toBe(false)
+		if (result.ok) return
+		expect(result.errors).toContainEqual(expect.objectContaining({ path: '/properties/madeIn', keyword: 'storable' }))
+	})
+
+	test('finds one anywhere in the record, keys included', () => {
+		expect(validateItem({ ...base, variant: { color: 'navy\uD800' } }).ok).toBe(false)
+		expect(validateItem({ ...base, markets: ['T\uDC00'] }).ok).toBe(false)
+		expect(validateItem({ ...base, media: [{ url: 'https://a.example/x', license: 'CC0-1.0\u0000' }] }).ok).toBe(false)
+	})
+
+	test('applies to every record type', () => {
+		const claim = {
+			property: 'brand',
+			value: 'Acme',
+			source: { name: 'a.example', trust: 'verified', lapsed: false },
+			seen_at: '2026-09-19T10:00:00Z',
+		}
+		const entity = { $type: 'org.prodid.entity', opid: 'h027qsrdrp9c06x1', kind: 'family', identifiers: [], claims: [claim] }
+		expect(validateEntity({ ...entity, claims: [{ ...claim, value: 'Acme\uD800' }] }).ok).toBe(false)
+		expect(
+			validateSource({ $type: 'org.prodid.source', name: 'a.example\u0000', kind: 'domain', trust: 'unverified', lapsed: false }).ok,
+		).toBe(false)
+		const feed = {
+			$type: 'org.prodid.feed',
+			version: 0,
+			publisher: { name: 'Acme\uD800' },
+			license: 'CC0-1.0',
+			feeds: ['https://a.example/f.ndjson'],
+		}
+		expect(validateFeed(feed).ok).toBe(false)
+	})
+
+	test('a record that canonicalizes is a record that validated', async () => {
+		const result = validateItem(base)
+		expect(result.ok).toBe(true)
+		if (!result.ok) return
+		expect((await canonicalHash(result.value)).length).toBe(64)
+	})
+})
+
+describe('a gtin identifier must be a GTIN', () => {
+	const base = { $type: 'org.prodid.item', key: 'TB-100', brand: 'Acme', name: 'Trail Bottle 1L' }
+
+	test('rejects a wrong check digit and the all-zero placeholder', () => {
+		for (const value of ['9506000134353', '0000000000000', '00000000', '000000000000']) {
+			const result = validateItem({ ...base, identifiers: [{ scheme: 'gtin', value }] })
+			expect(result.ok).toBe(false)
+			if (result.ok) continue
+			expect(result.errors).toContainEqual(expect.objectContaining({ path: '/identifiers/0/value', keyword: 'gtin' }))
+		}
+	})
+
+	test('names the identifier that is wrong, not the first one', () => {
+		const identifiers = [
+			{ scheme: 'gtin', value: '9506000134420' },
+			{ scheme: 'mpn', value: 'TJ-1' },
+			{ scheme: 'gtin', value: '9506000134353' },
+		]
+		const result = validateItem({ ...base, identifiers })
+		expect(result.ok).toBe(false)
+		if (result.ok) return
+		expect(result.errors).toContainEqual(expect.objectContaining({ path: '/identifiers/2/value', keyword: 'gtin' }))
+	})
+
+	test('keeps a restricted circulation number, which is stored rather than rejected', () => {
+		expect(validateItem({ ...base, identifiers: [{ scheme: 'gtin', value: '2001234567893' }] }).ok).toBe(true)
 	})
 })

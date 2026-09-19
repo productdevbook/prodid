@@ -1,0 +1,9 @@
+{
+	"$type": "org.prodid.source",
+	"name": "acme.example",
+	"kind": "domain",
+	"trust": "verified",
+	"verified_by": "dns-txt",
+	"verified_at": "2026-09-14T09:12:03Z",
+	"lapsed": true
+}

@@ -1,0 +1,23 @@
+{
+	"$type": "org.prodid.entity",
+	"opid": "9p2d4kv7mq3nbhxf",
+	"kind": "variant",
+	"parents": {
+		"family": "3n7k2q9vdfhb4mta"
+	},
+	"children": ["kq7m3v9dn2hb4t5x"],
+	"identifiers": [],
+	"claims": [
+		{
+			"property": "variant.color",
+			"value": "navy",
+			"lang": "en",
+			"source": {
+				"name": "acme.example",
+				"trust": "verified",
+				"lapsed": false
+			},
+			"seen_at": "2026-09-14T09:12:03Z"
+		}
+	]
+}

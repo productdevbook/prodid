@@ -1,1 +1,4 @@
-{ "value": ["feed=https://acme.prodid.org/.well-known/prodid.json; v=prodid0"], "valid": false }
+{
+	"value": ["host=acme.prodid.org; v=prodid0"],
+	"outcome": "ignored"
+}

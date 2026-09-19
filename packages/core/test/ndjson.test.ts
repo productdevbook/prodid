@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 
 import { type NdjsonEntry, readNdjson } from '../src/ndjson'
+import { validateItem } from '../src/record/index'
 
 const encoder = new TextEncoder()
 
@@ -103,5 +104,21 @@ describe('readNdjson', () => {
 	test('handles an empty stream', async () => {
 		expect(await collect(streamOf())).toEqual([])
 		expect(await collect(streamOf('\n\n'))).toEqual([])
+	})
+})
+
+describe('the feed of defects the spec ships', () => {
+	const FEED = new URL('../../../spec/fixtures/ndjson/', import.meta.url)
+
+	test('skips exactly the lines the spec says must be skipped', async () => {
+		const expected = (await Bun.file(new URL('expected.json', FEED)).json()) as Record<string, number[]>
+		expect(Object.keys(expected).length).toBeGreaterThan(0)
+		for (const [name, lines] of Object.entries(expected)) {
+			const skipped: number[] = []
+			for await (const entry of readNdjson(Bun.file(new URL(name, FEED)).stream())) {
+				if (!entry.ok || !validateItem(entry.value).ok) skipped.push(entry.line)
+			}
+			if (skipped.join(',') !== lines.join(',')) throw new Error(`fixtures/ndjson/${name}: expected ${lines}, skipped ${skipped}`)
+		}
 	})
 })

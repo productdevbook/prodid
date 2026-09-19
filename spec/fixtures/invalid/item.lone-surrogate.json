@@ -1,0 +1,12 @@
+{
+	"$type": "org.prodid.item",
+	"key": "TB-100",
+	"brand": "Acme",
+	"name": "Trail Bottle \ud800",
+	"identifiers": [
+		{
+			"scheme": "gtin",
+			"value": "9506000134420"
+		}
+	]
+}

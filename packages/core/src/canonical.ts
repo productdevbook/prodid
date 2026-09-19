@@ -33,6 +33,8 @@ function write(value: unknown, out: string[]): void {
 			out.push(JSON.stringify(value))
 			return
 		case 'string':
+			// RFC 8785 §3.2.2.2: a lone surrogate has no serialization. JSON.stringify would escape it.
+			if (!value.isWellFormed()) throw new TypeError('cannot canonicalize a string that is not well-formed')
 			out.push(JSON.stringify(value))
 			return
 		case 'object':
@@ -58,6 +60,7 @@ function write(value: unknown, out: string[]): void {
 	for (const key of keys) {
 		const member = record[key]
 		if (member === undefined) continue
+		if (!key.isWellFormed()) throw new TypeError('cannot canonicalize a key that is not well-formed')
 		if (!first) out.push(',')
 		first = false
 		out.push(JSON.stringify(key), ':')

@@ -1,0 +1,5 @@
+{
+	"value": ["v=prodid0; host=acme.prodid.org."],
+	"outcome": "delegation",
+	"host": "acme.prodid.org"
+}

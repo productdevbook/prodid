@@ -8,7 +8,7 @@
 		"down": "docker compose down",
 		"migrate": "bun run migrate.ts",
 		"typecheck": "tsc -p tsconfig.json",
-		"check": "bun run up && bun run test/smoke.ts"
+		"check": "bun run up && bun run test/smoke.ts && bun run test/race.ts"
 	},
 	"dependencies": {
 		"postgres": "3.4.9"

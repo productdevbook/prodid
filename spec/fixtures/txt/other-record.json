@@ -1,0 +1,4 @@
+{
+	"value": ["v=spf1 include:_spf.example ~all"],
+	"outcome": "ignored"
+}

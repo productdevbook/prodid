@@ -31,7 +31,8 @@ describe('deriveRecord', () => {
 		expect(derived.claims).toEqual([
 			{ property: 'brand', value: 'Acme', lang: 'en' },
 			{ property: 'name', value: 'Trail Jacket', lang: 'en' },
-			{ property: 'markets', value: ['TR', 'DE'], lang: null },
+			{ property: 'markets', value: 'TR', lang: null },
+			{ property: 'markets', value: 'DE', lang: null },
 			{ property: 'variant.color', value: 'navy', lang: 'en' },
 			{ property: 'variant.size', value: 'M', lang: 'en' },
 			{ property: 'properties.madeIn', value: 'TR', lang: 'en' },
@@ -60,6 +61,16 @@ describe('deriveRecord', () => {
 			{ property: 'brand', value: 'Acme', lang: null },
 			{ property: 'name', value: 'Trail Bottle 1L', lang: null },
 		])
+	})
+})
+
+describe('markets', () => {
+	test('reordering a market list withdraws nothing, because the schema declares a set', () => {
+		const forward = deriveRecord(jacket, { source }).claims.filter((claim) => claim.property === 'markets')
+		const backward = deriveRecord({ ...jacket, markets: ['DE', 'TR'] }, { source }).claims.filter((claim) => claim.property === 'markets')
+		expect(forward).toHaveLength(2)
+		expect(new Set(forward.map((claim) => claim.value))).toEqual(new Set(backward.map((claim) => claim.value)))
+		for (const claim of forward) expect(typeof claim.value).toBe('string')
 	})
 })
 

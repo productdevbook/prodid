@@ -1,0 +1,12 @@
+{
+	"$type": "org.prodid.item",
+	"key": "TB-100.RCN",
+	"brand": "Acme",
+	"name": "Trail Bottle 1L",
+	"identifiers": [
+		{
+			"scheme": "gtin",
+			"value": "2001234567893"
+		}
+	]
+}

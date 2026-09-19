@@ -13,6 +13,7 @@
 	"dependencies": {
 		"@prodid/spec": "workspace:*",
 		"ajv": "8.20.0",
-		"ajv-formats": "3.0.1"
+		"ajv-formats": "3.0.1",
+		"tldts": "7.4.13"
 	}
 }

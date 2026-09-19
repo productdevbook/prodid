@@ -4,7 +4,16 @@ import { join, relative } from 'node:path'
 import addFormats from 'ajv-formats'
 import Ajv2020, { type AnySchemaObject, type ValidateFunction } from 'ajv/dist/2020'
 
-type Defect = { instancePath: string; keyword: string }
+type Defect = { instancePath: string; keyword: string; params?: Record<string, unknown> }
+type Problem = { instancePath: string; keyword: string; params: Record<string, unknown>; message: string }
+type TxtOutcome = 'delegation' | 'ignored' | 'malformed'
+type TxtResult = { outcome: TxtOutcome; host?: string }
+
+const MAX_TXT_BYTES = 512
+const MAX_CHARACTER_STRING_BYTES = 255
+const TXT_VERSION = 'prodid0'
+const TAG_NAME = /^[a-z][a-z0-9-]*$/
+const TAG_VALUE = /^[!-:<-~]*$/
 
 const root = import.meta.dir
 const ajv = new Ajv2020({ strict: true, allErrors: true })
@@ -21,11 +30,13 @@ for (const name of jsonFiles(join(root, 'schemas'))) {
 }
 
 const expected = JSON.parse(readFileSync(join(root, 'fixtures', 'expected.json'), 'utf8')) as Record<string, Defect>
-const hostPattern = String(schemas.get('org.prodid.feed')?.properties.domain.pattern).replace(/^\^/, '').replace(/\$$/, '')
-const feedUrlPattern = new RegExp(`^https://${hostPattern}/\\.well-known/prodid\\.json$`)
+const ndjsonExpected = JSON.parse(readFileSync(join(root, 'fixtures', 'ndjson', 'expected.json'), 'utf8')) as Record<string, number[]>
+const domainRule = schemas.get('org.prodid.feed')?.properties.domain as { pattern: string; maxLength: number }
+const isHost = (value: string): boolean => new RegExp(domainRule.pattern).test(value) && bytes(value) <= domainRule.maxLength
 
 let failures = 0
 const asserted = new Set<string>()
+const ndjsonAsserted = new Set<string>()
 
 for (const name of readdirSync(join(root, 'examples')).sort()) {
 	const path = join(root, 'examples', name)
@@ -41,10 +52,26 @@ for (const name of jsonFiles(join(root, 'fixtures', 'invalid'))) {
 for (const name of jsonFiles(join(root, 'fixtures', 'txt'))) {
 	report(join(root, 'fixtures', 'txt', name), checkTxtVector(join(root, 'fixtures', 'txt', name)))
 }
+for (const name of jsonFiles(join(root, 'fixtures', 'brand'))) {
+	report(join(root, 'fixtures', 'brand', name), checkBrandVector(join(root, 'fixtures', 'brand', name)))
+}
+for (const name of jsonFiles(join(root, 'fixtures', 'gtin'))) {
+	report(join(root, 'fixtures', 'gtin', name), checkGtinVector(join(root, 'fixtures', 'gtin', name)))
+}
+for (const name of readdirSync(join(root, 'fixtures', 'ndjson')).sort()) {
+	if (!name.endsWith('.ndjson')) continue
+	report(join(root, 'fixtures', 'ndjson', name), checkNdjsonFixture(join(root, 'fixtures', 'ndjson', name), name))
+}
 report(
 	join(root, 'fixtures', 'expected.json'),
 	Object.keys(expected)
 		.filter((name) => !asserted.has(name))
+		.map((name) => `no fixture named ${name}`),
+)
+report(
+	join(root, 'fixtures', 'ndjson', 'expected.json'),
+	Object.keys(ndjsonExpected)
+		.filter((name) => !ndjsonAsserted.has(name))
 		.map((name) => `no fixture named ${name}`),
 )
 
@@ -54,6 +81,10 @@ function jsonFiles(dir: string): string[] {
 	return readdirSync(dir)
 		.filter((name) => name.endsWith('.json'))
 		.sort()
+}
+
+function bytes(value: string): number {
+	return Buffer.byteLength(value, 'utf8')
 }
 
 function parse(text: string): { value: unknown } | { problem: string } {
@@ -71,22 +102,85 @@ function checkFile(path: string, expectValid: boolean): string[] {
 }
 
 function checkRecord(record: unknown, expectValid: boolean): string[] {
-	const validate = validatorFor(record)
-	if (typeof validate === 'string') return expectValid ? [validate] : []
-	if (validate(record)) return expectValid ? [] : ['accepted, but must be rejected']
-	return expectValid ? [errorText(validate)] : []
+	const problems = recordProblems(record)
+	if (typeof problems === 'string') return expectValid ? [problems] : []
+	if (problems.length === 0) return expectValid ? [] : ['accepted, but must be rejected']
+	return expectValid ? [problemText(problems)] : []
 }
 
-function validatorFor(record: unknown): ValidateFunction | string {
+function recordProblems(record: unknown): Problem[] | string {
 	const type = (record as { $type?: unknown } | null)?.$type
 	if (typeof type !== 'string') return 'no $type'
 	const validate = validators.get(type)
-	return validate ?? `unknown $type ${type}`
+	if (!validate) return `unknown $type ${type}`
+	const problems: Problem[] = []
+	if (!validate(record)) {
+		for (const error of validate.errors ?? []) {
+			problems.push({
+				instancePath: error.instancePath,
+				keyword: error.keyword,
+				params: error.params as Record<string, unknown>,
+				message: `${error.instancePath || '/'} ${error.message}`,
+			})
+		}
+	}
+	problems.push(...storabilityProblems(record, ''))
+	if (type === 'org.prodid.item') problems.push(...gtinProblems(record))
+	return problems
+}
+
+function storabilityProblems(value: unknown, at: string): Problem[] {
+	if (typeof value === 'string') {
+		const defect = unstorable(value)
+		return defect === null ? [] : [problem(at, 'storable', `${at || '/'} ${defect}`)]
+	}
+	if (Array.isArray(value)) return value.flatMap((item, index) => storabilityProblems(item, `${at}/${index}`))
+	if (typeof value === 'object' && value !== null) {
+		return Object.entries(value).flatMap(([key, item]) => {
+			const path = `${at}/${key.replaceAll('~', '~0').replaceAll('/', '~1')}`
+			const defect = unstorable(key)
+			const here = defect === null ? [] : [problem(at, 'storable', `${at || '/'} key ${defect}`)]
+			return [...here, ...storabilityProblems(item, path)]
+		})
+	}
+	return []
+}
+
+function unstorable(value: string): string | null {
+	if (value.includes('\u0000')) return 'contains U+0000'
+	if (!value.isWellFormed()) return 'is not well-formed Unicode'
+	return null
+}
+
+function gtinProblems(record: unknown): Problem[] {
+	const identifiers = (record as { identifiers?: unknown }).identifiers
+	if (!Array.isArray(identifiers)) return []
+	return identifiers.flatMap((identifier, index) => {
+		if (typeof identifier !== 'object' || identifier === null) return []
+		const { scheme, value } = identifier as { scheme?: unknown; value?: unknown }
+		if (scheme !== 'gtin' || typeof value !== 'string') return []
+		if (classifyGtin(value) !== 'invalid') return []
+		const at = `/identifiers/${index}/value`
+		return [problem(at, 'gtin', `${at} is not a GTIN`)]
+	})
+}
+
+function problem(instancePath: string, keyword: string, message: string): Problem {
+	return { instancePath, keyword, params: {}, message }
+}
+
+function problemText(problems: readonly Problem[]): string {
+	return problems.map((one) => one.message).join('; ')
 }
 
 function checkNdjson(path: string): string[] {
+	return skippedLines(path).problems
+}
+
+function skippedLines(path: string): { problems: string[]; skipped: number[] } {
 	const lines = readFileSync(path, 'utf8').split('\n')
 	const problems: string[] = []
+	const skipped: number[] = []
 	lines.forEach((line, index) => {
 		const at = `line ${index + 1}`
 		if (line.trim() === '') {
@@ -96,11 +190,23 @@ function checkNdjson(path: string): string[] {
 		const parsed = parse(line)
 		if ('problem' in parsed) {
 			problems.push(`${at}: ${parsed.problem}`)
+			skipped.push(index + 1)
 			return
 		}
-		for (const problem of checkRecord(parsed.value, true)) problems.push(`${at}: ${problem}`)
+		const found = checkRecord(parsed.value, true)
+		if (found.length > 0) skipped.push(index + 1)
+		for (const found_ of found) problems.push(`${at}: ${found_}`)
 	})
-	return problems
+	return { problems, skipped }
+}
+
+function checkNdjsonFixture(path: string, name: string): string[] {
+	const want = ndjsonExpected[name]
+	if (!want) return ['no expected skipped lines in fixtures/ndjson/expected.json']
+	ndjsonAsserted.add(name)
+	const { skipped } = skippedLines(path)
+	if (skipped.join(',') === want.join(',')) return []
+	return [`skips lines ${skipped.join(', ') || 'none'}, expected ${want.join(', ') || 'none'}`]
 }
 
 function checkInvalidFixture(path: string, name: string): string[] {
@@ -109,40 +215,153 @@ function checkInvalidFixture(path: string, name: string): string[] {
 	if (!defect) return ['no expected defect in fixtures/expected.json']
 	const parsed = parse(readFileSync(path, 'utf8'))
 	if ('problem' in parsed) return [parsed.problem]
-	const validate = validatorFor(parsed.value)
-	if (typeof validate === 'string') return [validate]
-	if (validate(parsed.value)) return ['accepted, but must be rejected']
-	const wanted = (validate.errors ?? []).some((error) => error.instancePath === defect.instancePath && error.keyword === defect.keyword)
+	const problems = recordProblems(parsed.value)
+	if (typeof problems === 'string') return [problems]
+	if (problems.length === 0) return ['accepted, but must be rejected']
+	const wanted = problems.some(
+		(one) =>
+			one.instancePath === defect.instancePath &&
+			one.keyword === defect.keyword &&
+			Object.entries(defect.params ?? {}).every(([key, value]) => one.params[key] === value),
+	)
 	if (wanted) return []
-	return [`rejected by ${errorText(validate)}, expected ${defect.keyword} at ${defect.instancePath || '/'}`]
+	const want = `${defect.keyword} at ${defect.instancePath || '/'}${defect.params ? ` ${JSON.stringify(defect.params)}` : ''}`
+	return [`rejected by ${problemText(problems)}, expected ${want}`]
+}
+
+function checkBrandVector(path: string): string[] {
+	const parsed = parse(readFileSync(path, 'utf8'))
+	if ('problem' in parsed) return [parsed.problem]
+	const vector = parsed.value as Record<string, unknown>
+	const problems = unknownFields(vector, ['input', 'normalized'])
+	if (typeof vector.input !== 'string' || typeof vector.normalized !== 'string') {
+		return [...problems, 'input and normalized must be strings']
+	}
+	const normalized = normalizeBrand(vector.input)
+	if (normalized !== vector.normalized) problems.push(`normalizes to ${JSON.stringify(normalized)}`)
+	if (normalizeBrand(vector.normalized) !== vector.normalized) problems.push('normalized form is not stable')
+	return problems
+}
+
+function normalizeBrand(brand: string): string {
+	return brand.normalize('NFKC').toLowerCase().replaceAll('ı', 'i').replaceAll(/i̇/gu, 'i').replaceAll(/\s+/gu, ' ').trim()
+}
+
+function checkGtinVector(path: string): string[] {
+	const parsed = parse(readFileSync(path, 'utf8'))
+	if ('problem' in parsed) return [parsed.problem]
+	const vector = parsed.value as Record<string, unknown>
+	const problems = unknownFields(vector, ['value', 'verdict'])
+	const { value, verdict } = vector
+	if (typeof value !== 'string' || (verdict !== 'gtin' && verdict !== 'rcn' && verdict !== 'invalid')) {
+		return [...problems, 'value must be a string and verdict gtin, rcn or invalid']
+	}
+	const read = classifyGtin(value)
+	if (read !== verdict) problems.push(`reads as ${read}`)
+	return problems
+}
+
+function classifyGtin(value: string): 'gtin' | 'rcn' | 'invalid' {
+	if (!/^[0-9]+$/.test(value)) return 'invalid'
+	if (![8, 12, 13, 14].includes(value.length)) return 'invalid'
+	if (!hasGtinCheckDigit(value)) return 'invalid'
+	if (/^0+$/.test(value)) return 'invalid'
+	if (value.length === 8) return value.startsWith('0') || value.startsWith('2') ? 'rcn' : 'gtin'
+	const thirteen = value.length === 14 ? value.slice(1) : value.padStart(13, '0')
+	if (/^(02|04|2[0-9]|0000000)/.test(thirteen)) return 'rcn'
+	return 'gtin'
+}
+
+function hasGtinCheckDigit(value: string): boolean {
+	let sum = 0
+	for (let at = value.length - 2, weight = 3; at >= 0; at -= 1, weight = weight === 3 ? 1 : 3) {
+		sum += Number(value[at]) * weight
+	}
+	return String((10 - (sum % 10)) % 10) === value.at(-1)
+}
+
+function unknownFields(vector: Record<string, unknown>, allowed: readonly string[]): string[] {
+	if (typeof vector !== 'object' || vector === null || Array.isArray(vector)) return ['not an object']
+	return Object.keys(vector)
+		.filter((key) => !allowed.includes(key))
+		.map((key) => `unknown field ${key}`)
 }
 
 function checkTxtVector(path: string): string[] {
 	const parsed = parse(readFileSync(path, 'utf8'))
 	if ('problem' in parsed) return [parsed.problem]
+	if (typeof parsed.value !== 'object' || parsed.value === null || Array.isArray(parsed.value)) return ['not an object']
 	const vector = parsed.value as Record<string, unknown>
-	if (typeof vector !== 'object' || vector === null || Array.isArray(vector)) return ['not an object']
 	const problems: string[] = []
 	for (const key of Object.keys(vector)) {
-		if (key !== 'value' && key !== 'valid' && key !== 'feed') problems.push(`unknown field ${key}`)
+		if (key !== 'value' && key !== 'outcome' && key !== 'host') problems.push(`unknown field ${key}`)
 	}
 	const value = vector.value
 	if (!Array.isArray(value) || value.length === 0 || value.some((part) => typeof part !== 'string')) {
-		problems.push('value must be a non-empty array of strings')
-	} else if (Buffer.byteLength(value.join(''), 'utf8') > 512) {
-		problems.push('value is longer than 512 bytes')
-	} else if (value.some((part) => Buffer.byteLength(part as string, 'utf8') > 255)) {
-		problems.push('a character-string is longer than 255 bytes')
+		return [...problems, 'value must be a non-empty array of strings']
 	}
-	if (typeof vector.valid !== 'boolean') problems.push('valid must be a boolean')
-	if (vector.valid === true && typeof vector.feed !== 'string') problems.push('a valid vector must state its feed')
-	if (vector.valid === false && 'feed' in vector) problems.push('an invalid vector must not state a feed')
-	if (typeof vector.feed === 'string' && !feedUrlPattern.test(vector.feed)) problems.push(`feed is not a delegation target: ${vector.feed}`)
+	const parts = value as string[]
+	if (parts.some((part) => bytes(part) > MAX_CHARACTER_STRING_BYTES)) {
+		problems.push(`a character-string is over ${MAX_CHARACTER_STRING_BYTES} bytes`)
+	}
+	const outcome = vector.outcome
+	if (outcome !== 'delegation' && outcome !== 'ignored' && outcome !== 'malformed') {
+		return [...problems, 'outcome must be delegation, ignored or malformed']
+	}
+	if (outcome === 'delegation' && typeof vector.host !== 'string') problems.push('a delegation must state its host')
+	if (outcome !== 'delegation' && 'host' in vector) problems.push('only a delegation states a host')
+	if (typeof vector.host === 'string' && !isHost(vector.host)) problems.push(`host is not a hostname: ${vector.host}`)
+
+	const read = parseTxtRecord(parts)
+	if (read.outcome !== outcome) problems.push(`the grammar reads it as ${read.outcome}`)
+	else if (read.host !== undefined && read.host !== vector.host) problems.push(`the grammar reads host ${read.host}`)
 	return problems
 }
 
-function errorText(validate: ValidateFunction): string {
-	return (validate.errors ?? []).map((error) => `${error.instancePath || '/'} ${error.message}`).join('; ')
+function parseTxtRecord(parts: readonly string[]): TxtResult {
+	const value = parts.join('')
+	if (!startsWithVersion(value)) return { outcome: 'ignored' }
+	if (bytes(value) > MAX_TXT_BYTES) return { outcome: 'malformed' }
+
+	const fields = value.trim().split(';')
+	if (fields.at(-1)?.trim() === '') fields.pop()
+	const tags = new Map<string, string>()
+	for (const field of fields) {
+		const at = field.indexOf('=')
+		if (at === -1) return { outcome: 'malformed' }
+		const name = field.slice(0, at).trim()
+		const tagValue = field.slice(at + 1).trim()
+		if (!TAG_NAME.test(name) || !TAG_VALUE.test(tagValue) || tags.has(name)) return { outcome: 'malformed' }
+		tags.set(name, tagValue)
+	}
+
+	if (tags.get('v') !== TXT_VERSION) return { outcome: 'malformed' }
+	const host = tags.get('host')
+	if (host === undefined) return { outcome: 'malformed' }
+	const normalized = normalizeTxtHost(host)
+	if (!isHost(normalized)) return { outcome: 'malformed' }
+	return { outcome: 'delegation', host: normalized }
+}
+
+function startsWithVersion(value: string): boolean {
+	let at = skipSpace(value, 0)
+	if (value[at] !== 'v') return false
+	at = skipSpace(value, at + 1)
+	if (value[at] !== '=') return false
+	at = skipSpace(value, at + 1)
+	if (!value.startsWith(TXT_VERSION, at)) return false
+	const next = value[at + TXT_VERSION.length]
+	return next === undefined || next === ';' || next === ' ' || next === '\t'
+}
+
+function skipSpace(value: string, from: number): number {
+	let at = from
+	while (value[at] === ' ' || value[at] === '\t') at += 1
+	return at
+}
+
+function normalizeTxtHost(host: string): string {
+	return host.toLowerCase().replace(/\.$/, '')
 }
 
 function report(path: string, problems: string[]): void {

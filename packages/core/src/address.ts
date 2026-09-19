@@ -10,15 +10,77 @@ export type AddressClass =
 	| 'multicast'
 	| 'reserved'
 
-const IPV4 = /^(?:0|[1-9][0-9]{0,2})(?:\.(?:0|[1-9][0-9]{0,2})){3}$/
+interface Block {
+	bits: number
+	kind: AddressClass
+}
+
+interface Ipv4Block extends Block {
+	packed: number
+}
+
+interface Ipv6Block extends Block {
+	bytes: Uint8Array
+}
+
+const IPV4_TEXT = /^(?:0|[1-9][0-9]{0,2})(?:\.(?:0|[1-9][0-9]{0,2})){3}$/
 const IPV6_GROUP = /^[0-9a-f]{1,4}$/i
+
+/**
+ * IANA's IPv4 Special-Purpose Address Registry, plus multicast. Every registered block is non-public,
+ * the few marked globally reachable included: no publisher serves a discovery document from one.
+ */
+const IPV4_BLOCKS: Ipv4Block[] = ipv4Blocks([
+	['0.0.0.0', 8, 'reserved'],
+	['10.0.0.0', 8, 'private'],
+	['100.64.0.0', 10, 'cgnat'],
+	['127.0.0.0', 8, 'loopback'],
+	['169.254.0.0', 16, 'link-local'],
+	['172.16.0.0', 12, 'private'],
+	['192.0.0.0', 24, 'reserved'],
+	['192.0.2.0', 24, 'reserved'],
+	['192.31.196.0', 24, 'reserved'],
+	['192.52.193.0', 24, 'reserved'],
+	['192.88.99.0', 24, 'reserved'],
+	['192.168.0.0', 16, 'private'],
+	['192.175.48.0', 24, 'reserved'],
+	['198.18.0.0', 15, 'reserved'],
+	['198.51.100.0', 24, 'reserved'],
+	['203.0.113.0', 24, 'reserved'],
+	['224.0.0.0', 4, 'multicast'],
+	['240.0.0.0', 4, 'reserved'],
+])
+
+/**
+ * IANA's IPv6 Special-Purpose Address Registry. The forms that wrap an IPv4 address are resolved
+ * before this table and classified by the address they carry. `2001::/23` is the IETF assignments
+ * block, which covers Teredo, benchmarking, ORCHID and the anycast addresses inside it.
+ * `64:ff9b:1::/48` is local-use translation whose embedded address cannot be located without knowing
+ * the operator's prefix length, so the whole block is non-public rather than guessed at.
+ */
+const IPV6_BLOCKS: Ipv6Block[] = ipv6Blocks([
+	['64:ff9b:1::', 48, 'reserved'],
+	['100::', 64, 'reserved'],
+	['100:0:0:1::', 64, 'reserved'],
+	['2001::', 23, 'reserved'],
+	['2001:db8::', 32, 'reserved'],
+	['2620:4f:8000::', 48, 'reserved'],
+	['3fff::', 20, 'reserved'],
+	['5f00::', 16, 'reserved'],
+	['fc00::', 7, 'unique-local'],
+	['fe80::', 10, 'link-local'],
+	['fec0::', 10, 'reserved'],
+	['ff00::', 8, 'multicast'],
+])
+
+const NAT64_WELL_KNOWN = ipv6Blocks([['64:ff9b::', 96, 'reserved']])[0]!
 
 /** True only for addresses a crawler may talk to: everything else is someone's private network. */
 export function isPublicAddress(address: string): boolean {
 	return classifyAddress(address) === 'public'
 }
 
-/** Classifies an IPv4 or IPv6 address, following an IPv4-mapped IPv6 address to the address it carries. */
+/** Classifies an IPv4 or IPv6 address, following any embedded IPv4 address to what it really names. */
 export function classifyAddress(address: string): AddressClass {
 	const value = address.trim()
 	if (value.includes(':')) {
@@ -30,7 +92,7 @@ export function classifyAddress(address: string): AddressClass {
 }
 
 export function parseIpv4(value: string): number | null {
-	if (!IPV4.test(value)) return null
+	if (!IPV4_TEXT.test(value)) return null
 	let packed = 0
 	for (const part of value.split('.')) {
 		const octet = Number(part)
@@ -85,34 +147,68 @@ function readGroups(side: string): number[] | null {
 }
 
 function classifyIpv4(packed: number): AddressClass {
-	const inRange = (prefix: string, bits: number): boolean => {
-		const mask = bits === 0 ? 0 : (0xffffffff << (32 - bits)) >>> 0
-		return (packed & mask) >>> 0 === (parseIpv4(prefix)! & mask) >>> 0
-	}
 	if (packed === 0) return 'unspecified'
-	if (inRange('127.0.0.0', 8)) return 'loopback'
-	if (inRange('10.0.0.0', 8) || inRange('172.16.0.0', 12) || inRange('192.168.0.0', 16)) return 'private'
-	if (inRange('169.254.0.0', 16)) return 'link-local'
-	if (inRange('100.64.0.0', 10)) return 'cgnat'
-	if (inRange('224.0.0.0', 4)) return 'multicast'
-	if (inRange('0.0.0.0', 8) || inRange('240.0.0.0', 4)) return 'reserved'
-	if (inRange('192.0.0.0', 24) || inRange('192.0.2.0', 24) || inRange('198.18.0.0', 15)) return 'reserved'
-	if (inRange('198.51.100.0', 24) || inRange('203.0.113.0', 24)) return 'reserved'
+	for (const block of IPV4_BLOCKS) {
+		if (matchesIpv4(packed, block)) return block.kind
+	}
 	return 'public'
 }
 
 function classifyIpv6(bytes: Uint8Array): AddressClass {
-	const leading = (count: number): boolean => bytes.subarray(0, count).every((byte) => byte === 0)
-	if (leading(16)) return 'unspecified'
-	if (leading(15) && bytes[15] === 1) return 'loopback'
-	if (leading(10) && bytes[10] === 0xff && bytes[11] === 0xff) {
-		return classifyIpv4(((bytes[12]! << 24) | (bytes[13]! << 16) | (bytes[14]! << 8) | bytes[15]!) >>> 0)
+	if (zeros(bytes, 16)) return 'unspecified'
+	if (zeros(bytes, 15) && bytes[15] === 1) return 'loopback'
+
+	const embedded = embeddedIpv4(bytes)
+	if (embedded !== null) return classifyIpv4(embedded)
+
+	for (const block of IPV6_BLOCKS) {
+		if (matchesIpv6(bytes, block)) return block.kind
 	}
-	if (leading(12)) return 'reserved'
-	if (bytes[0] === 0xff) return 'multicast'
-	if ((bytes[0]! & 0xfe) === 0xfc) return 'unique-local'
-	if (bytes[0] === 0xfe && (bytes[1]! & 0xc0) === 0x80) return 'link-local'
-	if (bytes[0] === 0xfe && (bytes[1]! & 0xc0) === 0xc0) return 'reserved'
-	if (bytes[0] === 0x20 && bytes[1] === 0x01 && bytes[2] === 0x0d && bytes[3] === 0xb8) return 'reserved'
 	return 'public'
+}
+
+/**
+ * The IPv4 address an IPv6 address carries, for every form that carries one: IPv4-mapped,
+ * IPv4-translated, the deprecated IPv4-compatible, the well-known NAT64 prefix and 6to4. Whatever is
+ * reachable through one of these is really the embedded address, so that is what decides.
+ */
+function embeddedIpv4(bytes: Uint8Array): number | null {
+	if (zeros(bytes, 10) && bytes[10] === 0xff && bytes[11] === 0xff) return packIpv4(bytes, 12)
+	if (zeros(bytes, 8) && bytes[8] === 0xff && bytes[9] === 0xff && bytes[10] === 0 && bytes[11] === 0) return packIpv4(bytes, 12)
+	if (zeros(bytes, 12)) return packIpv4(bytes, 12)
+	if (matchesIpv6(bytes, NAT64_WELL_KNOWN)) return packIpv4(bytes, 12)
+	if (bytes[0] === 0x20 && bytes[1] === 0x02) return packIpv4(bytes, 2)
+	return null
+}
+
+function packIpv4(bytes: Uint8Array, offset: number): number {
+	return ((bytes[offset]! << 24) | (bytes[offset + 1]! << 16) | (bytes[offset + 2]! << 8) | bytes[offset + 3]!) >>> 0
+}
+
+function zeros(bytes: Uint8Array, count: number): boolean {
+	return bytes.subarray(0, count).every((byte) => byte === 0)
+}
+
+function matchesIpv4(packed: number, block: Ipv4Block): boolean {
+	const mask = block.bits === 0 ? 0 : (0xffffffff << (32 - block.bits)) >>> 0
+	return (packed & mask) >>> 0 === (block.packed & mask) >>> 0
+}
+
+function matchesIpv6(bytes: Uint8Array, block: Ipv6Block): boolean {
+	const whole = block.bits >> 3
+	for (let i = 0; i < whole; i += 1) {
+		if (bytes[i] !== block.bytes[i]) return false
+	}
+	const rest = block.bits & 7
+	if (rest === 0) return true
+	const mask = (0xff << (8 - rest)) & 0xff
+	return (bytes[whole]! & mask) === (block.bytes[whole]! & mask)
+}
+
+function ipv4Blocks(rows: [prefix: string, bits: number, kind: AddressClass][]): Ipv4Block[] {
+	return rows.map(([prefix, bits, kind]) => ({ packed: parseIpv4(prefix)!, bits, kind }))
+}
+
+function ipv6Blocks(rows: [prefix: string, bits: number, kind: AddressClass][]): Ipv6Block[] {
+	return rows.map(([prefix, bits, kind]) => ({ bytes: parseIpv6(prefix)!, bits, kind }))
 }

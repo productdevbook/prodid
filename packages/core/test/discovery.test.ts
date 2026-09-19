@@ -3,8 +3,10 @@ import { describe, expect, test } from 'bun:test'
 import {
 	acceptDiscovery,
 	checkFetchable,
+	decodeTxtPresentation,
+	delegationUrl,
+	type DiscoveryPlan,
 	type DiscoveryResponse,
-	delegationHost,
 	isDnsName,
 	isFeedAllowed,
 	isRedirectAllowed,
@@ -17,15 +19,16 @@ import {
 } from '../src/discovery'
 import type { FeedRecord } from '../src/record/types'
 
-const DELEGATION = 'https://acme.prodid.org/.well-known/prodid.json'
-const TXT = `v=prodid0; feed=${DELEGATION}`
+const HOST = 'acme.prodid.org'
+const DOCUMENT = `https://${HOST}/.well-known/prodid.json`
+const TXT = `v=prodid0; host=${HOST}`
 const TXT_VECTORS = new URL('../../../spec/fixtures/txt/', import.meta.url)
 
 interface TxtVector {
 	name: string
 	value: string[]
-	valid: boolean
-	feed?: string
+	outcome: 'delegation' | 'ignored' | 'malformed'
+	host?: string
 }
 
 async function txtVectors(): Promise<TxtVector[]> {
@@ -50,7 +53,7 @@ const DELEGATED: FeedRecord = {
 	domain: 'acme.example',
 	publisher: { name: 'Acme Tekstil' },
 	license: 'CC0-1.0',
-	feeds: ['https://acme.prodid.org/feeds/items.ndjson'],
+	feeds: [`https://${HOST}/feeds/items.ndjson`],
 }
 
 function response(over: Partial<DiscoveryResponse> = {}): DiscoveryResponse {
@@ -88,13 +91,16 @@ describe('isDnsName and normalizeDomain', () => {
 		expect(isDnsName('169.254.169.254')).toBe(false)
 		expect(isDnsName('[::1]')).toBe(false)
 		expect(isDnsName('ACME.example')).toBe(false)
+		expect(isDnsName('acme.example.')).toBe(false)
+		expect(isDnsName(`${'a'.repeat(63)}.${'b'.repeat(63)}.${'c'.repeat(63)}.${'d'.repeat(59)}.example`)).toBe(false)
 	})
 })
 
-describe('wellKnownUrl and txtName', () => {
+describe('wellKnownUrl, txtName and delegationUrl', () => {
 	test('build the discovery locations for a domain', () => {
 		expect(wellKnownUrl('Acme.Example')).toBe('https://acme.example/.well-known/prodid.json')
 		expect(txtName('Acme.Example')).toBe('_prodid.acme.example')
+		expect(delegationUrl(HOST)).toBe(DOCUMENT)
 	})
 
 	test('return null for a domain that cannot be used', () => {
@@ -120,6 +126,44 @@ describe('checkFetchable', () => {
 		expect(checkFetchable('/x')).toEqual({ ok: false, reason: 'not-a-url' })
 		expect(checkFetchable('file:///etc/passwd')).toEqual({ ok: false, reason: 'not-https' })
 	})
+
+	test('an absolute name with the root dot is the same host, not a refusal', () => {
+		expect(checkFetchable('https://acme.example./f.ndjson')).toEqual({ ok: true, host: 'acme.example' })
+		expect(isFeedAllowed('https://acme.example./f.ndjson', 'acme.example')).toBe(true)
+		expect(isFeedAllowed('https://acme.example/f.ndjson', 'ACME.example.')).toBe(true)
+		expect(checkFetchable('https://acme.example../f.ndjson')).toEqual({ ok: false, reason: 'not-a-dns-name' })
+	})
+})
+
+describe('decodeTxtPresentation', () => {
+	test('splits the quoted form a DoH answer returns back into character strings', () => {
+		expect(decodeTxtPresentation('"v=prodid0; " "host=a.example"')).toEqual(['v=prodid0; ', 'host=a.example'])
+		expect(decodeTxtPresentation('"v=prodid0; host=a.example"')).toEqual(['v=prodid0; host=a.example'])
+		expect(decodeTxtPresentation('v=prodid0;host=a.example')).toEqual(['v=prodid0;host=a.example'])
+	})
+
+	test('decodes the escapes RFC 1035 defines and nothing else', () => {
+		expect(decodeTxtPresentation('"a\\"b"')).toEqual(['a"b'])
+		expect(decodeTxtPresentation('"a\\\\b"')).toEqual(['a\\b'])
+		expect(decodeTxtPresentation('"a\\059b"')).toEqual(['a;b'])
+		expect(decodeTxtPresentation('"\\255"')).toEqual([String.fromCharCode(255)])
+	})
+
+	test('refuses what it cannot parse rather than approximating', () => {
+		expect(decodeTxtPresentation('"unterminated')).toBeNull()
+		expect(decodeTxtPresentation('"a" b"c"')).toBeNull()
+		expect(decodeTxtPresentation('"a\\25"')).toBeNull()
+		expect(decodeTxtPresentation('"a\\256"')).toBeNull()
+		expect(decodeTxtPresentation('"a\\')).toBeNull()
+		expect(decodeTxtPresentation('')).toBeNull()
+		expect(decodeTxtPresentation('   ')).toBeNull()
+	})
+
+	test('feeds the parser what the publisher actually wrote', () => {
+		const decoded = decodeTxtPresentation(`"v=prodid0; host=acme.pro" "did.org"`)
+		expect(decoded).not.toBeNull()
+		expect(parseDiscoveryTxt(decoded!)).toEqual({ ok: true, version: 'prodid0', host: HOST })
+	})
 })
 
 describe('isRedirectAllowed', () => {
@@ -137,112 +181,100 @@ describe('isRedirectAllowed', () => {
 	})
 })
 
-describe('delegationHost', () => {
-	test('accepts exactly the one URL a delegation may name', () => {
-		expect(delegationHost(DELEGATION)).toBe('acme.prodid.org')
-	})
-
-	test('refuses a port, userinfo, a query, a fragment, another path or an IP host', () => {
-		for (const value of [
-			'https://acme.prodid.org:8443/.well-known/prodid.json',
-			'https://acme.prodid.org:443/.well-known/prodid.json',
-			'https://user@acme.prodid.org/.well-known/prodid.json',
-			'https://acme.prodid.org/.well-known/prodid.json?x=1',
-			'https://acme.prodid.org/.well-known/prodid.json#x',
-			'https://acme.prodid.org/feeds/prodid.json',
-			'https://acme.prodid.org/',
-			'https://169.254.169.254/.well-known/prodid.json',
-			'https://[::1]/.well-known/prodid.json',
-			'https://localhost/.well-known/prodid.json',
-			'http://acme.prodid.org/.well-known/prodid.json',
-			'https://ACME.prodid.org/.well-known/prodid.json',
-			'https://acme.prodid.org./.well-known/prodid.json',
-			'https://acme.prodid.org/.well-known/../.well-known/prodid.json',
-		]) {
-			expect(delegationHost(value)).toBeNull()
-		}
-	})
-})
-
 describe('parseDiscoveryTxt', () => {
 	test('reads the documented form', () => {
-		expect(parseDiscoveryTxt(TXT)).toEqual({ ok: true, version: 'prodid0', feed: DELEGATION, host: 'acme.prodid.org' })
+		expect(parseDiscoveryTxt(TXT)).toEqual({ ok: true, version: 'prodid0', host: HOST })
 	})
 
 	test('tolerates whitespace around the separators and ignores unknown tags', () => {
-		expect(parseDiscoveryTxt(`  v = prodid0 ;  feed = ${DELEGATION}  ;  note=hello ; `)).toEqual({
+		expect(parseDiscoveryTxt(`  v = prodid0 ;  host = ${HOST}  ;  note=hello ; `)).toEqual({
 			ok: true,
 			version: 'prodid0',
-			feed: DELEGATION,
-			host: 'acme.prodid.org',
+			host: HOST,
 		})
-	})
-
-	test('refuses an empty tag and a repeated tag', () => {
-		expect(parseDiscoveryTxt(`v=prodid0;; feed=${DELEGATION}`)).toEqual({ ok: false, reason: 'malformed' })
-		expect(parseDiscoveryTxt(`v=prodid0; feed=${DELEGATION}; feed=https://evil.example/.well-known/prodid.json`)).toEqual({
-			ok: false,
-			reason: 'malformed',
-		})
-		expect(parseDiscoveryTxt('v=prodid0; hello')).toEqual({ ok: false, reason: 'malformed' })
-	})
-
-	test('refuses a tag the grammar does not allow, rather than ignoring it', () => {
-		expect(parseDiscoveryTxt(`v=prodid0; Feed=${DELEGATION}`)).toEqual({ ok: false, reason: 'malformed' })
-		expect(parseDiscoveryTxt(`v=prodid0; 1st=x; feed=${DELEGATION}`)).toEqual({ ok: false, reason: 'malformed' })
-		expect(parseDiscoveryTxt(`v=prodid0; note=two words; feed=${DELEGATION}`)).toEqual({ ok: false, reason: 'malformed' })
-		expect(parseDiscoveryTxt('v=prodid0 extra')).toEqual({ ok: false, reason: 'malformed' })
-	})
-
-	test('refuses a record longer than the spec allows', () => {
-		const padding = 'x'.repeat(512)
-		expect(parseDiscoveryTxt(`v=prodid0; feed=${DELEGATION}; note=${padding}`)).toEqual({ ok: false, reason: 'malformed' })
 	})
 
 	test('concatenates the character strings of one record with nothing between them', () => {
-		expect(parseDiscoveryTxt(['v=prodid0; feed=https://acme.prodid.org', '/.well-known/prodid.json'])).toEqual({
+		expect(parseDiscoveryTxt(['v=prodid0; host=acme.pro', 'did.org'])).toEqual({ ok: true, version: 'prodid0', host: HOST })
+	})
+
+	test('never guesses at transport quoting, so a quoted tag value survives', () => {
+		// Unquoting here turned `note="x"` into `"x"`, which is not a prodid record, and the plan
+		// then quietly fell back to .well-known: the downgrade DNS-first exists to prevent.
+		expect(parseDiscoveryTxt(`v=prodid0; host=${HOST}; note="x"`)).toEqual({ ok: true, version: 'prodid0', host: HOST })
+		expect(parseDiscoveryTxt(['v=prodid0; host=a.example', '; n=\\"q\\"'])).toMatchObject({ ok: true, host: 'a.example' })
+		expect(planDiscovery('acme.example', [`v=prodid0; host=${HOST}; note="x"`])).toMatchObject({
 			ok: true,
-			version: 'prodid0',
-			feed: DELEGATION,
-			host: 'acme.prodid.org',
-		})
-		expect(parseDiscoveryTxt('"v=prodid0; feed=https://acme.prodid.org" "/.well-known/prodid.json"')).toEqual({
-			ok: true,
-			version: 'prodid0',
-			feed: DELEGATION,
-			host: 'acme.prodid.org',
+			plan: { via: 'dns-txt', host: HOST },
 		})
 	})
 
 	test('is not a prodid record unless v=prodid0 comes first', () => {
-		expect(parseDiscoveryTxt(`feed=${DELEGATION}; v=prodid0`)).toEqual({ ok: false, reason: 'not-prodid' })
-		expect(parseDiscoveryTxt(`v=prodid1; feed=${DELEGATION}`)).toEqual({ ok: false, reason: 'not-prodid' })
-		expect(parseDiscoveryTxt(`V=PRODID0; feed=${DELEGATION}`)).toEqual({ ok: false, reason: 'not-prodid' })
+		expect(parseDiscoveryTxt(`host=${HOST}; v=prodid0`)).toEqual({ ok: false, reason: 'not-prodid' })
+		expect(parseDiscoveryTxt(`v=prodid1; host=${HOST}`)).toEqual({ ok: false, reason: 'not-prodid' })
+		expect(parseDiscoveryTxt(`V=PRODID0; host=${HOST}`)).toEqual({ ok: false, reason: 'not-prodid' })
 		expect(parseDiscoveryTxt('v=spf1 include:example.com ~all')).toEqual({ ok: false, reason: 'not-prodid' })
 		expect(parseDiscoveryTxt('')).toEqual({ ok: false, reason: 'not-prodid' })
+	})
+
+	test('refuses an empty tag, a repeated tag and a tag the grammar does not allow', () => {
+		expect(parseDiscoveryTxt(`v=prodid0;; host=${HOST}`)).toEqual({ ok: false, reason: 'malformed' })
+		expect(parseDiscoveryTxt(`v=prodid0; host=${HOST}; host=evil.example`)).toEqual({ ok: false, reason: 'malformed' })
+		expect(parseDiscoveryTxt('v=prodid0; hello')).toEqual({ ok: false, reason: 'malformed' })
+		expect(parseDiscoveryTxt(`v=prodid0; Host=${HOST}`)).toEqual({ ok: false, reason: 'malformed' })
+		expect(parseDiscoveryTxt(`v=prodid0; 1st=x; host=${HOST}`)).toEqual({ ok: false, reason: 'malformed' })
+		expect(parseDiscoveryTxt(`v=prodid0; note=two words; host=${HOST}`)).toEqual({ ok: false, reason: 'malformed' })
+		expect(parseDiscoveryTxt('v=prodid0 extra')).toEqual({ ok: false, reason: 'malformed' })
+	})
+
+	test('refuses a record longer than the spec allows', () => {
+		expect(parseDiscoveryTxt(`v=prodid0; host=${HOST}; note=${'x'.repeat(512)}`)).toEqual({ ok: false, reason: 'malformed' })
+	})
+
+	test('refuses a missing host and anything that is not a bare host', () => {
+		expect(parseDiscoveryTxt('v=prodid0')).toEqual({ ok: false, reason: 'missing-host' })
+		expect(parseDiscoveryTxt('v=prodid0; note=hello')).toEqual({ ok: false, reason: 'missing-host' })
+		for (const host of [
+			DOCUMENT,
+			`https://${HOST}`,
+			`${HOST}:8443`,
+			`${HOST}/.well-known/prodid.json`,
+			`acme@${HOST}`,
+			`${HOST}?v=2`,
+			`${HOST}#x`,
+			'192.0.2.10',
+			'[::1]',
+			'localhost',
+			'acme.prodid.org..',
+			`${'a'.repeat(250)}.example`,
+		]) {
+			expect(parseDiscoveryTxt(`v=prodid0; host=${host}`)).toEqual({ ok: false, reason: 'bad-host' })
+		}
+		// A U-label is not even ASCII, so it breaks the tag grammar before the host rule sees it.
+		expect(parseDiscoveryTxt('v=prodid0; host=açme.example')).toEqual({ ok: false, reason: 'malformed' })
+	})
+
+	test('a capital letter or a root dot does not cost a publisher its catalogue', () => {
+		expect(parseDiscoveryTxt('v=prodid0; host=ACME.Prodid.org.')).toEqual({ ok: true, version: 'prodid0', host: HOST })
+		expect(parseDiscoveryTxt(`v=prodid0; host=${HOST}.`)).toEqual({ ok: true, version: 'prodid0', host: HOST })
+		expect(planDiscovery('acme.example', ['v=prodid0; host=ACME.example.'])).toEqual({
+			ok: true,
+			plan: { via: 'dns-txt', documentUrl: 'https://acme.example/.well-known/prodid.json', host: 'acme.example', delegated: false },
+		})
 	})
 
 	test('agrees with every conformance vector the spec ships', async () => {
 		const vectors = await txtVectors()
 		expect(vectors.length).toBeGreaterThan(0)
-		for (const { name, value, valid, feed } of vectors) {
-			const result = parseDiscoveryTxt(value)
-			if (result.ok !== valid) throw new Error(`fixtures/txt/${name}: expected valid=${valid}, got ${JSON.stringify(result)}`)
-			if (result.ok && result.feed !== feed) throw new Error(`fixtures/txt/${name}: expected feed ${feed}, got ${result.feed}`)
-		}
-	})
-
-	test('is a broken prodid record when the feed is missing or malformed', () => {
-		expect(parseDiscoveryTxt('v=prodid0')).toEqual({ ok: false, reason: 'missing-feed' })
-		expect(parseDiscoveryTxt('v=prodid0; note=hello')).toEqual({ ok: false, reason: 'missing-feed' })
-		for (const feed of [
-			'http://acme.prodid.org/.well-known/prodid.json',
-			'https://acme.prodid.org:8443/.well-known/prodid.json',
-			'https://user@acme.prodid.org/.well-known/prodid.json',
-			'https://acme.prodid.org/evil.json',
-			'https://169.254.169.254/.well-known/prodid.json',
-		]) {
-			expect(parseDiscoveryTxt(`v=prodid0; feed=${feed}`)).toEqual({ ok: false, reason: 'bad-feed-url' })
+		for (const vector of vectors) {
+			const result = parseDiscoveryTxt(vector.value)
+			const outcome = result.ok ? 'delegation' : result.reason === 'not-prodid' ? 'ignored' : 'malformed'
+			if (outcome !== vector.outcome) {
+				throw new Error(`fixtures/txt/${vector.name}: expected ${vector.outcome}, got ${outcome} ${JSON.stringify(result)}`)
+			}
+			if (result.ok && result.host !== vector.host) {
+				throw new Error(`fixtures/txt/${vector.name}: expected host ${vector.host}, got ${result.host}`)
+			}
 		}
 	})
 })
@@ -250,26 +282,25 @@ describe('parseDiscoveryTxt', () => {
 describe('planDiscovery', () => {
 	test('falls back to the well-known URL when there is no prodid record', () => {
 		const other: TxtRecord[] = ['v=spf1 include:example.com ~all', ['google-site-verification=abc']]
-		expect(planDiscovery('Acme.Example', other)).toEqual({
-			ok: true,
-			plan: { via: 'well-known', documentUrl: 'https://acme.example/.well-known/prodid.json', host: 'acme.example', delegated: false },
-		})
-		expect(planDiscovery('acme.example', [])).toEqual({
-			ok: true,
-			plan: { via: 'well-known', documentUrl: 'https://acme.example/.well-known/prodid.json', host: 'acme.example', delegated: false },
-		})
+		const plan: DiscoveryPlan = {
+			via: 'well-known',
+			documentUrl: 'https://acme.example/.well-known/prodid.json',
+			host: 'acme.example',
+			delegated: false,
+		}
+		expect(planDiscovery('Acme.Example', other)).toEqual({ ok: true, plan })
+		expect(planDiscovery('acme.example', [])).toEqual({ ok: true, plan })
 	})
 
 	test('follows a prodid record instead of the well-known URL', () => {
 		expect(planDiscovery('acme.example', ['v=spf1 -all', TXT])).toEqual({
 			ok: true,
-			plan: { via: 'dns-txt', documentUrl: DELEGATION, host: 'acme.prodid.org', delegated: true },
+			plan: { via: 'dns-txt', documentUrl: DOCUMENT, host: HOST, delegated: true },
 		})
 	})
 
 	test('follows a record that points back at the domain, and then nothing is delegated', () => {
-		const own = 'v=prodid0; feed=https://acme.example/.well-known/prodid.json'
-		expect(planDiscovery('acme.example', [own])).toEqual({
+		expect(planDiscovery('acme.example', ['v=prodid0; host=acme.example'])).toEqual({
 			ok: true,
 			plan: { via: 'dns-txt', documentUrl: 'https://acme.example/.well-known/prodid.json', host: 'acme.example', delegated: false },
 		})
@@ -277,16 +308,14 @@ describe('planDiscovery', () => {
 
 	test('refuses two prodid records rather than picking one', () => {
 		expect(planDiscovery('acme.example', [TXT, TXT])).toEqual({ ok: false, reason: 'multiple-records' })
-		expect(planDiscovery('acme.example', [TXT, 'v=prodid0; feed=https://evil.example/.well-known/prodid.json'])).toEqual({
-			ok: false,
-			reason: 'multiple-records',
-		})
+		expect(planDiscovery('acme.example', [TXT, 'v=prodid0; host=evil.example'])).toEqual({ ok: false, reason: 'multiple-records' })
 		expect(planDiscovery('acme.example', [TXT, 'v=prodid0'])).toEqual({ ok: false, reason: 'multiple-records' })
 	})
 
-	test('reports a broken record instead of falling back to the well-known URL', () => {
-		expect(planDiscovery('acme.example', ['v=prodid0'])).toEqual({ ok: false, reason: 'missing-feed' })
-		expect(planDiscovery('acme.example', ['v=prodid0; feed=https://evil.example/pwn.json'])).toEqual({ ok: false, reason: 'bad-feed-url' })
+	test('a broken record fails discovery and never falls through to the well-known URL', () => {
+		expect(planDiscovery('acme.example', ['v=prodid0'])).toEqual({ ok: false, reason: 'missing-host' })
+		expect(planDiscovery('acme.example', ['v=prodid0; host=https://evil.example/pwn.json'])).toEqual({ ok: false, reason: 'bad-host' })
+		expect(planDiscovery('acme.example', [`v=prodid0; host=${HOST}; note=${'x'.repeat(512)}`])).toEqual({ ok: false, reason: 'malformed' })
 	})
 
 	test('refuses a domain that is not a domain', () => {
@@ -309,7 +338,7 @@ describe('isFeedAllowed', () => {
 })
 
 describe('acceptDiscovery', () => {
-	test('accepts a document the domain serves itself', () => {
+	test('accepts a document the domain serves itself, with or without naming itself', () => {
 		expect(acceptDiscovery(response())).toEqual({
 			ok: true,
 			domain: 'acme.example',
@@ -318,28 +347,38 @@ describe('acceptDiscovery', () => {
 			document: DIRECT,
 			feeds: DIRECT.feeds,
 		})
+		expect(acceptDiscovery(response({ body: { ...DIRECT, domain: 'acme.example' } })).ok).toBe(true)
 	})
 
 	test('accepts a delegated document that names the domain', () => {
-		const decision = acceptDiscovery(response({ host: 'acme.prodid.org', delegated: true, body: DELEGATED }))
-		expect(decision).toEqual({
+		expect(acceptDiscovery(response({ host: HOST, delegated: true, body: DELEGATED }))).toEqual({
 			ok: true,
 			domain: 'acme.example',
-			host: 'acme.prodid.org',
+			host: HOST,
 			delegated: true,
 			document: DELEGATED,
 			feeds: DELEGATED.feeds,
 		})
 	})
 
-	test('refuses a delegated document that names no domain', () => {
-		const body = { ...DELEGATED, feeds: DELEGATED.feeds }
-		delete (body as { domain?: string }).domain
-		expect(acceptDiscovery(response({ host: 'acme.prodid.org', delegated: true, body }))).toEqual({ ok: false, reason: 'domain-missing' })
+	test('refuses a delegated document that names no domain, however the crawler got there', () => {
+		const anonymous: FeedRecord = {
+			$type: 'org.prodid.feed',
+			version: 0,
+			publisher: { name: 'Acme Tekstil' },
+			license: 'CC0-1.0',
+			feeds: DELEGATED.feeds,
+		}
+		// evil.example delegates to a slug host whose document speaks for nobody: it must not become evil.example's.
+		expect(acceptDiscovery(response({ domain: 'evil.example', host: HOST, delegated: true, body: anonymous }))).toEqual({
+			ok: false,
+			reason: 'domain-missing',
+		})
+		expect(acceptDiscovery(response({ host: HOST, delegated: true, body: anonymous }))).toEqual({ ok: false, reason: 'domain-missing' })
 	})
 
 	test('refuses a document that speaks for another domain, delegated or not', () => {
-		expect(acceptDiscovery(response({ domain: 'rival.example', host: 'acme.prodid.org', delegated: true, body: DELEGATED }))).toEqual({
+		expect(acceptDiscovery(response({ domain: 'rival.example', host: HOST, delegated: true, body: DELEGATED }))).toEqual({
 			ok: false,
 			reason: 'domain-mismatch',
 			detail: 'acme.example',

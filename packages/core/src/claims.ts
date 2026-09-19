@@ -46,7 +46,8 @@ export function deriveClaims(record: ItemRecord): Claim[] {
 		{ property: 'name', value: record.name, lang },
 	]
 	if (record.category !== undefined) claims.push({ property: 'category', value: record.category, lang: null })
-	if (record.markets !== undefined) claims.push({ property: 'markets', value: [...record.markets], lang: null })
+	// One claim per market: the schema declares a set, so reordering the list must not withdraw anything.
+	for (const market of record.markets ?? []) claims.push({ property: 'markets', value: market, lang: null })
 	for (const axis of sortedKeys(record.variant)) {
 		claims.push({ property: `variant.${axis}`, value: record.variant![axis]!, lang })
 	}

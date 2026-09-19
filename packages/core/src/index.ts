@@ -13,7 +13,8 @@ export {
 export {
 	acceptDiscovery,
 	checkFetchable,
-	delegationHost,
+	decodeTxtPresentation,
+	delegationUrl,
 	type DiscoveryDecision,
 	type DiscoveryPlan,
 	type DiscoveryRejection,
@@ -26,6 +27,7 @@ export {
 	isRedirectAllowed,
 	joinTxtRecord,
 	normalizeDomain,
+	normalizeHost,
 	parseDiscoveryTxt,
 	type PlanRejection,
 	planDiscovery,
@@ -40,19 +42,34 @@ export {
 	WELL_KNOWN_PATH,
 	wellKnownUrl,
 } from './discovery'
-export { gtinCheckDigit, type GtinProblem, type GtinResult, isGtin, parseGtin } from './gtin'
+export { gtinCheckDigit, type GtinProblem, type GtinResult, isGtin, isRestrictedGtin, parseGtin } from './gtin'
 export { type IdentifierScope, normalizeBrand, normalizeIdentifier, type NormalizedIdentifier } from './identifier'
 export { DEFAULT_MAX_LINE_BYTES, type NdjsonEntry, type NdjsonOptions, readNdjson } from './ndjson'
 export { encodeOpid, isOpid, mintOpid, OPID_PATTERN } from './opid'
+export { MAX_PING_DOMAINS, parsePingRequest, type PingRejection, type PingResult } from './ping'
 export {
+	type ClaimSource,
+	type CrawlOutcome,
+	type CrawlStatus,
+	type EntityClaim,
+	type EntityIdentifier,
+	type EntityKind,
+	type EntityRecord,
 	type FeedPublisher,
 	type FeedRecord,
 	type ItemRecord,
 	type MediaEntry,
 	type PropertyValue,
 	type RecordIdentifier,
+	type SourceKind,
+	type SourceRecord,
+	type Trust,
+	validateEntity,
 	validateFeed,
 	validateItem,
+	validateSource,
 	type ValidationError,
 	type ValidationResult,
+	type VerifiedBy,
 } from './record/index'
+export { publicSuffix, registrableDomain, type SuffixOptions } from './suffix'

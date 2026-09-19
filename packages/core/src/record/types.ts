@@ -1,3 +1,11 @@
+import type { JsonValue } from '../canonical'
+
+export type Trust = 'authoritative' | 'verified' | 'unverified'
+export type VerifiedBy = 'well-known' | 'dns-txt'
+export type EntityKind = 'family' | 'variant' | 'item'
+export type SourceKind = 'domain' | 'hosted' | 'dataset' | 'community'
+export type CrawlOutcome = 'success' | 'definite-negative' | 'transport-failure'
+
 export interface RecordIdentifier {
 	scheme: string
 	value: string
@@ -38,4 +46,60 @@ export interface FeedRecord {
 	publisher: FeedPublisher
 	license: string
 	feeds: string[]
+}
+
+export interface EntityIdentifier {
+	scheme: string
+	value: string
+	scope?: string
+}
+
+export interface ClaimSource {
+	name: string
+	trust: Trust
+	lapsed: boolean
+}
+
+export interface EntityClaim {
+	property: string
+	value: JsonValue
+	lang?: string
+	source: ClaimSource
+	seen_at: string
+	withdrawn_at?: string
+}
+
+export interface EntityRecord {
+	$type: 'org.prodid.entity'
+	opid: string
+	kind: EntityKind
+	parents?: { family?: string; variant?: string }
+	children?: string[]
+	merged_from?: string[]
+	identifiers: EntityIdentifier[]
+	claims: EntityClaim[]
+}
+
+export interface CrawlStatus {
+	at: string
+	via?: VerifiedBy
+	document_url?: string
+	outcome: CrawlOutcome
+	http_status?: number
+	records_seen?: number
+	records_changed?: number
+	lines_skipped?: number
+}
+
+export interface SourceRecord {
+	$type: 'org.prodid.source'
+	name: string
+	kind: SourceKind
+	trust: Trust
+	verified_by?: VerifiedBy
+	verified_at?: string
+	lapsed: boolean
+	lapsed_at?: string
+	license?: string
+	last_crawl?: CrawlStatus
 }

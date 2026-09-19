@@ -10,7 +10,7 @@
 		"$type": { "const": "org.prodid.feed" },
 		"version": { "const": 0 },
 		"domain": {
-			"description": "The domain this document speaks for. Required when the document is reached through a _prodid TXT delegation, where it must equal the delegating domain; otherwise absent, or equal to the domain serving the document. A document naming a domain that does not delegate to this host speaks for nobody and is ignored. Lowercase hostname: labels and dots, at least two labels, no scheme, no port, no path, never an IP literal.",
+			"description": "The domain this document speaks for. Required, and equal to the delegating domain, whenever the document is reached through a _prodid TXT record naming a host other than the domain itself; a delegated document without it is rejected. It may be absent only when the domain serves the document itself. A document naming a domain that does not delegate to this host speaks for nobody and is ignored. Lowercase hostname: labels and dots, at least two labels, no scheme, no port, no path, never an IP literal.",
 			"type": "string",
 			"maxLength": 253,
 			"pattern": "^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]([a-z0-9-]{0,61}[a-z0-9])?$"

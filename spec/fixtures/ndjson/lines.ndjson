@@ -1,0 +1,7 @@
+{"$type":"org.prodid.item","key":"TB-100","brand":"Acme","name":"Trail Bottle 1L","identifiers":[{"scheme":"gtin","value":"9506000134420"}]}
+{"$type":"org.prodid.item","key":"TB-101","brand":"Acme","name":"Trail Bottle \ud800","identifiers":[{"scheme":"gtin","value":"9506000134420"}]}
+{"$type":"org.prodid.item","key":"TB-102","brand":"Acme","name":"Trail Bottle 1L","identifiers":[{"scheme":"gtin","value":"9506000134420"}],"properties":{"madeIn":"T\u0000R"}}
+{"$type":"org.prodid.item","key":"TB-103"
+{"$type":"org.prodid.item","key":"TB-104","brand":"Acme","name":"Trail Bottle 1L","identifiers":[{"scheme":"gtin","value":"9506000134420"}],"price":"19.90 EUR"}
+{"$type":"org.prodid.item","key":"TB-105","brand":"Acme","name":"Trail Bottle 1L","identifiers":[{"scheme":"gtin","value":"0000000000000"}]}
+{"$type":"org.prodid.item","key":"TB-106","brand":"Acme","name":"Trail Bottle 1L","identifiers":[{"scheme":"gtin","value":"9506000134420"}]}

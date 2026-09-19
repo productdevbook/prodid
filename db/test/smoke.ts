@@ -88,7 +88,12 @@ async function sources(sql: Sql): Promise<string> {
 	)
 
 	await rejects(
-		'a source verified without the crawl that proved it is rejected',
+		'trust above unverified with no proof at all is rejected',
+		() => sql`insert into source (kind, name, trust) values ('domain', 'evil.example', 'verified')`,
+	)
+
+	await rejects(
+		'trust above unverified with a half-built proof is rejected',
 		() => sql`
       insert into source (kind, name, trust, verified_by, verified_at)
       values ('domain', 'half.example', 'verified', 'dns-txt', now())
@@ -123,6 +128,22 @@ async function feeds(sql: Sql, source: string): Promise<void> {
 		'a feed url that is not https is rejected',
 		() => sql`insert into feed (source, url) values (${source}, 'http://acme.example/feed.ndjson')`,
 	)
+
+	await accepts('a run of skipped lines is recorded and cleared', async () => {
+		await sql`
+      update feed set skipping_since = now() - interval '8 days'
+      where source = ${source} and url = 'https://acme.example/feed.ndjson'
+    `
+		const [skipping] = await sql<{ days: number }[]>`
+      select extract(day from now() - skipping_since)::int as days
+      from feed where source = ${source} and url = 'https://acme.example/feed.ndjson'
+    `
+		if (skipping?.days !== 8) throw new Error(`skipping_since reads back as ${skipping?.days} days`)
+		await sql`
+      update feed set skipping_since = null
+      where source = ${source} and url = 'https://acme.example/feed.ndjson'
+    `
+	})
 }
 
 async function crawls(sql: Sql, source: string): Promise<string> {
@@ -135,12 +156,20 @@ async function crawls(sql: Sql, source: string): Promise<string> {
 	)
 
 	const [proof] = await sql<{ id: string }[]>`
-    insert into crawl (source, via, document_url, finished_at, outcome, http_status, records_seen, records_changed)
-    values (${source}, 'dns-txt', 'https://host.example/.well-known/prodid.json', now(), 'changed', 200, 12, 3)
+    insert into crawl (source, via, document_url, finished_at, outcome, http_status, records_seen, records_changed, lines_skipped)
+    values (${source}, 'dns-txt', 'https://host.example/.well-known/prodid.json', now(), 'changed', 200, 12, 3, 2)
     returning id
   `
 	if (!proof) throw new Error('crawl insert returned no row')
 	pass('a finished crawl inserts')
+
+	await rejects(
+		'a negative lines_skipped is rejected',
+		() => sql`
+      insert into crawl (source, via, finished_at, outcome, lines_skipped)
+      values (${source}, 'dns-txt', now(), 'changed', -1)
+    `,
+	)
 
 	await accepts(
 		'a crawl that found no discovery path inserts without a via',
@@ -174,6 +203,48 @@ async function crawls(sql: Sql, source: string): Promise<string> {
 }
 
 async function verification(sql: Sql, source: string, proof: string): Promise<void> {
+	const [other] = await sql<{ id: string }[]>`
+    insert into source (kind, name) values ('domain', 'other.example') returning id
+  `
+	if (!other) throw new Error('source insert returned no row')
+
+	const [foreign_] = await sql<{ id: string }[]>`
+    insert into crawl (source, via, finished_at, outcome) values (${other.id}, 'dns-txt', now(), 'changed')
+    returning id
+  `
+	const [failed] = await sql<{ id: string }[]>`
+    insert into crawl (source, via, finished_at, outcome) values (${source}, 'dns-txt', now(), 'fetch-failed')
+    returning id
+  `
+	const [running] = await sql<{ id: string }[]>`
+    insert into crawl (source, via) values (${source}, 'dns-txt') returning id
+  `
+	if (!foreign_ || !failed || !running) throw new Error('crawl insert returned no row')
+
+	await rejects(
+		'a proving crawl belonging to another source is rejected',
+		() => sql`
+      update source set trust = 'verified', verified_by = 'dns-txt', verified_at = now(), verified_crawl = ${foreign_.id}
+      where id = ${source}
+    `,
+	)
+
+	await rejects(
+		'a failed crawl cannot be the proof',
+		() => sql`
+      update source set trust = 'verified', verified_by = 'dns-txt', verified_at = now(), verified_crawl = ${failed.id}
+      where id = ${source}
+    `,
+	)
+
+	await rejects(
+		'an unfinished crawl cannot be the proof',
+		() => sql`
+      update source set trust = 'verified', verified_by = 'dns-txt', verified_at = now(), verified_crawl = ${running.id}
+      where id = ${source}
+    `,
+	)
+
 	await accepts(
 		'a source is verified by pointing at the crawl that proved it',
 		() => sql`
@@ -182,6 +253,8 @@ async function verification(sql: Sql, source: string, proof: string): Promise<vo
       where id = ${source}
     `,
 	)
+
+	await rejects('the proving crawl cannot be demoted afterwards', () => sql`update crawl set outcome = 'fetch-failed' where id = ${proof}`)
 
 	await rejects(
 		'source verified_by outside the value set is rejected',
@@ -193,10 +266,29 @@ async function verification(sql: Sql, source: string, proof: string): Promise<vo
 		() => sql`update source set verified_by = null, verified_at = null where id = ${source}`,
 	)
 
+	await rejects(
+		'a verified source cannot be demoted to unverified while keeping its proof',
+		() => sql`update source set trust = 'unverified' where id = ${source}`,
+	)
+
 	await accepts('a lapse is recorded and cleared', async () => {
 		await sql`update source set lapsed_at = now() - interval '31 days' where id = ${source}`
 		await sql`update source set lapsed_at = null where id = ${source}`
 	})
+
+	await sql`update source set failing_since = now() - interval '8 days' where id = ${source}`
+	const [due] = await sql<{ id: string }[]>`
+    select id from source where failing_since < now() - interval '7 days' and lapsed_at is null
+  `
+	equals('a source failing for more than seven days is found', due?.id, source)
+
+	await sql`update source set lapsed_at = now() where id = ${source}`
+	const [gone] = await sql<{ id: string }[]>`
+    select id from source where failing_since < now() - interval '7 days' and lapsed_at is null
+  `
+	equals('a source that has already lapsed is not found again', gone?.id, undefined)
+
+	await sql`update source set lapsed_at = null, failing_since = null where id = ${source}`
 }
 
 async function hierarchy(sql: Sql): Promise<Chain> {
@@ -285,11 +377,59 @@ async function identifiers(sql: Sql, source: string, built: Chain): Promise<void
     `,
 	)
 
+	await rejects(
+		'a global scheme under a non-empty scope is rejected',
+		() => sql`
+      insert into identifier (scheme, scope, value, opid, first_source)
+      values ('gtin', 'acme', '00012345678905', ${built.variant}, ${source})
+    `,
+	)
+
 	await accepts(
-		'the same value under a different scope is accepted',
+		'an mpn is scoped to its brand',
+		() => sql`
+      insert into identifier (scheme, scope, value, opid, first_source)
+      values ('mpn', 'acme', 'TRAIL-NAVY-M', ${built.item}, ${source})
+    `,
+	)
+
+	await rejects(
+		'an mpn with no brand scope is rejected',
+		() => sql`
+      insert into identifier (scheme, scope, value, opid, first_source)
+      values ('mpn', '', 'TRAIL-NAVY-L', ${built.item}, ${source})
+    `,
+	)
+
+	await accepts(
+		'a sku is scoped to the source id',
 		() => sql`
       insert into identifier (scheme, scope, value, opid, first_source)
       values ('sku', ${source}, '00012345678905', ${built.item}, ${source})
+    `,
+	)
+
+	await rejects(
+		'a sku scoped to a source name is rejected',
+		() => sql`
+      insert into identifier (scheme, scope, value, opid, first_source)
+      values ('sku', 'acme.example', 'TRAIL-NAVY-S', ${built.item}, ${source})
+    `,
+	)
+
+	await accepts(
+		'an rcn is scoped to the source id like a sku',
+		() => sql`
+      insert into identifier (scheme, scope, value, opid, first_source)
+      values ('rcn', ${source}, '02000000000017', ${built.item}, ${source})
+    `,
+	)
+
+	await rejects(
+		'an rcn with no source scope is rejected',
+		() => sql`
+      insert into identifier (scheme, scope, value, opid, first_source)
+      values ('rcn', '', '02000000000024', ${built.item}, ${source})
     `,
 	)
 
@@ -298,6 +438,14 @@ async function identifiers(sql: Sql, source: string, built: Chain): Promise<void
 		() => sql`
       insert into identifier (scheme, scope, value, opid, first_source)
       values ('gtin', '', '12345678905', ${built.item}, ${source})
+    `,
+	)
+
+	await rejects(
+		'the all-zero gtin is rejected',
+		() => sql`
+      insert into identifier (scheme, scope, value, opid, first_source)
+      values ('gtin', '', '00000000000000', ${built.item}, ${source})
     `,
 	)
 }
@@ -415,10 +563,12 @@ async function withdrawal(sql: Sql, source: string, built: Chain): Promise<void>
     insert into record (source, key, opid, hash, body)
     values (${source}, ${key}, ${built.item}, ${HASH}, ${sql.json({ $type: 'org.prodid.item', key })})
   `
-	await sql`
+	const [claim] = await sql<{ id: string }[]>`
     insert into claim (opid, property, value, lang, source, record_key)
     values (${built.item}, 'name', ${sql.json('Acme Trail Jacket, black L')}, 'en', ${source}, ${key})
+    returning id
   `
+	if (!claim) throw new Error('claim insert returned no row')
 
 	await rejects(
 		'withdrawing a record while its claims are active is rejected',
@@ -433,6 +583,19 @@ async function withdrawal(sql: Sql, source: string, built: Chain): Promise<void>
         where source = ${source} and record_key = ${key} and withdrawn_at is null
       `
 		}),
+	)
+
+	await rejects(
+		'an active claim cannot be written under a withdrawn record',
+		() => sql`
+      insert into claim (opid, property, value, lang, source, record_key)
+      values (${built.item}, 'name', ${sql.json('back from the dead')}, 'en', ${source}, ${key})
+    `,
+	)
+
+	await rejects(
+		'a withdrawn claim under a withdrawn record cannot be revived',
+		() => sql`update claim set withdrawn_at = null where id = ${claim.id}`,
 	)
 
 	await accepts('a key that comes back clears withdrawn_at and inserts fresh claims', () =>
@@ -487,83 +650,90 @@ async function upgrade(sql: Sql, built: Chain): Promise<void> {
 	equals('the sku still resolves to the same opid', kept?.opid, built.item)
 }
 
+function merged(sql: Sql, from: string, into: string, reason: string): Promise<unknown> {
+	return sql.begin(async (tx) => {
+		await tx`
+      insert into merge (from_opid, into_opid, reason, decided_by)
+      values (${from}, ${into}, ${reason}, 'resolution-pass-0')
+    `
+		await tx`update entity set merged_into = ${into} where opid = ${from}`
+	})
+}
+
 async function merges(sql: Sql): Promise<void> {
-	const a = await chain(sql)
-	const b = await chain(sql)
-	const c = await chain(sql)
+	const a = (await chain(sql)).item
+	const b = (await chain(sql)).item
+	const c = (await chain(sql)).item
+	const d = (await chain(sql)).item
+	const e = (await chain(sql)).item
 
-	await accepts('a merge row and merged_into are written in one transaction', () =>
-		sql.begin(async (tx) => {
-			await tx`
-        insert into merge (from_opid, into_opid, reason, decided_by)
-        values (${a.item}, ${b.item}, 'same gtin', 'resolution-pass-0')
-      `
-			await tx`update entity set merged_into = ${b.item} where opid = ${a.item}`
-		}),
-	)
+	await accepts('a merge writes the log and the state in one transaction', () => merged(sql, a, b, 'same gtin'))
 
-	const [merged] = await sql<{ merged_into: string | null }[]>`select merged_into from entity where opid = ${a.item}`
-	equals('merged_into is set', merged?.merged_into, b.item)
+	const [state] = await sql<{ merged_into: string | null }[]>`select merged_into from entity where opid = ${a}`
+	equals('merged_into is set', state?.merged_into, b)
 
 	await rejects(
 		'a merge into itself is rejected',
-		() => sql`
-      insert into merge (from_opid, into_opid, reason, decided_by)
-      values (${c.item}, ${c.item}, 'same gtin', 'resolution-pass-0')
-    `,
+		() => sql`insert into merge (from_opid, into_opid, reason, decided_by) values (${c}, ${c}, 'x', 'y')`,
 	)
 
-	await rejects('an entity cannot be merged into itself', () => sql`update entity set merged_into = ${c.item} where opid = ${c.item}`)
+	await rejects('an entity cannot be merged into itself', () => sql`update entity set merged_into = ${c} where opid = ${c}`)
+
+	await rejects('setting merged_into with no merge row is rejected', () => sql`update entity set merged_into = ${c} where opid = ${d}`)
+
+	await rejects(
+		'a merge row with no matching state is rejected',
+		() => sql`insert into merge (from_opid, into_opid, reason, decided_by) values (${d}, ${c}, 'x', 'y')`,
+	)
+
+	await rejects('a merge row that disagrees with the state is rejected', () =>
+		sql.begin(async (tx) => {
+			await tx`insert into merge (from_opid, into_opid, reason, decided_by) values (${d}, ${c}, 'x', 'y')`
+			await tx`update entity set merged_into = ${e} where opid = ${d}`
+		}),
+	)
 
 	await rejects(
 		'a second un-reverted merge from the same opid is rejected',
-		() => sql`
-      insert into merge (from_opid, into_opid, reason, decided_by)
-      values (${a.item}, ${c.item}, 'again', 'resolution-pass-0')
-    `,
+		() => sql`insert into merge (from_opid, into_opid, reason, decided_by) values (${a}, ${c}, 'again', 'y')`,
 	)
 
-	await rejects(
-		'merging a survivor while something is merged into it is rejected',
-		() => sql`update entity set merged_into = ${c.item} where opid = ${b.item}`,
-	)
+	await rejects('merging a survivor while something is merged into it is rejected', () => merged(sql, b, c, 'same gtin'))
 
 	await accepts('merging a survivor is accepted when the repoint is in the same transaction', () =>
 		sql.begin(async (tx) => {
-			await tx`update entity set merged_into = ${c.item} where opid = ${b.item}`
-			await tx`update entity set merged_into = ${c.item} where opid = ${a.item}`
-			await tx`update merge set reverted_at = now() where from_opid = ${a.item} and reverted_at is null`
+			await tx`update merge set reverted_at = now() where from_opid = ${a} and reverted_at is null`
 			await tx`
         insert into merge (from_opid, into_opid, reason, decided_by)
-        values (${a.item}, ${c.item}, 'repointed', 'resolution-pass-0'),
-               (${b.item}, ${c.item}, 'same gtin', 'resolution-pass-0')
+        values (${a}, ${c}, 'repointed', 'resolution-pass-0'), (${b}, ${c}, 'same gtin', 'resolution-pass-0')
       `
+			await tx`update entity set merged_into = ${c} where opid in (${a}, ${b})`
 		}),
 	)
 
-	const d = await chain(sql)
-	await rejects(
-		'merging into an entity that is itself merged is rejected',
-		() => sql`update entity set merged_into = ${a.item} where opid = ${d.item}`,
-	)
+	await rejects('merging into an entity that is itself merged is rejected', () => merged(sql, d, a, 'chain'))
 
 	await accepts('a merge reverts', () =>
 		sql.begin(async (tx) => {
-			await tx`update merge set reverted_at = now() where from_opid = ${a.item} and reverted_at is null`
-			await tx`update entity set merged_into = null where opid = ${a.item}`
+			await tx`update merge set reverted_at = now() where from_opid = ${a} and reverted_at is null`
+			await tx`update entity set merged_into = null where opid = ${a}`
 		}),
 	)
 
-	const [reverted] = await sql<{ merged_into: string | null }[]>`select merged_into from entity where opid = ${a.item}`
+	const [reverted] = await sql<{ merged_into: string | null }[]>`select merged_into from entity where opid = ${a}`
 	equals('merged_into is cleared by the revert', reverted?.merged_into, null)
 
-	await accepts(
-		'a new merge from the same opid is accepted after the revert',
-		() => sql`
-      insert into merge (from_opid, into_opid, reason, decided_by)
-      values (${a.item}, ${d.item}, 'new decision', 'operator')
-    `,
+	await rejects(
+		'reverting the log without clearing the state is rejected',
+		() => sql`update merge set reverted_at = now() where from_opid = ${b} and reverted_at is null`,
 	)
+
+	await rejects(
+		'clearing the state without reverting the log is rejected',
+		() => sql`update entity set merged_into = null where opid = ${b}`,
+	)
+
+	await accepts('a new merge from the same opid is accepted after the revert', () => merged(sql, a, d, 'new decision'))
 }
 
 async function run(sql: Sql): Promise<void> {

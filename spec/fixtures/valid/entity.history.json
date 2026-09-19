@@ -1,0 +1,38 @@
+{
+	"$type": "org.prodid.entity",
+	"opid": "kq7m3v9dn2hb4t5x",
+	"kind": "item",
+	"parents": {
+		"family": "3n7k2q9vdfhb4mta",
+		"variant": "9p2d4kv7mq3nbhxf"
+	},
+	"identifiers": [
+		{
+			"scheme": "gtin",
+			"value": "09506000134352"
+		}
+	],
+	"claims": [
+		{
+			"property": "properties.material",
+			"value": "100% recycled polyester",
+			"source": {
+				"name": "acme.example",
+				"trust": "verified",
+				"lapsed": false
+			},
+			"seen_at": "2026-09-14T09:12:03Z"
+		},
+		{
+			"property": "properties.material",
+			"value": "recycled polyester",
+			"source": {
+				"name": "acme.example",
+				"trust": "verified",
+				"lapsed": false
+			},
+			"seen_at": "2026-05-03T11:20:00Z",
+			"withdrawn_at": "2026-09-14T09:12:03Z"
+		}
+	]
+}

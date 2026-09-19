@@ -13,7 +13,8 @@ const PRODID_RECORD = /^[ \t]*v[ \t]*=[ \t]*prodid0(?=$|[ \t;])/
 const TAG_NAME = /^[a-z][a-z0-9-]*$/
 const TAG_VALUE = /^[!-:<-~]*$/
 const MAX_TXT_BYTES = 512
-const QUOTED = /"((?:[^"\\]|\\.)*)"/g
+const DIGIT = /^[0-9]$/
+const DECIMAL_ESCAPE = /^[0-9]{3}$/
 
 /** One TXT resource record: its character-strings, which concatenate with nothing between them. */
 export type TxtRecord = string | readonly string[]
@@ -26,6 +27,15 @@ export type DiscoveryVia = 'dns-txt' | 'well-known'
 export function isDnsName(host: string): boolean {
 	if (!DNS_NAME.test(host)) return false
 	return classifyAddress(host) === 'invalid'
+}
+
+/**
+ * DNS names are case-insensitive and may be written with one trailing root dot, so neither costs a
+ * publisher their catalogue. ASCII only: a U-label is not a DNS name and is not guessed at.
+ */
+export function normalizeHost(host: string): string | null {
+	const normalized = host.toLowerCase().replace(/\.$/, '')
+	return isDnsName(normalized) ? normalized : null
 }
 
 /** Lowercased, punycoded hostname, or null if the input is not a domain a source can be identified by. */
@@ -69,8 +79,8 @@ export function checkFetchable(url: string): FetchCheck {
 	if (parsed.protocol !== 'https:') return { ok: false, reason: 'not-https' }
 	if (parsed.port !== '') return { ok: false, reason: 'not-default-port' }
 	if (parsed.username !== '' || parsed.password !== '') return { ok: false, reason: 'has-credentials' }
-	if (!isDnsName(parsed.hostname)) return { ok: false, reason: 'not-a-dns-name' }
-	return { ok: true, host: parsed.hostname }
+	const host = normalizeHost(parsed.hostname)
+	return host === null ? { ok: false, reason: 'not-a-dns-name' } : { ok: true, host }
 }
 
 /** A redirect may only stay on the host the crawler asked for, or add the `www.` label to it. */
@@ -83,25 +93,50 @@ export function isRedirectAllowed(from: string, to: string): boolean {
 
 // --- the TXT record --------------------------------------------------------
 
-export type TxtRejection = 'not-prodid' | 'malformed' | 'missing-feed' | 'bad-feed-url'
+export type TxtRejection = 'not-prodid' | 'malformed' | 'missing-host' | 'bad-host'
 
 export interface TxtDelegation {
 	version: typeof TXT_VERSION
-	/** The discovery document URL the record names, always `https://<host>/.well-known/prodid.json`. */
-	feed: string
+	/** The host serving the document. The record names a host, never a URL, so the path stays fixed. */
 	host: string
 }
 
 export type TxtResult = ({ ok: true } & TxtDelegation) | { ok: false; reason: TxtRejection }
 
-/** Joins one record's character-strings, accepting the quoted form a DNS API hands back. */
+/**
+ * Joins one record's character-strings, which concatenate with nothing between them. The strings are
+ * taken as they are: guessing at a transport's quoting here would rewrite what a publisher wrote.
+ * A caller holding presentation format decodes it with `decodeTxtPresentation` first.
+ */
 export function joinTxtRecord(record: TxtRecord): string {
-	return (typeof record === 'string' ? [record] : record).map(unquote).join('')
+	return typeof record === 'string' ? record : record.join('')
 }
 
 /**
- * Reads `v=prodid0; feed=https://<host>/.well-known/prodid.json`. The version tag comes first and
- * the feed is that exact URL and nothing else, so a record can never aim the crawler somewhere odd.
+ * Decodes the RFC 1035 presentation format a DoH JSON answer puts in `data` into the record's
+ * character-strings: `"\\"a\\" \\"b\\""` becomes `['a', 'b']`. Handles `\\"`, `\\\\` and `\\DDD`, and
+ * bare unquoted tokens. Returns null rather than a guess when the input does not parse.
+ */
+export function decodeTxtPresentation(data: string): string[] | null {
+	const strings: string[] = []
+	let at = 0
+	while (at < data.length) {
+		const start = data[at]!
+		if (start === ' ' || start === '\t') {
+			at += 1
+			continue
+		}
+		const decoded = start === '"' ? readQuoted(data, at) : readBare(data, at)
+		if (decoded === null) return null
+		strings.push(decoded.text)
+		at = decoded.at
+	}
+	return strings.length === 0 ? null : strings
+}
+
+/**
+ * Reads `v=prodid0; host=<host>`. The version tag comes first and the record names a bare host, so
+ * there is no port, path or query for it to express and it can never aim the crawler somewhere odd.
  */
 export function parseDiscoveryTxt(record: TxtRecord): TxtResult {
 	const joined = joinTxtRecord(record)
@@ -121,23 +156,15 @@ export function parseDiscoveryTxt(record: TxtRecord): TxtResult {
 		tags.set(tag.name, tag.value)
 	}
 
-	const feed = tags.get('feed')
-	if (feed === undefined) return { ok: false, reason: 'missing-feed' }
-	const host = delegationHost(feed)
-	return host === null ? { ok: false, reason: 'bad-feed-url' } : { ok: true, version: TXT_VERSION, feed, host }
+	const written = tags.get('host')
+	if (written === undefined) return { ok: false, reason: 'missing-host' }
+	const host = normalizeHost(written)
+	return host === null ? { ok: false, reason: 'bad-host' } : { ok: true, version: TXT_VERSION, host }
 }
 
-/** The host of a well-formed delegation target, or null. The URL has to be written exactly this way. */
-export function delegationHost(value: string): string | null {
-	let url: URL
-	try {
-		url = new URL(value)
-	} catch {
-		return null
-	}
-	if (url.href !== value || url.pathname !== WELL_KNOWN_PATH || url.search !== '' || url.hash !== '') return null
-	const fetchable = checkFetchable(value)
-	return fetchable.ok ? fetchable.host : null
+/** Where a delegation to `<host>` is fetched from. The path is fixed, so the host decides everything. */
+export function delegationUrl(host: string): string {
+	return `https://${host}${WELL_KNOWN_PATH}`
 }
 
 // --- step one: what to fetch -----------------------------------------------
@@ -174,10 +201,16 @@ export function planDiscovery(domain: string, records: readonly TxtRecord[]): Pl
 	const reason = broken[0]
 	if (reason !== undefined) return { ok: false, reason }
 	const delegation = delegations[0]
-	if (delegation === undefined) {
-		return { ok: true, plan: { via: 'well-known', documentUrl: `https://${host}${WELL_KNOWN_PATH}`, host, delegated: false } }
+	if (delegation === undefined) return { ok: true, plan: { via: 'well-known', documentUrl: delegationUrl(host), host, delegated: false } }
+	return {
+		ok: true,
+		plan: {
+			via: 'dns-txt',
+			documentUrl: delegationUrl(delegation.host),
+			host: delegation.host,
+			delegated: delegation.host !== host,
+		},
 	}
-	return { ok: true, plan: { via: 'dns-txt', documentUrl: delegation.feed, host: delegation.host, delegated: delegation.host !== host } }
 }
 
 // --- step two: whether the answer counts -----------------------------------
@@ -211,7 +244,8 @@ export type DiscoveryDecision =
 /** A feed is fetchable and served from the same host as the document that lists it. */
 export function isFeedAllowed(feedUrl: string, host: string): boolean {
 	const fetchable = checkFetchable(feedUrl)
-	return fetchable.ok && fetchable.host === host
+	const expected = normalizeHost(host)
+	return fetchable.ok && expected !== null && fetchable.host === expected
 }
 
 /**
@@ -221,7 +255,7 @@ export function isFeedAllowed(feedUrl: string, host: string): boolean {
 export function acceptDiscovery(response: DiscoveryResponse): DiscoveryDecision {
 	const domain = normalizeDomain(response.domain)
 	if (domain === null) return { ok: false, reason: 'bad-domain' }
-	const host = normalizeDomain(response.host)
+	const host = normalizeHost(response.host)
 	if (host === null) return { ok: false, reason: 'bad-host' }
 	if (response.status !== 200) return { ok: false, reason: 'not-ok', detail: String(response.status) }
 	if (!isJsonMediaType(response.contentType)) return { ok: false, reason: 'not-json', detail: response.contentType ?? '' }
@@ -259,8 +293,51 @@ function isJsonMediaType(contentType: string | null): boolean {
 	return JSON_MEDIA_TYPE.test(contentType.split(';')[0]!.trim())
 }
 
-function unquote(part: string): string {
-	const quoted = [...part.matchAll(QUOTED)]
-	if (quoted.length === 0) return part
-	return quoted.map((match) => match[1]!.replace(/\\(.)/g, '$1')).join('')
+function readQuoted(data: string, from: number): { text: string; at: number } | null {
+	let text = ''
+	let at = from + 1
+	while (at < data.length) {
+		const character = data[at]!
+		if (character === '"') return { text, at: at + 1 }
+		if (character !== '\\') {
+			text += character
+			at += 1
+			continue
+		}
+		const escaped = readEscape(data, at)
+		if (escaped === null) return null
+		text += escaped.text
+		at = escaped.at
+	}
+	return null
+}
+
+function readBare(data: string, from: number): { text: string; at: number } | null {
+	let text = ''
+	let at = from
+	while (at < data.length) {
+		const character = data[at]!
+		if (character === ' ' || character === '\t') break
+		if (character === '"') return null
+		if (character !== '\\') {
+			text += character
+			at += 1
+			continue
+		}
+		const escaped = readEscape(data, at)
+		if (escaped === null) return null
+		text += escaped.text
+		at = escaped.at
+	}
+	return text === '' ? null : { text, at }
+}
+
+function readEscape(data: string, at: number): { text: string; at: number } | null {
+	const next = data[at + 1]
+	if (next === undefined) return null
+	if (!DIGIT.test(next)) return { text: next, at: at + 2 }
+	const digits = data.slice(at + 1, at + 4)
+	if (digits.length !== 3 || !DECIMAL_ESCAPE.test(digits)) return null
+	const code = Number(digits)
+	return code > 255 ? null : { text: String.fromCharCode(code), at: at + 4 }
 }
