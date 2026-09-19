@@ -101,8 +101,13 @@
 					"type": "integer",
 					"minimum": 0
 				},
+				"media_failed": {
+					"description": "Media entries that could not be fetched or were refused. Unlike feeds_failed this does not make the crawl a failure: media is not discovery, and a media entry costs only itself.",
+					"type": "integer",
+					"minimum": 0
+				},
 				"feeds_failed": {
-					"description": "Feeds the document lists that could not be read. Above zero makes the crawl a transport failure, so seven days of it lapses the source; the feeds that did answer are still ingested and none of them withdraws anything.",
+					"description": "Feeds the document lists that could not be read. Above zero makes the crawl a transport failure, so seven days of it lapses the source; the feeds that did answer are still ingested and none of them withdraws anything. A feed the document no longer lists is retired rather than failed and is not counted here.",
 					"type": "integer",
 					"minimum": 0
 				}

@@ -38,12 +38,19 @@
 	"exports": {
 		"RateLimiter": { "type": "durable-object", "storage": "sqlite" },
 	},
+	"r2_buckets": [
+		// Stored media, served immutably from media.prodid.org under sha256/{hex}.
+		{ "binding": "MEDIA", "bucket_name": "prodid-media" },
+		// The documents and feeds the index hosts for a slug on *.prodid.org.
+		{ "binding": "FEEDS", "bucket_name": "prodid-feeds" },
+	],
 	"queues": {
 		"producers": [
 			{ "binding": "CRAWL", "queue": "prodid-crawl" },
 			// Written to directly: a crawl held back by our own limits past the cap is not a failed
 			// message, so it never reaches the consumer's dead letter queue on its own.
 			{ "binding": "CRAWL_DLQ", "queue": "prodid-crawl-dlq" },
+			{ "binding": "MEDIA_INGEST", "queue": "prodid-media-ingest" },
 		],
 		"consumers": [
 			{
@@ -55,6 +62,21 @@
 				"max_batch_timeout": 5,
 				"max_retries": 3,
 				"dead_letter_queue": "prodid-crawl-dlq",
+			},
+			{
+				// One file per message, capped well under the wall clock and the isolate.
+				"queue": "prodid-media-ingest",
+				"max_batch_size": 1,
+				"max_batch_timeout": 5,
+				"max_retries": 3,
+				"dead_letter_queue": "prodid-media-dlq",
+			},
+			{
+				// An operator reads this one; nothing re-drives it automatically.
+				"queue": "prodid-crawl-dlq",
+				"max_batch_size": 10,
+				"max_batch_timeout": 30,
+				"max_retries": 1,
 			},
 		],
 	},

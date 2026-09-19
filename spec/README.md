@@ -200,6 +200,12 @@ A line that is over the size cap, unparseable or invalid is skipped and counted.
 
 A feed that cannot be fetched at all is a different failure and has its own bound: the crawl becomes a [transport failure](#lapse), which lapses the source after seven days of it.
 
+**A feed the document stops listing is retired.** When a crawl reads an acceptable document that no longer names a feed URL, that feed's live records are withdrawn — exactly as if every one of its keys had disappeared — and the URL is not fetched again. Listing it again later brings it back as an ordinary feed, read from scratch. A retired feed is never a failed feed: it was not fetched, so it cannot have failed, and it never counts in `feeds_failed`.
+
+Retiring withdraws at once and the seven-day grace does not apply to it. The grace exists for a feed that is still listed and whose lines the crawler could not read, where the publisher may not know anything is wrong; removing a URL from the document is the publisher saying so on purpose, and the index takes it at its word even if that feed's last crawl skipped lines.
+
+A `304` on the discovery document retires nothing. The document has not changed, so the list in it has not changed; only a document that was read and parsed can retire a feed.
+
 Three rules make a record invalid that the schemas cannot express, and a record that breaks any of them is skipped like any other:
 
 - **Every string must be storable.** No U+0000, and no lone surrogate: the string has to be well-formed Unicode. [RFC 8785](https://www.rfc-editor.org/rfc/rfc8785) makes a lone surrogate an error when canonicalizing, and the index's store rejects both, so a record carrying one cannot be kept at all — and one such line must cost its own line, not the whole ingest.
@@ -322,6 +328,8 @@ A feed that cannot be read is therefore not a free pass. The feeds that did answ
 
 While a source is lapsed it makes no new claims, its existing claims stay readable and stay marked, and its `publisher.contact` is notified. A crawl of a lapsed source writes nothing until it has succeeded in full; only then is the lapse cleared and the source ingested again. After 30 days of continuous lapse its records and their active claims are withdrawn together; they remain as history. Those 30 days are the window in which a publisher can notice and put the record, the document or the feed back.
 
+Recovery does not depend on anything changing. Once discovery succeeds again, everything the source publishes at that moment is asserted again, whether or not a single byte moved: a publisher that comes back serving the identical document and the identical feed gets its catalogue back. Conditional requests are an optimization the index gives up whenever it has nothing live from a source, never a reason for a returning publisher to stay withdrawn.
+
 Claims re-asserted after such a withdrawal are new assertions, with a new `seen_at`: for the length of the gap nobody verifiable stood behind them, and saying otherwise would date a fact to a time when it had no source. The withdrawn rows stay, so `?history=1` shows the gap.
 
 ### Identity continuity
@@ -336,7 +344,7 @@ A domain that changes hands is a new controller of the same identity. prodid doe
 
 Publishers send flat items. `group` ties the variants of one product together, the way `item_group_id` does in a Google Merchant feed; the index builds families and variants from it. Publishers never send an `opid`.
 
-`key` is the record's stable name within the feed. Publishing a record with an existing key replaces the previous one. A key that disappears from a feed the crawler fetched whole marks the source's claims about it as withdrawn; the entity and its `opid` remain. A feed with skipped lines withdraws nothing for seven days, and after that withdraws absent keys as usual.
+`key` is the record's stable name within the feed. Publishing a record with an existing key replaces the previous one. A key that disappears from a feed the crawler fetched whole marks the source's claims about it as withdrawn; the entity and its `opid` remain. A feed with skipped lines withdraws nothing for seven days, and after that withdraws absent keys as usual. Dropping a feed from the discovery document withdraws every key it carried, at once and without that grace, because it is the publisher saying the whole file is gone.
 
 ## Security considerations
 
@@ -479,7 +487,8 @@ The conformance harness checks all three.
     "records_seen": 3,
     "records_changed": 1,
     "lines_skipped": 0,
-    "feeds_failed": 0
+    "feeds_failed": 0,
+    "media_failed": 0
   }
 }
 ```
@@ -510,21 +519,113 @@ Every error answers `application/problem+json` ([RFC 9457](https://www.rfc-edito
 | `…/problem/not-found` | `404` | nothing is served at that path |
 | `…/problem/invalid-gtin` | `400` | not a GTIN: wrong length, a bad check digit, or all zeros |
 | `…/problem/invalid-request` | `400` | a malformed request, including a bad ping body |
+| `…/problem/blocked-media` | `410` | that hash is on the takedown list: it existed, it was removed, it will not come back |
 | `…/problem/rate-limited` | `429` | the caller is over its request budget |
 
 `rate-limited` carries `Retry-After`; nothing else does.
 
-`invalid-gtin` and `restricted-gtin` are decided by the request alone — the same path will always answer the same way — so they may be cached. Every other problem depends on the state of the index or on what is routed, and is served `Cache-Control: no-store`: a `404` today is the answer for an `opid` or a domain that may exist tomorrow.
+`invalid-gtin`, `restricted-gtin` and `blocked-media` are decided by the request alone — the same path will always answer the same way — so they may be cached. Every other problem depends on the state of the index or on what is routed, and is served `Cache-Control: no-store`: a `404` today is the answer for an `opid` or a domain that may exist tomorrow.
 
 ## Media
 
-Media is ingested only when the record states its license as an SPDX identifier. The index fetches the file, stores it under its SHA-256, and serves it from:
+A record's `media` entries name files the index fetches, stores under their SHA-256, and serves from:
 
 ```
 https://media.prodid.org/sha256/{hex}
 ```
 
-The claim keeps the hash, the original URL, the license, the source and the fetch time. Files are immutable. A hash on the takedown list is deleted and cannot be stored again.
+A [`media` claim](#property-names) exists only once the bytes are stored, and it carries the digest, the original URL, the licence, the source and the fetch time. Files are immutable: the URL is the digest, so it can never come to mean something else. A hash on the takedown list is deleted and cannot be stored again.
+
+Everything below is per entry. A media entry that is refused, too big, or unreachable costs that entry and nothing else: **the record is never invalid because of its media**, and no media failure lapses a source.
+
+### What is ingested
+
+The type is decided by **sniffing the bytes**. The publisher's `Content-Type` is a hint and nothing more — it is the one part of a fetch a hostile or careless origin fully controls, and it is wrong often enough in ordinary catalogues to be useless as a gate.
+
+| `kind` | stored when the bytes are | media type |
+| --- | --- | --- |
+| `image` | JPEG | `image/jpeg` |
+| `image` | PNG, including APNG | `image/png` |
+| `image` | GIF | `image/gif` |
+| `image` | WebP | `image/webp` |
+| `image` | AVIF | `image/avif` |
+| `document` | PDF | `application/pdf` |
+
+All six are registered with IANA: `image/jpeg` and `image/gif` in RFC 2045 and RFC 2046, `image/png` by the W3C, `image/webp` in RFC 9649, `image/avif` by the Alliance for Open Media, `application/pdf` in RFC 8118. An APNG is a PNG with extra chunks, so it sniffs as PNG and is stored as one.
+
+The sniffed type and the entry's `kind` must agree. A PDF published as `kind: image`, or a JPEG as `kind: document`, is skipped: the publisher and the bytes disagree about what the file is, and guessing which is right is how the wrong thing gets served.
+
+Nothing else is ingested. In particular:
+
+- **SVG is out.** It is XML that can carry `<script>`, event handlers and external references, and served from `media.prodid.org` it would be active content on our own origin — the classic stored-XSS carrier. No amount of header hardening makes that a good trade for a product photo, which is raster anyway.
+- **HTML and XHTML are out**, for the same reason and more directly.
+- **Archives are out** — zip, gzip, tar. What is inside is invisible at fetch time, so ingesting one means redistributing something nobody looked at.
+- **Anything executable is out**: binaries, installers, WebAssembly, scripts of every kind.
+- **Office documents are out in v0.** They are macro carriers with a long history of it, and a publisher who wants a spec sheet carried can publish a PDF.
+
+The list is short on purpose. Widening it is a spec change, not a configuration one.
+
+### Caps
+
+| what | cap |
+| --- | --- |
+| one image | 20 MiB |
+| one document | 50 MiB |
+| one media fetch | 60 s, on top of the crawler's 10 s to first byte |
+| media entries in one record | 20 |
+
+20 MiB holds any product photograph a publisher has a reason to serve, including a 4000 × 4000 original; 50 MiB holds a long illustrated manual. 20 entries is a gallery plus its documents — Google's own product feed allows eleven images — and a record listing more is a catalogue pretending to be a product.
+
+Exceeding any of them skips the entry. The twenty-first entry of a record is not fetched; an image that turns out to be 30 MiB is dropped mid-fetch and not stored.
+
+### Fetching
+
+Media is fetched under the same guard as everything else the crawler touches: `https` only, default port, a public DNS name that resolves to a public address, never an IP literal, and at most the one `<host>` → `www.<host>` redirect.
+
+**The same-host rule does not apply to media.** A feed must live on the document's host; an image must not. Product photography lives on CDNs, and forcing publishers to proxy their own images through the feed host would cost them money and us freshness. A media URL is therefore a fetch of a host the publisher picked, which has two consequences worth stating plainly:
+
+- **Budget.** Media fetches count against the fetched host's per-host budget, in the unverified lane unless the source is verified at that host, and are additionally capped at **10 per minute and 200 MiB per minute for one host**. Without that second cap a 20 MiB media cap would be a far larger amplifier than the 1 MiB discovery document ever was.
+- **Oracle.** A publisher can learn one bit about a host it named: whether the fetch produced a claim. It never learns a status code, an error, a redirect target or a timing — `media_failed` in the source status is a count for the whole crawl, not a per-entry report. That bit is the minimum a publisher needs to fix its own catalogue, and it is expensive: it costs a verified domain, it is bounded by that host's own rate limit, and it says nothing about anyone else's source.
+
+### When it fails, and when it changes
+
+A media entry that cannot be fetched produces no claim. The record is stored and its other claims stand; the entry is counted in `media_failed` and tried again on the next crawl of that record, which is the ordinary schedule and not a retry loop of its own. Nothing about it lapses the source: [lapse](#lapse) is decided by discovery, and media is not discovery.
+
+Because the claim is keyed to the digest, the two ways a file changes both resolve themselves:
+
+- **The URL changes, the bytes do not.** The digest is the same, so the stored file is the same and `media_url` does not move. The claim's value does change, because `url` is part of it, so the old claim is withdrawn and a new one is asserted — the file a reader loads never flickers, and the record of where it was published stays honest.
+- **The URL stays, the bytes change.** A new digest means a new file, stored beside the old one, and a new claim; the claim on the old bytes is withdrawn because the record no longer asserts it. The old file stays addressable, because something may have linked it.
+
+An unchanged record gives no signal that its bytes moved, so media is re-fetched when the record changes and otherwise no more often than every 30 days, with `If-None-Match` and `If-Modified-Since` where the origin offers them.
+
+### Serving
+
+Every file is served with:
+
+| header | value |
+| --- | --- |
+| `Content-Type` | the sniffed type, never the publisher's |
+| `X-Content-Type-Options` | `nosniff` |
+| `Content-Security-Policy` | `default-src 'none'; sandbox` |
+| `Content-Disposition` | `attachment` for `document`, inline for `image` |
+| `Cache-Control` | `public, max-age=31536000, immutable` |
+| `Access-Control-Allow-Origin` | `*` |
+
+The CSP and the sandbox are belt and braces for a store that holds no active types anyway; a PDF is downloaded rather than opened in a viewer that would run inside our origin. A year of immutable caching is safe for the same reason the URL is a digest.
+
+A blocked hash answers `410` with `…/problem/blocked-media`, not `404`: the file existed, it was removed deliberately, and it will not come back. Claims pointing at a blocked hash are withdrawn, and a record that re-publishes the file does not bring it back.
+
+### Licences that can be ingested
+
+The index stores the file and redistributes it, so a licence that does not allow redistribution cannot be ingested at all. The entry's `license` must be exactly one of these SPDX identifiers:
+
+```
+CC0-1.0  CC-BY-4.0  CC-BY-SA-4.0  CC-BY-ND-4.0  CC-BY-3.0  CC-BY-SA-3.0  CC-BY-ND-3.0
+```
+
+All seven are current SPDX identifiers (list 3.29.0) and all seven permit verbatim redistribution by anyone, which is exactly what we do. `ND` is on the list because we redistribute the file unmodified; every `NC` variant is off it, because our readers include commercial ones and we cannot pass on a restriction we do not track. Anything else — an unlisted identifier, a misspelling, a bare "all rights reserved" — is not ingested.
+
+It is checked as a string, before the fetch, so a licence we cannot use costs nobody any bandwidth. The claim keeps the identifier, so a reader always knows the terms of the file it is looking at.
 
 ## Conformance
 
@@ -538,12 +639,67 @@ The claim keeps the hash, the original URL, the license, the source and the fetc
 | [`fixtures/gtin/`](fixtures/gtin) | GTIN classification |
 | [`fixtures/brand/`](fixtures/brand) | brand normalization |
 | [`fixtures/ndjson/`](fixtures/ndjson) | a feed and the line numbers that must be skipped |
+| [`fixtures/merchant/`](fixtures/merchant) | a Merchant file and the records it must produce |
 
 Every file in `fixtures/invalid/` has an entry in [`fixtures/expected.json`](fixtures/expected.json) naming the instance path, the schema keyword and, where it disambiguates, the error parameters that must reject it. A fixture that fails for a new and unrelated reason is a failure, not a pass. Six of the keywords name rules that live on top of the schemas rather than inside them, because JSON Schema cannot express them: `storable` for a string that cannot be stored, `gtin` for a value that is not a GTIN, `identifiable` for a record with no identifier the index can store, `self-reference` for an entity that lists its own `opid`, `order` for a `withdrawn_at` before its `seen_at`, and `digest` for a `media_url` that does not address its claim's `sha256`.
 
 A TXT vector is `{ "value": [...], "outcome": "delegation" | "ignored" | "malformed", "host": "..." }`, where `value` is the RR's character-strings in order and `host` is the normalized host, present exactly when the outcome is `delegation`. The three outcomes are behavioural, not cosmetic: `ignored` means the RR is not a prodid record and discovery carries on without it, `malformed` means discovery fails.
 
 Two independent implementations — the one in `validate.ts` and the crawler's — agreeing on these vectors is the point of all of them.
+
+The Merchant fixture is derived, not asserted by hand: `bun run validate.ts --emit-merchant` rewrites the expected NDJSON from the reference mapping in the harness, and the check fails whenever the file on disk says something the mapping does not.
+
+## Appendix: importing a Merchant feed
+
+The first publishers arrive with a spreadsheet, not a web server. A [Google Merchant](https://support.google.com/merchants/answer/7052112) product file is the format they already keep, so the hosted publisher imports one and writes [`org.prodid.item`](schemas/org.prodid.item.json) lines out of it. This appendix is the mapping, against Google's current product data specification.
+
+A Merchant file describes **offers**: what a seller sells, at what price, where, today. prodid records what a product **is**. The mapping is mostly a matter of keeping the second and dropping the first.
+
+| Merchant attribute | becomes |
+| --- | --- |
+| `id` | `key`, and an `sku` identifier — it is the publisher's own stock code, and keeping it lets the next import find the same record |
+| `title` | `name` |
+| `description` | `properties.description` — unlike media, this is the publisher's own text about its own product, and it arrives in the file rather than being scraped from a page |
+| `brand` | `brand` |
+| `gtin` | a `gtin` identifier, as written; the index normalizes and classifies it |
+| `mpn` | an `mpn` identifier, scoped by the normalized `brand` |
+| `item_group_id` | `group` |
+| `color`, `size`, `material`, `pattern` | `variant.color`, `variant.size`, `variant.material`, `variant.pattern` |
+| `gender`, `age_group`, `size_type`, `size_system` | `properties.gender`, `properties.ageGroup`, `properties.sizeType`, `properties.sizeSystem` |
+| `google_product_category` | `properties.googleProductCategory`, verbatim |
+| `product_type` | `properties.productType`, verbatim, a list |
+| `product_weight`, `product_length`, `product_width`, `product_height` | `properties.weight` and friends, as `{ "value": 480, "unit": "g" }` |
+| `product_highlight` | `properties.highlights`, a list |
+| `product_detail` | one `properties.<name>` per detail, from its three colon-separated sub-attributes |
+| `energy_efficiency_class` | `properties.energyEfficiencyClass` |
+| `multipack` | `properties.multipack`, a number: the specification's format for it is "Integer" |
+| `is_bundle` | `properties.isBundle`, a boolean: the specification's supported values are `yes` and `no` |
+| `certification` | `properties.certification`, a list, each value verbatim — the specification writes its three sub-attributes (`certification_authority`, `certification_name`, `certification_code`) colon-separated, as in `EC:EPREL:123456` |
+| `image_link`, `additional_image_link` | `media` entries with `kind: "image"` |
+| `document_link` | a `media` entry with `kind: "document"` |
+| `price`, `sale_price`, `availability`, `shipping`, `condition`, `link`, and the rest of the offer | nothing |
+
+**Why the offer is dropped.** Price, availability, shipping and condition belong to a seller on a day, not to the product: they differ between sellers, they change hourly, and a claim that stale would be worse than no claim. `link` goes the same way — a storefront URL is where a seller sells it, not a property of the thing.
+
+**Variant axes versus qualifiers.** Google lists six attributes as the ones that distinguish products inside an `item_group_id` — `color`, `pattern`, `material`, `age_group`, `gender` and `size` — plus `variant_option` for anything else. Four of them become axes here: `color`, `size`, `material` and `pattern`, the ones a buyer actually picks between. `gender` and `age_group` stay properties, and so do `size_type` and `size_system`, which Google does not list as variant attributes at all: they describe the whole group, and as axes they would split one product into several the moment a publisher spelled one of them two ways.
+
+**Repeated fields.** Google's data sources write a repeated attribute in one of two ways, and the import accepts both: every value in one cell separated by a comma with no space, or the attribute's name repeated as the header of several columns, one value each. **A cell is split on commas only when its header appears once in the whole file; when a header is repeated, every cell under it is taken whole.** That is the rule, and it is what makes the second form the way to carry a value with a comma in it — in the first form a comma always separates, which is why Google's instruction for a URL is to percent-encode it as `%2C`. The two forms are therefore chosen per file, not per cell: a file that repeats a header has said how that attribute is written everywhere in it.
+
+The attributes read as repeated are `additional_image_link`, `product_type`, `product_highlight`, `product_detail` and `certification`; every other value is taken whole, so a `description` with commas in it stays one string. A repeated attribute always produces a list, even when the file gives it one value, so a consumer never has to handle two shapes.
+
+**Product details.** Each `product_detail` value is three colon-separated sub-attributes: a section name, an attribute name and a value. The attribute name becomes a `properties` key by lowercasing it, dropping spaces, underscores and hyphens, and capitalizing each word after the first — `Machine wash` becomes `machineWash`. A detail that does not split into three parts, or whose name does not survive as `^[a-z][A-Za-z0-9]*$`, is dropped and reported.
+
+The section name is not part of the key, so two details can want the same one. **A detail never overwrites anything: the first value for a key wins, and any later detail with that key is dropped and reported with the row's other dropped values.** The same holds against the properties the mapping itself produces — a detail that derives `productType`, `description` or any other mapped key is dropped, not merged — so a `product_detail` column can never quietly redefine what the rest of the row said.
+
+**Categories.** `category` in a prodid record is a GS1 GPC brick code, and Google's taxonomy is a different taxonomy. Translating one into the other automatically would be guessing, so the import does not: both Google values are carried verbatim as properties, and `category` is set only if the publisher supplies a GPC code itself.
+
+**Language and markets.** The product data specification has no language or country attribute: they are settings of the data source, so one file is one language and one set of markets. The import declares them and they become `lang` and `markets` on every record of the file.
+
+**Media licences.** The Merchant format has no licence column, and [media is not ingested without one](#licences-that-can-be-ingested). The import therefore declares a single SPDX identifier that covers every image and document in the file, and it must be one of the ingestible ones; the declaration is recorded on every media entry the file produces. If the file carries a `license` column of its own, a row's value wins over the declaration. A file whose declared licence is not ingestible produces records without media, not records that fail.
+
+**Rows that cannot become a record.** A row with no usable identifier, a GTIN that fails its check digit, or anything else the [record rules](#feeds) reject is skipped, and the import reports it by row number, counting the header as row 1 so the number matches what the publisher sees in the spreadsheet. One bad row costs its own row.
+
+[`fixtures/merchant/`](fixtures/merchant) is a worked example: `feed.csv`, the `feed.ndjson` it must produce, and `expected.json` naming the declared language, markets and licence, and the row that must be skipped — row 6, whose GTIN check digit is wrong. Row 2 carries the comma form under a single `additional_image_link` header and the column form under two `product_type` headers, one of which holds a value with a comma in it; row 3 carries three details that collide, two of them dropped. The check derives the records from the CSV itself and compares them line by line, so the file and this table cannot drift apart.
 
 ## Licensing
 

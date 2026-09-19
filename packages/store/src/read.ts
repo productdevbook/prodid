@@ -169,6 +169,7 @@ interface SourceStatusRow {
 	crawl_records_changed: number | null
 	crawl_lines_skipped: number | null
 	crawl_feeds_failed: number | null
+	crawl_media_failed: number | null
 }
 
 /**
@@ -184,7 +185,7 @@ export async function readSourceStatus(sql: Sql, name: string): Promise<SourceRe
 			c.finished_at as crawl_at, c.via as crawl_via, c.document_url as crawl_document_url,
 			c.outcome as crawl_outcome, c.http_status as crawl_http_status,
 			c.records_seen as crawl_records_seen, c.records_changed as crawl_records_changed,
-			c.lines_skipped as crawl_lines_skipped,
+			c.lines_skipped as crawl_lines_skipped, c.media_failed as crawl_media_failed,
 			(
 				select count(*)::int from feed f
 				where f.source = s.id and c.started_at is not null and f.last_fetched_at >= c.started_at
@@ -212,7 +213,11 @@ export async function readSourceStatus(sql: Sql, name: string): Promise<SourceRe
 	if (row.license !== null) status.license = row.license
 
 	if (row.crawl_at !== null && row.crawl_outcome !== null) {
-		const crawl: CrawlStatus = { at: row.crawl_at.toISOString(), outcome: classifyOutcome(row.crawl_outcome) }
+		// `media_failed` is in the spec's status; core's `CrawlStatus` is catching up.
+		const crawl: CrawlStatus & { media_failed?: number } = {
+			at: row.crawl_at.toISOString(),
+			outcome: classifyOutcome(row.crawl_outcome),
+		}
 		if (row.crawl_via !== null) crawl.via = row.crawl_via
 		if (hostOf(row.crawl_document_url) === row.verified_host) {
 			if (row.crawl_document_url !== null) crawl.document_url = row.crawl_document_url
@@ -222,6 +227,7 @@ export async function readSourceStatus(sql: Sql, name: string): Promise<SourceRe
 		if (row.crawl_records_changed !== null) crawl.records_changed = row.crawl_records_changed
 		if (row.crawl_lines_skipped !== null) crawl.lines_skipped = row.crawl_lines_skipped
 		if (row.crawl_feeds_failed !== null) crawl.feeds_failed = row.crawl_feeds_failed
+		if (row.crawl_media_failed !== null) crawl.media_failed = row.crawl_media_failed
 		status.last_crawl = crawl
 	}
 	return status

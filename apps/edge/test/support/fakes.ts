@@ -9,13 +9,17 @@ import {
 	gateOnce,
 	type HostDecision,
 	initLimitSchema,
+	type MediaDecision,
+	settleMediaBytes,
 	setVerifiedSources,
 	type SqlLike,
 	takeHost,
+	takeMediaHost,
 	takeWindow,
 } from '../../src/limits/window'
+import type { ObjectStore, PutOptions } from '../../src/media/store'
 import type { AddressLookup, LookupFailure, Network, NetworkRequest, NetworkResponse, TxtLookup } from '../../src/net/types'
-import type { CrawlMessage, CrawlProducer, DeadLetters } from '../../src/services'
+import type { CrawlMessage, CrawlProducer, DeadLetters, MediaMessage, MediaProducer } from '../../src/services'
 
 export class TestClock {
 	constructor(private at: Date) {}
@@ -204,6 +208,14 @@ export class LocalLimiter implements Limiter {
 		setVerifiedSources(this.bucket(`host:${host}`), count, now.getTime())
 	}
 
+	async mediaFetch(host: string, reserve: number, now: Date): Promise<MediaDecision> {
+		return takeMediaHost(this.bucket(`host:${host}`), now.getTime(), POLICY.host.windowMs, reserve)
+	}
+
+	async settleMedia(host: string, ticket: number, bytes: number): Promise<void> {
+		settleMediaBytes(this.bucket(`host:${host}`), ticket, bytes)
+	}
+
 	/** The same storage the Durable Object would hold, for a test that needs to look inside one. */
 	bucketFor(name: string): MemorySql {
 		return this.bucket(name)
@@ -217,6 +229,64 @@ export class LocalLimiter implements Limiter {
 			this.buckets.set(name, bucket)
 		}
 		return bucket
+	}
+}
+
+/** R2 behind the same seam the Worker uses, so the media pipeline runs with no bucket at all. */
+export class MemoryBucket implements ObjectStore {
+	readonly objects = new Map<string, { bytes: Uint8Array; options: PutOptions }>()
+
+	async head(key: string): Promise<{ size: number; contentType: string | null } | null> {
+		const found = this.objects.get(key)
+		return found === undefined ? null : { size: found.bytes.byteLength, contentType: found.options.contentType }
+	}
+
+	async get(key: string) {
+		const found = this.objects.get(key)
+		if (found === undefined) return null
+		const bytes = found.bytes
+		return {
+			body: new ReadableStream<Uint8Array>({
+				start(controller) {
+					controller.enqueue(bytes)
+					controller.close()
+				},
+			}),
+			size: bytes.byteLength,
+			contentType: found.options.contentType,
+			etag: `"${key}"`,
+		}
+	}
+
+	async put(key: string, bytes: Uint8Array, options: PutOptions): Promise<void> {
+		this.objects.set(key, { bytes, options })
+	}
+
+	async delete(key: string): Promise<void> {
+		this.objects.delete(key)
+	}
+}
+
+export class MemoryMediaQueue implements MediaProducer {
+	readonly pending: { body: MediaMessage; readyAt: number }[] = []
+	readonly sent: MediaMessage[] = []
+
+	constructor(private readonly clock: TestClock) {}
+
+	async send(message: MediaMessage, options?: { delaySeconds?: number }): Promise<void> {
+		this.sent.push(message)
+		this.pending.push({ body: message, readyAt: this.clock.now().getTime() + (options?.delaySeconds ?? 0) * 1000 })
+	}
+
+	async sendBatch(messages: readonly MediaMessage[]): Promise<void> {
+		for (const message of messages) await this.send(message)
+	}
+
+	ready(): MediaMessage[] {
+		const at = this.clock.now().getTime()
+		const due = this.pending.filter((entry) => entry.readyAt <= at)
+		for (const entry of due) this.pending.splice(this.pending.indexOf(entry), 1)
+		return due.map((entry) => entry.body)
 	}
 }
 

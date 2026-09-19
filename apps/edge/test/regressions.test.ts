@@ -1,7 +1,7 @@
 import { afterAll, beforeEach, describe, expect, test } from 'bun:test'
 
 import type { EntityRecord } from '@prodid/core'
-import { claimDueSources, ingestRecord, lapseSweep, prepareRecord } from '@prodid/store'
+import { claimDueSources, ingestRecord, lapseSweep, prepareRecord, QUEUE_LEASE_MS } from '@prodid/store'
 import { databaseReachable } from '@prodid/store/testing'
 
 import { consumeCrawl } from '../src/consumer'
@@ -214,7 +214,7 @@ describe.skipIf(!reachable)('review round seven', () => {
 
 		// The claim is a lease: a crawl that never comes back makes the source due again.
 		const stale = await claimDueSources(edge!.sql, {
-			now: new Date(edge!.clock.now().getTime() + 2 * 3_600_000),
+			now: new Date(edge!.clock.now().getTime() + QUEUE_LEASE_MS + 1),
 			intervalMs: 3_600_000,
 			limit: 10,
 		})

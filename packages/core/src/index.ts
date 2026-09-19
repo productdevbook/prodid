@@ -1,5 +1,6 @@
 export { type AddressClass, classifyAddress, isPublicAddress, parseIpv4, parseIpv6 } from './address'
 export { canonicalHash, canonicalize, type JsonValue, sha256Hex } from './canonical'
+export { DEFAULT_MAX_RECORD_CHARS, type Delimiter, type DelimitedEntry, type DelimitedOptions, readDelimited } from './delimited'
 export {
 	type Claim,
 	deriveClaims,
@@ -49,6 +50,8 @@ export {
 } from './discovery'
 export { gtinCheckDigit, type GtinProblem, type GtinResult, isGtin, isRestrictedGtin, parseGtin } from './gtin'
 export { type IdentifierScope, normalizeBrand, normalizeIdentifier, type NormalizedIdentifier } from './identifier'
+export { INGESTIBLE_LICENCES, isIngestibleLicence, type MediaType, SNIFF_BYTES, sniffMedia, type SniffedType } from './media'
+export { importMerchantRow, MERCHANT_VARIANT_AXES, type MerchantDeclaration, type MerchantResult, type MerchantRow } from './merchant'
 export { DEFAULT_MAX_LINE_BYTES, type NdjsonEntry, type NdjsonOptions, readNdjson } from './ndjson'
 export { encodeOpid, isOpid, mintOpid, OPID_PATTERN } from './opid'
 export { MAX_PING_DOMAINS, parsePingRequest, type PingRejection, type PingResult } from './ping'

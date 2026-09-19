@@ -1,8 +1,8 @@
 import type { RateLimiter } from './durable'
 import { POLICY } from './policy'
-import type { Decision, HostDecision } from './window'
+import type { Decision, HostDecision, MediaDecision } from './window'
 
-export type { Decision, HostDecision } from './window'
+export type { Decision, HostDecision, MediaDecision } from './window'
 
 /** What the routes and the crawler ask before they spend anything on a stranger's word. */
 export interface Limiter {
@@ -19,6 +19,10 @@ export interface Limiter {
 	hostFetch(host: string, verified: boolean, now: Date, zone?: string): Promise<HostDecision>
 	/** Tells the host's bucket how many sources are verified there, so both lanes can scale. */
 	reportVerifiedSources(host: string, count: number, now: Date): Promise<void>
+	/** One media fetch at a host, reserving the bytes it may weigh. */
+	mediaFetch(host: string, reserve: number, now: Date): Promise<MediaDecision>
+	/** The bytes it actually weighed, success or not. */
+	settleMedia(host: string, ticket: number, bytes: number): Promise<void>
 }
 
 export class DurableLimiter implements Limiter {
@@ -42,6 +46,14 @@ export class DurableLimiter implements Limiter {
 
 	async reportVerifiedSources(host: string, count: number, now: Date): Promise<void> {
 		await this.at(`host:${host}`).count(count, now.getTime())
+	}
+
+	mediaFetch(host: string, reserve: number, now: Date): Promise<MediaDecision> {
+		return this.at(`host:${host}`).media(now.getTime(), POLICY.host.windowMs, reserve)
+	}
+
+	async settleMedia(host: string, ticket: number, bytes: number): Promise<void> {
+		await this.at(`host:${host}`).settleMedia(ticket, bytes)
 	}
 
 	private at(name: string): DurableObjectStub<RateLimiter> {

@@ -46,6 +46,12 @@ create table feed (
     last_fetched_at timestamptz,
     last_status     int check (last_status between 100 and 599),
     skipping_since  timestamptz,
+    -- set when a successfully read document stops listing the URL, cleared when it lists it
+    -- again. The row itself never goes: record.feed still points at it, and a withdrawn record
+    -- has to keep saying where it came from. Not indexed on purpose — the primary key's
+    -- `source` prefix already returns a source's handful of feeds, and keeping this column out
+    -- of every index leaves retiring and un-retiring HOT-eligible.
+    retired_at      timestamptz,
 
     primary key (source, url)
 );
@@ -64,6 +70,10 @@ create table crawl (
     records_changed int check (records_changed >= 0),
     lines_skipped   int check (lines_skipped >= 0),
     feeds_failed    int check (feeds_failed >= 0),
+    -- media is fetched after the crawl has finished, one file per queue message, so this is
+    -- accumulated onto a closed row. `set media_failed = media_failed + 1` is enough: the
+    -- update re-reads the row it locked, so concurrent increments queue rather than overwrite.
+    media_failed    int not null default 0 check (media_failed >= 0),
     conflicts       jsonb,
     error           text,
     -- carries the source only while this run is a success, so a source can key a foreign

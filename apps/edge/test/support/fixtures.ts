@@ -43,6 +43,7 @@ export function item(options: {
 	sku?: string
 	markets?: string[]
 	properties?: Record<string, string | number | boolean | string[]>
+	media?: { url: string; license: string; kind?: 'image' | 'document' }[]
 	lang?: string
 }): ItemRecord {
 	const identifiers = [
@@ -61,7 +62,34 @@ export function item(options: {
 	if (options.variant !== undefined) record.variant = options.variant
 	if (options.markets !== undefined) record.markets = options.markets
 	if (options.properties !== undefined) record.properties = options.properties
+	if (options.media !== undefined) record.media = options.media
 	return record
+}
+
+const PNG_MAGIC = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]
+
+/**
+ * A file that sniffs as a PNG. `marker` changes the bytes, and so the digest. It is padded past the
+ * sniffing window so the reader decides on the leading bytes the way it does for a real file.
+ */
+export function png(marker: number): Uint8Array {
+	const body = new Uint8Array(96)
+	body.set(PNG_MAGIC, 0)
+	body.set([0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52], PNG_MAGIC.length)
+	body[PNG_MAGIC.length + 8] = marker
+	return body
+}
+
+/** A file that sniffs as a PDF, padded past the sniffing window. */
+export function pdf(): Uint8Array {
+	const body = new Uint8Array(96)
+	body.set(new TextEncoder().encode('%PDF-1.7'), 0)
+	return body
+}
+
+/** An SVG: XML a browser executes, with no magic number, so nothing can sniff it into the store. */
+export function svg(): Uint8Array {
+	return new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"><script>fetch("/")</script></svg>')
 }
 
 export const JACKET = {

@@ -1,23 +1,25 @@
 import { createApp } from './app'
-import { consumeCrawl, runScheduled } from './consumer'
-import { type CrawlMessage, productionServices } from './services'
+import { consumeCrawl, consumeDeadLetter, consumeMedia, runScheduled } from './consumer'
+import { type CrawlMessage, type MediaMessage, productionServices } from './services'
 
 export { RateLimiter } from './limits/durable'
 
 const app = createApp(productionServices)
 
+type QueueBody = CrawlMessage | MediaMessage | { reason: string; message: CrawlMessage }
+
 export default {
 	fetch: app.fetch,
 
-	async queue(batch: MessageBatch<CrawlMessage>, env: Env, ctx: ExecutionContext): Promise<void> {
+	async queue(batch: MessageBatch<QueueBody>, env: Env, ctx: ExecutionContext): Promise<void> {
 		const services = productionServices(env)
 		try {
 			for (const message of batch.messages) {
 				try {
-					await consumeCrawl(services, message.body)
+					await dispatch(services, batch.queue, message.body)
 					message.ack()
 				} catch (error) {
-					console.error('crawl failed', message.body.kind, error)
+					console.error('queue message failed', batch.queue, error)
 					message.retry()
 				}
 			}
@@ -34,4 +36,13 @@ export default {
 			ctx.waitUntil(services.close?.() ?? Promise.resolve())
 		}
 	},
-} satisfies ExportedHandler<Env, CrawlMessage>
+} satisfies ExportedHandler<Env, QueueBody>
+
+function dispatch(services: ReturnType<typeof productionServices>, queue: string, body: QueueBody): Promise<void> {
+	if (queue === 'prodid-media-ingest') return consumeMedia(services, body as MediaMessage)
+	if (queue === 'prodid-crawl-dlq') {
+		consumeDeadLetter(body as { reason: string; message: CrawlMessage })
+		return Promise.resolve()
+	}
+	return consumeCrawl(services, body as CrawlMessage).then(() => undefined)
+}

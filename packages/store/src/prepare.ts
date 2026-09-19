@@ -3,6 +3,7 @@ import {
 	deriveRecord,
 	groupingDigests,
 	type ItemRecord,
+	type MediaEntry,
 	type NormalizedIdentifier,
 	type RecordIdentifier,
 	sha256Hex,
@@ -24,9 +25,14 @@ export interface PreparedRecord {
 	identifiers: NormalizedIdentifier[]
 	rejected: RecordIdentifier[]
 	claims: PreparedClaim[]
+	/** What the publisher named and the index has not fetched yet. A media claim carries a digest. */
+	media: MediaEntry[]
 	familyKey: string
 	variantKey: string
 }
+
+/** How many media entries of one record are ingested. */
+export const MAX_MEDIA_ENTRIES = 20
 
 export type PrepareResult = { ok: true; prepared: PreparedRecord } | { ok: false; error: string }
 
@@ -61,6 +67,9 @@ export async function prepareRecord(record: ItemRecord, source: string): Promise
 				identifiers: derived.identifiers,
 				rejected: derived.rejected,
 				claims,
+				// The spec caps how many files one record may have ingested; the rest are skipped,
+				// and skipping an entry never costs the record.
+				media: derived.media.slice(0, MAX_MEDIA_ENTRIES),
 				familyKey: digests.family,
 				variantKey: digests.variant,
 			},

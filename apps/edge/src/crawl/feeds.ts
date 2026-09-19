@@ -1,5 +1,5 @@
 import { readNdjson, validateItem } from '@prodid/core'
-import { type Disagreement, ingestRecords, type PreparedRecord, prepareRecord, type Sql } from '@prodid/store'
+import { type Disagreement, ingestRecords, type MediaWanted, type PreparedRecord, prepareRecord, type Sql } from '@prodid/store'
 
 import type { Caps, GuardedFetcher } from '../net/guard'
 
@@ -20,6 +20,8 @@ export type FeedRead =
 			claimsInserted: number
 			claimsWithdrawn: number
 			disagreements: Disagreement[]
+			/** Files this feed's records named that need fetching: never claimed, or due a re-check. */
+			media: MediaWanted[]
 	  }
 
 export interface FeedInput {
@@ -40,7 +42,14 @@ export interface FeedInput {
  * feed costs a batch of memory rather than a feed of it.
  */
 export async function readFeed(input: FeedInput): Promise<FeedRead> {
-	const response = await input.fetcher.fetch(input.url, { headers: input.headers, timeoutMs: input.caps.feedMs })
+	// One deadline for the whole read. Headers and body used to get one each, which put a feed's
+	// worst case at twice the cap against a wall clock that allows one of it.
+	const deadline = AbortSignal.timeout(input.caps.feedMs)
+	const response = await input.fetcher.fetch(input.url, {
+		headers: input.headers,
+		deadline,
+		firstByteMs: input.caps.firstByteMs,
+	})
 	if (!response.ok) return { kind: 'failed', status: response.status ?? null, reason: response.reason }
 
 	const etag = response.headers.get('etag')
@@ -62,6 +71,7 @@ export async function readFeed(input: FeedInput): Promise<FeedRead> {
 	let claimsInserted = 0
 	let claimsWithdrawn = 0
 	const disagreements: Disagreement[] = []
+	const media: MediaWanted[] = []
 	let batch: PreparedRecord[] = []
 
 	const flush = async (): Promise<void> => {
@@ -78,11 +88,11 @@ export async function readFeed(input: FeedInput): Promise<FeedRead> {
 		claimsInserted += result.claimsInserted
 		claimsWithdrawn += result.claimsWithdrawn
 		disagreements.push(...result.disagreements)
+		media.push(...result.media)
 		for (const key of result.keys) keys.add(key)
 		batch = []
 	}
 
-	const deadline = AbortSignal.timeout(input.caps.feedMs)
 	const stream = input.fetcher.limit(response.body, input.caps.feedBytes, deadline)
 	try {
 		for await (const entry of readNdjson(stream, { maxLineBytes: input.caps.lineBytes })) {
@@ -122,5 +132,6 @@ export async function readFeed(input: FeedInput): Promise<FeedRead> {
 		claimsInserted,
 		claimsWithdrawn,
 		disagreements,
+		media,
 	}
 }

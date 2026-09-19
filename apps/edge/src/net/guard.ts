@@ -10,6 +10,14 @@ export interface Caps {
 	feedBytes: number
 	feedMs: number
 	lineBytes: number
+	/** One media file, per the spec: 20 MiB for an image, 50 MiB for a document, 60 s either way. */
+	imageBytes: number
+	documentBytes_media: number
+	mediaMs: number
+	/** Connect, TLS and first byte, inside whichever deadline the read is under. */
+	firstByteMs: number
+	/** How many media entries of one record are ingested; the rest are skipped, never the record. */
+	mediaEntries: number
 }
 
 /**
@@ -25,6 +33,14 @@ export const DEFAULT_CAPS: Caps = {
 	feedBytes: 268_435_456,
 	feedMs: 600_000,
 	lineBytes: 65_536,
+	// Holding one file costs about twice its size, so a 50 MiB document peaks near 100 MiB inside a
+	// 128 MB isolate. That is the reason a document is read one per message and nothing else runs
+	// beside it.
+	imageBytes: 20_971_520,
+	documentBytes_media: 52_428_800,
+	mediaMs: 60_000,
+	firstByteMs: 10_000,
+	mediaEntries: 20,
 }
 
 /**
@@ -32,6 +48,14 @@ export const DEFAULT_CAPS: Caps = {
  * `transport` is the crawler learning nothing — a timeout, a 5xx, a cap. Only the first lapses a
  * source at once; the second has to persist for seven days.
  */
+export interface FetchRequest {
+	headers?: Record<string, string>
+	/** The one deadline for this read, headers and body together. */
+	deadline: AbortSignal
+	/** How long the headers may take, inside that deadline. */
+	firstByteMs?: number
+}
+
 export type FetchFailureKind = 'negative' | 'transport'
 
 export type FetchOutcome =
@@ -56,7 +80,7 @@ export class GuardedFetcher {
 		private readonly caps: Caps,
 	) {}
 
-	async fetch(url: string, options: { headers?: Record<string, string>; timeoutMs: number }): Promise<FetchOutcome> {
+	async fetch(url: string, options: FetchRequest): Promise<FetchOutcome> {
 		let target = url
 		for (let hop = 0; hop < 2; hop += 1) {
 			const attempt = await this.once(target, options)
@@ -122,7 +146,7 @@ export class GuardedFetcher {
 		return new TextDecoder().decode(bytes)
 	}
 
-	private async once(url: string, options: { headers?: Record<string, string>; timeoutMs: number }): Promise<FetchOutcome> {
+	private async once(url: string, options: FetchRequest): Promise<FetchOutcome> {
 		const fetchable = checkFetchable(url)
 		if (!fetchable.ok) return { ok: false, kind: 'negative', reason: fetchable.reason }
 
@@ -134,7 +158,13 @@ export class GuardedFetcher {
 			response = await this.net.fetch({
 				url,
 				headers: { accept: 'application/json, application/x-ndjson, */*;q=0.1', ...options.headers },
-				signal: AbortSignal.timeout(options.timeoutMs),
+				// Two signals for two phases of one deadline, not two deadlines: the headers have to
+				// arrive inside the shorter of the first-byte cap and the deadline, and the body has
+				// the rest of the deadline. The whole read is still bounded by `deadline`.
+				signal:
+					options.firstByteMs === undefined
+						? options.deadline
+						: AbortSignal.any([options.deadline, AbortSignal.timeout(options.firstByteMs)]),
 			})
 		} catch (error) {
 			return { ok: false, kind: 'transport', reason: error instanceof Error ? error.name : 'fetch-failed' }

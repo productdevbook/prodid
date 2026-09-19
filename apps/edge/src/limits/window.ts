@@ -18,11 +18,21 @@ export interface HostDecision extends Decision {
 }
 
 /**
- * No single registrable domain may take more than this share of the unverified lane at a host, so
- * a publisher pointing its own new domain at a busy shared host is never behind strangers' domains
- * alone: at least four zones can always make progress there.
+ * How much of the unverified lane one registrable domain may hold: a max-min fair share that always
+ * counts room for one more. With `zones` contending inside the window, the share is
+ * `ceil(lane / (zones + 1))`, so while `zones + 1 <= lane` there is a slot left for a zone that has
+ * not been seen yet — a publisher pointing its own new domain at a busy host is never behind an
+ * established crowd for longer than a window.
+ *
+ * Starving that lane therefore costs `lane` registrable domains rather than a constant four, and the
+ * price scales with the capacity instead of staying flat. It is still a price and not a barrier.
+ * The honest caveat: a burst of legitimate zones shrinks everyone's share the same way an attacker's
+ * would, and the only reason that is acceptable is that the verified lane is never touched — the
+ * host's own publishers keep being crawled throughout.
  */
-export const ZONE_SHARE = 4
+function zoneShare(lane: number, zones: number): number {
+	return Math.max(1, Math.ceil(lane / (zones + 1)))
+}
 
 export const BASE_VERIFIED_LANE = 40
 export const BASE_UNVERIFIED_LANE = 20
@@ -40,8 +50,18 @@ export function laneLimits(verifiedSources: number): { total: number; unverified
 	return { total: verified + unverified, unverified }
 }
 
+export const MEDIA_FETCHES_PER_MINUTE = 10
+export const MEDIA_BYTES_PER_MINUTE = 209_715_200
+
+export interface MediaDecision extends Decision {
+	/** Identifies the reservation, so the bytes actually read can be settled against it. */
+	ticket: number | null
+}
+
 export function initLimitSchema(sql: SqlLike): void {
-	sql.exec("create table if not exists hits (lane text not null, at integer not null, zone text not null default '')")
+	sql.exec(
+		"create table if not exists hits (lane text not null, at integer not null, zone text not null default '', bytes integer not null default 0)",
+	)
 	sql.exec('create index if not exists hits_lane on hits (lane, at)')
 	sql.exec('create table if not exists meta (name text primary key, value integer not null, at integer not null)')
 }
@@ -116,7 +136,6 @@ export function takeHost(
 
 	const zone = options.zone ?? ''
 	if (!verified && zone !== '') {
-		const share = Math.max(1, Math.ceil(limits.unverified / ZONE_SHARE))
 		const mine = sql
 			.exec<{ used: number; oldest: number | null }>(
 				'select count(*) as used, min(at) as oldest from hits where lane = ? and zone = ?',
@@ -124,6 +143,10 @@ export function takeHost(
 				zone,
 			)
 			.toArray()[0]
+		const contending = sql
+			.exec<{ zones: number }>("select count(distinct zone) as zones from hits where lane = ? and zone <> ''", 'unverified')
+			.toArray()[0]
+		const share = zoneShare(limits.unverified, contending?.zones ?? 0)
 		if ((mine?.used ?? 0) >= share) {
 			return { ok: false, retryAfterMs: retryAfter(mine?.oldest ?? null, now, windowMs), needsCount }
 		}
@@ -131,6 +154,45 @@ export function takeHost(
 
 	sql.exec('insert into hits (lane, at, zone) values (?, ?, ?)', verified ? 'verified' : 'unverified', now, zone)
 	return { ok: true, retryAfterMs: 0, needsCount }
+}
+
+/**
+ * The media budget at one host: ten fetches and 200 MiB a minute, on top of the unverified lane.
+ * The entry's cap is reserved before the fetch, because what a file weighs is only known after it
+ * has been read and a budget that counts bytes afterwards has already spent them.
+ */
+export function takeMediaHost(
+	sql: SqlLike,
+	now: number,
+	windowMs: number,
+	reserve: number,
+	limits: { fetches: number; bytes: number } = { fetches: MEDIA_FETCHES_PER_MINUTE, bytes: MEDIA_BYTES_PER_MINUTE },
+): MediaDecision {
+	sql.exec('delete from hits where lane = ? and at <= ?', 'media', now - windowMs)
+	const state = sql
+		.exec<{ used: number; bytes: number; oldest: number | null }>(
+			'select count(*) as used, coalesce(sum(bytes), 0) as bytes, min(at) as oldest from hits where lane = ?',
+			'media',
+		)
+		.toArray()[0]
+	const used = state?.used ?? 0
+	const bytes = state?.bytes ?? 0
+	if (used >= limits.fetches || bytes + reserve > limits.bytes) {
+		return { ok: false, retryAfterMs: retryAfter(state?.oldest ?? null, now, windowMs), ticket: null }
+	}
+	const inserted = sql
+		.exec<{ rowid: number }>("insert into hits (lane, at, zone, bytes) values (?, ?, '', ?) returning rowid", 'media', now, reserve)
+		.toArray()[0]
+	return { ok: true, retryAfterMs: 0, ticket: inserted?.rowid ?? null }
+}
+
+/**
+ * What the file actually weighed. Settling is not optional and not only for success: a reservation
+ * left at the entry's cap after a fetch that failed or was aborted would sit in the window for a
+ * minute as if those bytes had been spent.
+ */
+export function settleMediaBytes(sql: SqlLike, ticket: number, bytes: number): void {
+	sql.exec('update hits set bytes = ? where rowid = ? and lane = ?', bytes, ticket, 'media')
 }
 
 export function setVerifiedSources(sql: SqlLike, count: number, now: number): void {

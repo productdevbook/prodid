@@ -39,6 +39,8 @@ export interface DiscoveryInput {
 	feedState: Map<string, FeedRow>
 	/** One fetch of the host the plan names, in whichever lane this source belongs to. */
 	takeHost: (host: string) => Promise<Decision>
+	/** Ask without validators: a source with nothing live has to be told everything again. */
+	unconditional: boolean
 	/** Feed URLs remembered from the last successful crawl, used when the document answers 304. */
 	knownFeeds: (documentUrl: string) => string[]
 }
@@ -61,10 +63,12 @@ export async function runDiscovery(input: DiscoveryInput): Promise<DiscoveryResu
 
 	const url = plan.plan.documentUrl
 	const via = plan.plan.via
-	const previous = input.feedState.get(url)
+	const previous = input.unconditional ? undefined : input.feedState.get(url)
+	const deadline = AbortSignal.timeout(input.caps.documentMs)
 	const response = await input.fetcher.fetch(url, {
 		headers: conditional(previous),
-		timeoutMs: input.caps.documentMs,
+		deadline,
+		firstByteMs: input.caps.firstByteMs,
 	})
 	if (!response.ok) {
 		const status = response.status ?? null
@@ -106,7 +110,11 @@ async function fetchAndAccept(
 	via: DiscoveryVia,
 	headers: Record<string, string>,
 ): Promise<DiscoveryResult> {
-	const response = await input.fetcher.fetch(url, { headers, timeoutMs: input.caps.documentMs })
+	const response = await input.fetcher.fetch(url, {
+		headers,
+		deadline: AbortSignal.timeout(input.caps.documentMs),
+		firstByteMs: input.caps.firstByteMs,
+	})
 	if (!response.ok) {
 		const status = response.status ?? null
 		if (response.kind === 'transport') return { kind: 'transport', via, documentUrl: url, status, reason: response.reason }

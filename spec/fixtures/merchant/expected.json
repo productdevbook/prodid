@@ -1,0 +1,11 @@
+{
+	"feed.csv": {
+		"ndjson": "feed.ndjson",
+		"declared": {
+			"lang": "en",
+			"markets": ["TR"],
+			"license": "CC-BY-4.0"
+		},
+		"skipped_rows": [6]
+	}
+}

@@ -10,8 +10,10 @@ import { defineConfig } from 'astro/config'
 import { defineHastPlugin } from 'satteri'
 
 import { SHIKI_LANG_ALIAS, SHIKI_THEMES } from './src/lib/shiki.ts'
+import { readSpecSections } from './src/lib/spec-sections.ts'
 
 const SPEC = new URL('../../spec/', import.meta.url)
+const REVIEW = new URL('./spec-review.json', import.meta.url)
 
 /** Copied verbatim into `dist/spec/` so the relative links inside the rendered spec resolve. */
 const PUBLISHED = ['schemas', 'examples', 'fixtures', 'LICENSE', 'README.md']
@@ -98,6 +100,7 @@ function specAssets() {
 		name: 'prodid:spec-assets',
 		hooks: {
 			'astro:config:setup': () => {
+				checkQuotedSpec()
 				const missing = PUBLISHED.filter((name) => !existsSync(new URL(name, SPEC)))
 				if (missing.length > 0) {
 					throw new Error(
@@ -125,6 +128,8 @@ function specAssets() {
 				}
 				const checked = checkInternalLinks(fileURLToPath(dir))
 				logger.info(`internal links resolved: ${checked}`)
+				const quoted = checkQuotedAnchorsRendered(fileURLToPath(dir))
+				logger.info(`spec sections quoted by hand-written pages: ${quoted}, unchanged since review`)
 			},
 		},
 	}
@@ -205,6 +210,61 @@ function checkInternalLinks(dist) {
 		throw new Error(`${broken.length} internal link(s) do not resolve in the build:\n  ${broken.join('\n  ')}`)
 	}
 	return count
+}
+
+/**
+ * `/` and `/publish` state rules that live in spec/README.md, in their own words, so no build-time render can keep
+ * them honest. This records a hash of every section they quote: when the spec moves, the build stops and names the
+ * section, instead of the site quietly going on saying the old rule.
+ *
+ * @returns {{ sections: ReturnType<typeof readSpecSections>, manifest: import('./src/lib/spec-sections.ts').SpecReview }}
+ */
+function loadQuotedSpec() {
+	const manifest = /** @type {import('./src/lib/spec-sections.ts').SpecReview} */ (JSON.parse(readFileSync(fileURLToPath(REVIEW), 'utf8')))
+	const sections = readSpecSections(readFileSync(fileURLToPath(new URL('README.md', SPEC)), 'utf8'))
+	return { sections, manifest }
+}
+
+function checkQuotedSpec() {
+	const { sections, manifest } = loadQuotedSpec()
+	/** @type {string[]} */
+	const gone = []
+	/** @type {string[]} */
+	const drifted = []
+	for (const entry of manifest.sections) {
+		const section = sections.get(entry.anchor)
+		if (section === undefined) {
+			gone.push(`  #${entry.anchor} — quoted by ${entry.pages.join(', ')} — no section renders to that anchor any more`)
+			continue
+		}
+		if (section.sha256 !== entry.sha256) {
+			drifted.push(`  #${entry.anchor} — “${section.heading}” — quoted by ${entry.pages.join(', ')}`)
+		}
+	}
+	if (gone.length === 0 && drifted.length === 0) return
+
+	const lines = ['spec/README.md has moved under the hand-written pages.', '']
+	if (gone.length > 0) lines.push('Sections that no longer exist under the recorded anchor:', ...gone, '')
+	if (drifted.length > 0) lines.push(`Sections changed since /publish and / were last reviewed (${manifest.reviewed}):`, ...drifted, '')
+	lines.push(
+		'These pages restate those rules in their own words, so nothing else catches a change.',
+		'Read the section, fix the page if the rule moved, then record the new text:',
+		'',
+		'  cd apps/web && bun run spec:review',
+	)
+	throw new Error(lines.join('\n'))
+}
+
+/** @param {string} dist */
+function checkQuotedAnchorsRendered(dist) {
+	const { manifest } = loadQuotedSpec()
+	const page = readFileSync(join(dist, 'spec', 'index.html'), 'utf8')
+	const ids = new Set([...page.matchAll(/\sid="([^"]+)"/g)].map((match) => match[1]))
+	const absent = manifest.sections.filter((entry) => !ids.has(entry.anchor))
+	if (absent.length > 0) {
+		throw new Error(`spec-review.json records anchors that /spec does not render: ${absent.map((e) => `#${e.anchor}`).join(', ')}`)
+	}
+	return manifest.sections.length
 }
 
 export default defineConfig({

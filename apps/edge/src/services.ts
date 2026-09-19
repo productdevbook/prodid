@@ -1,7 +1,8 @@
-import type { SourceKind, VerifiedBy } from '@prodid/core'
+import type { MediaEntry, SourceKind, VerifiedBy } from '@prodid/core'
 import { createClient, type Sql } from '@prodid/store'
 
 import { DurableLimiter, type Limiter } from './limits/client'
+import { type ObjectStore, r2Store } from './media/store'
 import { type Caps, DEFAULT_CAPS } from './net/guard'
 import { LiveNetwork } from './net/live'
 import type { Network } from './net/types'
@@ -21,12 +22,8 @@ export interface CrawlPlan {
 	status: number
 	feeds: string[]
 	zone: string
-	/** Whether this source is already verified at `host`; one definition, used for the lane and for the benefit of the doubt. */
-	verified: boolean
 	/** The hosted source this crawl moves to the domain once it succeeds. */
 	upgrade: string | null
-	/** The source was lapsed when this crawl started: it reads everything and writes nothing until it has succeeded. */
-	probe: boolean
 	startedAt: string
 }
 
@@ -36,9 +33,33 @@ export type CrawlMessage =
 	| { kind: 'feed'; plan: CrawlPlan; at: number; touched?: boolean; deferrals?: number }
 	| { kind: 'finalize'; plan: CrawlPlan; touched?: boolean; deferrals?: number }
 
+/**
+ * One file, and every record of this source that named it. Several records of one feed naming one
+ * photograph is the normal case — every size of a jacket carries the same picture — so the file is
+ * read once and claimed for each of them.
+ */
+export interface MediaMessage {
+	source: string
+	/** The crawl that found this entry; a file that produces no claim is counted on it. */
+	crawl: string
+	/** The records that named this file, each getting its own claim. */
+	targets: { recordKey: string; opid: string }[]
+	entry: MediaEntry
+	/** The registrable domain of the source, which bounds its share of any one media host. */
+	zone: string
+	/** The file is already stored and claimed; this is the periodic re-read of it. */
+	recheck?: boolean
+	deferrals?: number
+}
+
 export interface CrawlProducer {
 	send(message: CrawlMessage, options?: { delaySeconds?: number }): Promise<void>
 	sendBatch(messages: readonly CrawlMessage[]): Promise<void>
+}
+
+export interface MediaProducer {
+	sendBatch(messages: readonly MediaMessage[]): Promise<void>
+	send(message: MediaMessage, options?: { delaySeconds?: number }): Promise<void>
 }
 
 /** Where a crawl goes when it has been held back so long that an operator should see it. */
@@ -52,6 +73,9 @@ export interface Services {
 	net: Network
 	limits: Limiter
 	queue: CrawlProducer
+	mediaQueue: MediaProducer
+	/** Where stored files live. `media.prodid.org` serves this bucket. */
+	media: ObjectStore
 	dead: DeadLetters
 	caps: Caps
 	/** The only clock. Nothing below this reads the wall clock. */
@@ -89,6 +113,8 @@ export function productionServices(env: Env): Services {
 		net: new LiveNetwork(env.DOH_ENDPOINT),
 		limits: new DurableLimiter(env.LIMITS),
 		queue: queueProducer(env.CRAWL),
+		mediaQueue: mediaProducer(env.MEDIA_INGEST),
+		media: r2Store(env.MEDIA),
 		dead: deadLetters(env.CRAWL_DLQ),
 		caps: DEFAULT_CAPS,
 		now: () => new Date(),
@@ -101,6 +127,19 @@ export function productionServices(env: Env): Services {
 export const QUEUE_BATCH = 100
 
 function queueProducer(queue: Queue<CrawlMessage>): CrawlProducer {
+	return {
+		async send(message, options) {
+			await queue.send(message, options?.delaySeconds === undefined ? undefined : { delaySeconds: options.delaySeconds })
+		},
+		async sendBatch(messages) {
+			for (let at = 0; at < messages.length; at += QUEUE_BATCH) {
+				await queue.sendBatch(messages.slice(at, at + QUEUE_BATCH).map((body) => ({ body })))
+			}
+		},
+	}
+}
+
+function mediaProducer(queue: Queue<MediaMessage>): MediaProducer {
 	return {
 		async send(message, options) {
 			await queue.send(message, options?.delaySeconds === undefined ? undefined : { delaySeconds: options.delaySeconds })

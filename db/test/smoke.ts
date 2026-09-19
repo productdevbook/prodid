@@ -129,6 +129,24 @@ async function feeds(sql: Sql, source: string): Promise<void> {
 		() => sql`insert into feed (source, url) values (${source}, 'http://acme.example/feed.ndjson')`,
 	)
 
+	await accepts('a feed is retired and listed again', async () => {
+		await sql`
+      update feed set retired_at = now()
+      where source = ${source} and url = 'https://acme.example/feed.ndjson'
+    `
+		const live = await sql<{ url: string }[]>`
+      select url from feed where source = ${source} and retired_at is null
+    `
+		if (live.some((row) => row.url === 'https://acme.example/feed.ndjson')) {
+			throw new Error('a retired feed is still among the live feeds of its source')
+		}
+		if (live.length !== 1) throw new Error(`${live.length} live feeds, expected 1`)
+		await sql`
+      update feed set retired_at = null
+      where source = ${source} and url = 'https://acme.example/feed.ndjson'
+    `
+	})
+
 	await accepts('a run of skipped lines is recorded and cleared', async () => {
 		await sql`
       update feed set skipping_since = now() - interval '8 days'
@@ -188,6 +206,20 @@ async function crawls(sql: Sql, source: string): Promise<string> {
       values (${source}, 'dns-txt', now(), 'changed', -1)
     `,
 	)
+
+	const [counter] = await sql<{ media_failed: number }[]>`select media_failed from crawl where id = ${proof.id}`
+	equals('media_failed starts at zero', counter?.media_failed, 0)
+
+	await accepts('a finished crawl still counts media failures afterwards', async () => {
+		await sql`update crawl set media_failed = media_failed + 1 where id = ${proof.id}`
+		await sql`update crawl set media_failed = media_failed + 1 where id = ${proof.id}`
+		const [after] = await sql<{ media_failed: number }[]>`select media_failed from crawl where id = ${proof.id}`
+		if (after?.media_failed !== 2) throw new Error(`media_failed is ${after?.media_failed}, expected 2`)
+	})
+
+	await rejects('a negative media_failed is rejected', () => sql`update crawl set media_failed = -1 where id = ${proof.id}`)
+
+	await rejects('a crawl id cannot be changed', () => sql`update crawl set id = 999999 where id = ${proof.id}`)
 
 	await accepts(
 		'a crawl that found no discovery path inserts without a via',
@@ -273,6 +305,13 @@ async function verification(sql: Sql, source: string, proof: string): Promise<vo
 	)
 
 	await rejects('the proving crawl cannot be demoted afterwards', () => sql`update crawl set outcome = 'fetch-failed' where id = ${proof}`)
+
+	await rejects('the proving crawl cannot be moved to another source', () => sql`update crawl set source = ${other.id} where id = ${proof}`)
+
+	await accepts(
+		'the proving crawl still counts media failures',
+		() => sql`update crawl set media_failed = media_failed + 1 where id = ${proof}`,
+	)
 
 	await rejects(
 		'source verified_by outside the value set is rejected',
@@ -541,6 +580,23 @@ async function records(sql: Sql, source: string, built: Chain): Promise<string> 
 		'a feed cannot be deleted while a record still names it',
 		() => sql`delete from feed where source = ${source} and url = 'https://acme.example/feed.ndjson'`,
 	)
+
+	await accepts('a retired feed still carries its withdrawn records', async () => {
+		await sql`
+      update feed set retired_at = now()
+      where source = ${source} and url = 'https://acme.example/feed.ndjson'
+    `
+		const [still] = await sql<{ feed: string | null }[]>`
+      select feed from record where source = ${source} and key = 'jacket-navy-l'
+    `
+		if (still?.feed !== 'https://acme.example/feed.ndjson') {
+			throw new Error(`the record lost its feed: ${still?.feed}`)
+		}
+		await sql`
+      update feed set retired_at = null
+      where source = ${source} and url = 'https://acme.example/feed.ndjson'
+    `
+	})
 
 	const [imported] = await sql<{ feed: string | null }[]>`
     insert into record (source, key, opid, hash, body)

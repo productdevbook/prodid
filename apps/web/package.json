@@ -8,7 +8,8 @@
 		"build": "astro build",
 		"preview": "astro preview",
 		"typecheck": "astro check",
-		"check": "astro check && astro build"
+		"check": "astro check && astro build",
+		"spec:review": "bun run scripts/spec-review.ts"
 	},
 	"dependencies": {
 		"@astrojs/markdown-satteri": "0.4.1",

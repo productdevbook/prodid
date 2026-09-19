@@ -74,7 +74,7 @@ const itemFields = [
 	{
 		field: 'identifiers',
 		required: 'yes',
-		note: 'At least one { scheme, value }. A gtin must be 8, 12, 13 or 14 digits with a correct check digit, and must not be all zeros.',
+		note: 'At least one { scheme, value }, and at least one the index can store. Values carry no whitespace at either end and are not blank. A gtin must be 8, 12, 13 or 14 digits with a correct check digit and not all zeros; an mpn needs a brand that normalizes to something, because that is the scope it is unique within; a restricted-circulation gtin is kept, but only as your own rcn. A record left with nothing storable identifies nothing and is skipped.',
 	},
 	{ field: 'lang', required: 'no', note: 'BCP 47 tag for the human-readable text in this record.' },
 	{ field: 'group', required: 'no', note: 'Your own grouping key. Items that share one are variants of a single family.' },
@@ -82,7 +82,11 @@ const itemFields = [
 	{ field: 'category', required: 'no', note: 'GS1 GPC brick code, written gpc: followed by eight digits.' },
 	{ field: 'markets', required: 'no', note: 'ISO 3166-1 alpha-2 codes of the markets this item is sold in.' },
 	{ field: 'properties', required: 'no', note: 'Strings, numbers, booleans, lists, or { value, unit } for a measurement.' },
-	{ field: 'media', required: 'no', note: 'https URLs, each with an SPDX license. Media without a licence is not fetched.' },
+	{
+		field: 'media',
+		required: 'no',
+		note: 'Up to 20 https URLs, each with a kind and an SPDX license from the ingestible list. Unlike feeds, these may be on any host.',
+	},
 ]
 
 const trust = [
@@ -106,17 +110,30 @@ Content-Type: application/json
 
 const wellKnown = 'https://acme.example/.well-known/prodid.json'
 
+const mediaCaps = [
+	{ what: 'One image', cap: '20 MiB' },
+	{ what: 'One document', cap: '50 MiB' },
+	{ what: 'One media fetch', cap: '60 s' },
+	{ what: 'Media entries in one record', cap: '20' },
+]
+
+const mediaLicences = `CC0-1.0  CC-BY-4.0  CC-BY-SA-4.0  CC-BY-ND-4.0
+CC-BY-3.0  CC-BY-SA-3.0  CC-BY-ND-3.0`
+
 const checklist = [
 	'Discovery answers with HTTP 200, a JSON content type and a body that validates against the feed schema — not an HTML “page not found” served with a 200.',
 	'There is exactly one v=prodid0 TXT record at _prodid.<your domain>. Two is an error, and a malformed one is an error.',
 	'That record is v=prodid0; host=<hostname>. A host, never a URL: no scheme, no port, no path.',
 	'Every URL in feeds is https and on the same host as the discovery document that lists it.',
+	'Every URL in feeds is one you still serve. A feed that cannot be fetched fails the whole crawl, and seven days of that lapses the source.',
 	'A delegated document carries "domain", equal to the domain it speaks for.',
 	'The discovery document is served as application/json and does not redirect to another host.',
 	'Feeds and documents send ETag or Last-Modified, so an unchanged file costs a 304.',
 	'Every feed line is one complete JSON object under 64 KiB, UTF-8, newline separated, no array wrapper and no trailing commas.',
 	'Every key is stable and is never reused for a different product.',
 	'Every gtin is digits only, with a correct check digit, and is not all zeros.',
+	'Every identifier value is trimmed — no leading or trailing whitespace — and every record keeps at least one identifier the index can store, which means an mpn needs a brand.',
+	'Every media entry has a kind that matches its actual bytes and one of the seven ingestible SPDX licences, or that entry is skipped.',
 	'No record contains an opid. The index assigns those.',
 	'publisher.contact is an address somebody reads.',
 ]
@@ -477,6 +494,60 @@ const checklist = [
 					be real records: identifiers, resolution, attribution.
 				</p>
 				<p class="mt-5 text-base leading-relaxed text-soft sm:text-lg">
+					Most publishers in this position already keep a{' '}
+					<a href="https://support.google.com/merchants/answer/7052112" class="rounded-sm text-accent underline underline-offset-4">
+						Google Merchant</a
+					>{' '}
+					product file, so the mapping from one of those to <code class="chip">org.prodid.item</code> records is written out
+					in the specification, column by column, along with what it deliberately drops: price, availability, shipping and
+					condition belong to a seller on a day, not to the product.{' '}
+					<a href="/spec#appendix-importing-a-merchant-feed" class="rounded-sm text-accent underline underline-offset-4">
+						Importing a Merchant feed</a
+					>{' '}
+					is worth reading before you export, even though nothing imports it for you yet. Four things in it decide what your
+					spreadsheet has to look like:
+				</p>
+				<ul class="mt-5 grid gap-4 [&>*]:min-w-0">
+					<li class="border-l-2 border-rule pl-5 text-[0.9375rem] leading-relaxed text-soft">
+						<strong class="font-medium text-ink">Four columns become variant axes</strong> —{' '}
+						<code class="chip">color</code>, <code class="chip">size</code>, <code class="chip">material</code> and{' '}
+						<code class="chip">pattern</code>, the ones a buyer picks between within one <code class="chip">item_group_id</code>.{' '}
+						<code class="chip">gender</code>, <code class="chip">age_group</code>, <code class="chip">size_type</code> and{' '}
+						<code class="chip">size_system</code> stay ordinary properties: they describe the whole group, and as axes they
+						would split one product into several the first time somebody spelled one of them two ways.
+					</li>
+					<li class="border-l-2 border-rule pl-5 text-[0.9375rem] leading-relaxed text-soft">
+						<strong class="font-medium text-ink">A repeated attribute is comma-separated or repeated-header, per file, not
+						per cell.</strong> A cell is split on commas only when its header appears once in the whole file; repeat the
+						header and every cell under it is taken whole. That is the only way to carry a value with a comma in it, and it is
+						a decision you make once for the file. It applies to <code class="chip">additional_image_link</code>,{' '}
+						<code class="chip">product_type</code>, <code class="chip">product_highlight</code>,{' '}
+						<code class="chip">product_detail</code> and <code class="chip">certification</code>; everything else, a{' '}
+						<code class="chip">description</code> full of commas included, is taken whole either way.
+					</li>
+					<li class="border-l-2 border-rule pl-5 text-[0.9375rem] leading-relaxed text-soft">
+						<strong class="font-medium text-ink">A <code class="chip">product_detail</code> never overwrites anything.</strong>{' '}
+						Its middle sub-attribute becomes the property key, the section name is dropped, and the first value for a key wins.
+						A later detail with the same key, or one that lands on a key the mapping already produced, is dropped and reported
+						with its row — so a detail column can never quietly redefine what the rest of the row said.
+					</li>
+					<li class="border-l-2 border-rule pl-5 text-[0.9375rem] leading-relaxed text-soft">
+						<strong class="font-medium text-ink">A media licence has to be declared.</strong> The Merchant format has no{' '}
+						column for one and <a href="/spec#licences-that-can-be-ingested" class="rounded-sm text-accent underline underline-offset-4">nothing is ingested without one</a>,{' '}
+						so an import declares a single ingestible SPDX identifier covering every image and document in the file. A{' '}
+						<code class="chip">license</code> column of your own overrides it row by row, and a file whose declared licence is
+						not ingestible produces records without media rather than records that fail.
+					</li>
+				</ul>
+				<p class="mt-5 text-[0.9375rem] leading-relaxed text-soft">
+					A row that cannot become a record — no usable identifier, a GTIN that fails its check digit — is skipped and
+					reported by spreadsheet row number, header counted as row 1, so one bad row costs that row and not the import.
+					There is a worked file to check yourself against in{' '}
+					<a href="/spec/fixtures/merchant" class="rounded-sm font-mono text-[0.8125rem] text-accent underline underline-offset-4">
+						/spec/fixtures/merchant</a
+					>: a CSV, the records it must produce, and the row that must be skipped.
+				</p>
+				<p class="mt-5 text-base leading-relaxed text-soft sm:text-lg">
 					The part that matters for a decision made today is what happens later. Adding a TXT record on a domain you
 					acquire, naming that same host, turns the slug into the domain at the next crawl —{' '}
 					<strong class="font-medium text-ink">the same source, the same records, every{' '}
@@ -539,6 +610,17 @@ const checklist = [
 						</p>
 					</li>
 					<li class="border-l-2 border-rule pl-5">
+						<p class="font-medium">Removing a feed URL from the document retires it immediately.</p>
+						<p class="mt-1 text-[0.9375rem] leading-relaxed text-soft">
+							When a crawl reads a document that no longer names one of your feed URLs, every live record that feed
+							carried is withdrawn at once, as if all of its keys had vanished, and the URL is not fetched again. None of
+							the seven-day grace below applies: dropping a URL is you saying the file is gone, and the index takes you at
+							your word. Listing it again later brings it back, read from scratch. Serve the document with an{' '}
+							<code class="chip">ETag</code> if you can — a <code class="chip">304</code> means the list has not changed,
+							so it retires nothing.
+						</p>
+					</li>
+					<li class="border-l-2 border-rule pl-5">
 						<p class="font-medium">A broken line delays withdrawal for seven days; it does not disable it.</p>
 						<p class="mt-1 text-[0.9375rem] leading-relaxed text-soft">
 							A line that is over 64 KiB, unparseable or invalid is skipped and counted. Because a skipped line's key is
@@ -547,31 +629,75 @@ const checklist = [
 						</p>
 					</li>
 					<li class="border-l-2 border-rule pl-5">
+						<p class="font-medium">A feed the crawler cannot read is not free.</p>
+						<p class="mt-1 text-[0.9375rem] leading-relaxed text-soft">
+							A crawl succeeds only when <em>everything the document lists</em> was read: an acceptable document, and every
+							feed in it answering <code class="chip">200</code> or <code class="chip">304</code>. One feed timing out does
+							not lose you the others — the feeds that answered are ingested, and nothing is withdrawn on a crawl that
+							failed — but the crawl counts as a transport failure, and <code class="chip">feeds_failed</code> says so in
+							your status. A perfectly healthy document in front of one permanently dead feed URL therefore lapses on the
+							same seven-day clock as a domain that stopped answering altogether, and loses the catalogue thirty days
+							after that. A feed URL you no longer serve should be removed from the document, not left to rot.
+						</p>
+					</li>
+					<li class="border-l-2 border-rule pl-5">
 						<p class="font-medium">If discovery stops succeeding, your source lapses.</p>
 						<p class="mt-1 text-[0.9375rem] leading-relaxed text-soft">
 							A <strong class="font-medium text-ink">definite negative</strong> — discovery ending with no acceptable
-							document, so: no record and no document, a record that is malformed, over-long or duplicated, or a document
-							that is not 200, not JSON, not valid, no longer agrees about <code class="chip">domain</code>, or lists a
-							feed off its host — lapses the source at once. A{' '}
-							<strong class="font-medium text-ink">transport failure</strong> — a DNS timeout, a 5xx, a 429, a cap
-							reached — changes nothing by itself, but seven consecutive days in which every attempt ends that way lapse
-							you too, so serving errors forever is not a way to freeze your claims where they are.
+							document: no record and no document, a record that is malformed, over-long or duplicated, or a document that
+							is not 200, not JSON, not valid, no longer agrees about <code class="chip">domain</code>, or lists a feed off
+							its host — lapses the source at once. A <strong class="font-medium text-ink">transport failure</strong> — a
+							DNS timeout, a 5xx, a 429, a cap reached, on the document or on any feed — changes nothing by itself, but
+							seven consecutive days in which every attempt ends that way lapse you too, so serving errors forever is not a
+							way to freeze your claims where they are.
+						</p>
+						<p class="mt-2 text-[0.9375rem] leading-relaxed text-soft">
+							<strong class="font-medium text-ink">That benefit of the doubt belongs to a host, not to you.</strong> It
+							applies only at a host your source has already been verified at. At a host it has never been verified at — a
+							new slug, a host you have just re-pointed <code class="chip">_prodid</code> at, anything under routes 2 and
+							3 — any failure, a timeout and a 5xx included, is a definite negative and lapses you at once. That is
+							deliberate: otherwise a verified source could aim its record at a host it does not control and read back,
+							from whether its lapse starts today or in a week, whether that host is up. Moving hosts costs you nothing
+							for it. The first crawl that succeeds at the new host clears everything, and a lapse stays recoverable for
+							the 30 days before anything is withdrawn.
 						</p>
 						<p class="mt-2 text-[0.9375rem] leading-relaxed text-soft">
 							A lapsed source takes no new claims, is shown as lapsed to readers, and its{' '}
-							<code class="chip">publisher.contact</code> is notified. After 30 days of continuous lapse its active claims
-							are withdrawn and remain as history. Any successful discovery clears the lapse. Those 30 days are your
-							recovery window, which is why the contact address has to be one somebody reads. Feeds are outside this
-							entirely: a feed that fails to fetch withdraws nothing and lapses nobody.
+							<code class="chip">publisher.contact</code> is notified. A crawl of a lapsed source writes nothing until it
+							has succeeded in full; only then is the lapse cleared. After 30 days of continuous lapse your{' '}
+							<strong class="font-medium text-ink">records and their active claims are withdrawn together</strong>, and
+							remain as history. Those 30 days are your recovery window, which is why the contact address has to be one
+							somebody reads.
+						</p>
+						<p class="mt-2 text-[0.9375rem] leading-relaxed text-soft">
+							Coming back does not require changing anything. Serve the same document and the same feed you always did and
+							everything you publish is asserted again the moment discovery succeeds, whether or not a byte moved — the
+							index gives up conditional requests while it holds nothing live from you, so an unchanged file is never a
+							reason to stay withdrawn.
+						</p>
+					</li>
+					<li class="border-l-2 border-rule pl-5">
+						<p class="font-medium">
+							<code class="chip">seen_at</code> is a continuous assertion, and a long lapse resets it.
+						</p>
+						<p class="mt-1 text-[0.9375rem] leading-relaxed text-soft">
+							Every claim a reader sees carries <code class="chip">seen_at</code>: not when the fact was first published
+							anywhere, but <em>since when this source has asserted this value without stopping</em>. It survives every
+							re-crawl that finds the same value, which is the point of it. It does not survive a withdrawal. Let your
+							source stay lapsed past 30 days and the date on every fact you publish restarts from the day you come back,
+							because for the length of the gap nobody verifiable stood behind them. The withdrawn rows stay, so{' '}
+							<code class="chip">?history=1</code> shows the gap rather than hiding it —{' '}
+							<a href="/spec#an-entity" class="rounded-sm text-accent underline underline-offset-4">what a reader sees</a>{' '}
+							is in the specification.
 						</p>
 					</li>
 					<li class="border-l-2 border-rule pl-5">
 						<p class="font-medium">Your source has a public status page.</p>
 						<p class="mt-1 text-[0.9375rem] leading-relaxed text-soft">
 							<code class="chip">/source/acme.example</code> is how you see that something is wrong: the outcome of the
-							last crawl, which path discovery took, how many records changed, how many lines were skipped, and whether
-							you are lapsed and since when. It reports only what your domain publishes and when the index looked — never
-							who asked for a crawl.
+							last crawl, which path discovery took, how many records changed, how many lines were skipped, how many feeds
+							could not be read, and whether you are lapsed and since when. It reports only what your domain publishes and
+							when the index looked — never who asked for a crawl.
 						</p>
 						<CodeSample
 							class="mt-4"
@@ -582,19 +708,58 @@ const checklist = [
 						/>
 					</li>
 					<li class="border-l-2 border-rule pl-5">
+						<p class="font-medium">Media is sniffed, not trusted — and a bad entry costs only itself.</p>
+						<p class="mt-1 text-[0.9375rem] leading-relaxed text-soft">
+							The type is decided by reading the bytes; your <code class="chip">Content-Type</code> is a hint. Six types
+							are stored and nothing else: JPEG, PNG, GIF, WebP and AVIF as <code class="chip">image</code>, PDF as{' '}
+							<code class="chip">document</code>. No SVG, no HTML, no archives, no Office files — a spec sheet goes out as
+							a PDF. The sniffed type and the entry's <code class="chip">kind</code> have to agree, or the entry is
+							skipped.
+						</p>
+						<div class="mt-3 table-scroll" role="region" aria-label="Media caps" tabindex="0">
+							<table class="data-table">
+								<thead>
+									<tr><th scope="col">What</th><th scope="col">Cap</th></tr>
+								</thead>
+								<tbody>
+									{
+										mediaCaps.map((row) => (
+											<tr>
+												<td class="whitespace-nowrap">{row.what}</td>
+												<td class="font-mono text-[0.8125rem] whitespace-nowrap">{row.cap}</td>
+											</tr>
+										))
+									}
+								</tbody>
+							</table>
+						</div>
+						<p class="mt-3 text-[0.9375rem] leading-relaxed text-soft">
+							The licence is checked as a string before anything is fetched, and it must be exactly one of seven SPDX
+							identifiers — the ones that let anyone redistribute the file verbatim, which is what the index does with it:
+						</p>
+						<CodeSample class="mt-3" code={mediaLicences} label="ingestible media licences" />
+						<p class="mt-3 text-[0.9375rem] leading-relaxed text-soft">
+							Everything here is per entry. An entry that is refused, too big or unreachable costs that entry and nothing
+							else: <strong class="font-medium text-ink">your record is never invalid because of its media</strong>, its
+							other claims stand, and no media failure lapses you. It is counted in <code class="chip">media_failed</code>{' '}
+							and tried again on the next crawl of that record. One thing works the other way from feeds: the same-host
+							rule does <em>not</em> apply here, so your images can live on a CDN.{' '}
+							<a href="/spec#what-is-ingested" class="rounded-sm text-accent underline underline-offset-4">
+								What is ingested</a
+							>{' '}
+							and{' '}
+							<a href="/spec#licences-that-can-be-ingested" class="rounded-sm text-accent underline underline-offset-4">
+								the licence list</a
+							>{' '}
+							have the reasoning.
+						</p>
+					</li>
+					<li class="border-l-2 border-rule pl-5">
 						<p class="font-medium">Other sources will publish about your products.</p>
 						<p class="mt-1 text-[0.9375rem] leading-relaxed text-soft">
 							Retailers, registries, open datasets and contributors are sources like any other. Their claims are
 							attributed to them and never overwrite yours; where you disagree, both claims are visible with their
 							sources side by side.
-						</p>
-					</li>
-					<li class="border-l-2 border-rule pl-5">
-						<p class="font-medium">Media needs a licence or it is not fetched.</p>
-						<p class="mt-1 text-[0.9375rem] leading-relaxed text-soft">
-							Each media entry states an SPDX licence. The index stores the file under its SHA-256 and keeps the hash, the
-							original URL, the licence, the source and the fetch time, so anyone can see what they are allowed to do with
-							the image.
 						</p>
 					</li>
 				</ul>

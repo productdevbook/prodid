@@ -6,9 +6,12 @@ import {
 	type HostDecision,
 	initLimitSchema,
 	isEmpty,
+	type MediaDecision,
+	settleMediaBytes,
 	setVerifiedSources,
 	type SqlLike,
 	takeHost,
+	takeMediaHost,
 	takeWindow,
 } from './window'
 
@@ -32,6 +35,15 @@ export class RateLimiter extends DurableObject<Env> {
 
 	host(now: number, windowMs: number, verified: boolean, staleAfterMs: number, zone?: string): HostDecision {
 		return this.armed(now, () => takeHost(this.sql, now, windowMs, verified, { staleAfterMs, zone: zone ?? '' }))
+	}
+
+	media(now: number, windowMs: number, reserve: number): MediaDecision {
+		return this.armed(now, () => takeMediaHost(this.sql, now, windowMs, reserve))
+	}
+
+	settleMedia(ticket: number, bytes: number): void {
+		this.ready()
+		settleMediaBytes(this.sql, ticket, bytes)
 	}
 
 	count(verifiedSources: number, now: number): void {

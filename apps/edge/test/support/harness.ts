@@ -1,17 +1,19 @@
 import { createDatabase, type Sql, type Throwaway } from '@prodid/store/testing'
 
 import { createApp } from '../../src/app'
-import { consumeCrawl } from '../../src/consumer'
+import { consumeCrawl, consumeMedia } from '../../src/consumer'
 import type { CrawlStep } from '../../src/crawl/run'
 import { DEFAULT_CAPS } from '../../src/net/guard'
 import type { Services } from '../../src/services'
-import { FakeNetwork, LocalLimiter, MemoryDeadLetters, MemoryQueue, TestClock } from './fakes'
+import { FakeNetwork, LocalLimiter, MemoryBucket, MemoryDeadLetters, MemoryMediaQueue, MemoryQueue, TestClock } from './fakes'
 
 export interface Edge {
 	sql: Sql
 	net: FakeNetwork
 	clock: TestClock
 	queue: MemoryQueue
+	mediaQueue: MemoryMediaQueue
+	media: MemoryBucket
 	dead: MemoryDeadLetters
 	limits: LocalLimiter
 	services: Services
@@ -20,6 +22,8 @@ export interface Edge {
 	crawl(domain: string): Promise<CrawlStep>
 	/** Runs every queued message whose delay has elapsed. */
 	drain(rounds?: number): Promise<CrawlStep | null>
+	/** Runs every media message whose delay has elapsed, the way its consumer would. */
+	drainMedia(rounds?: number): Promise<void>
 	reset(): Promise<void>
 }
 
@@ -35,6 +39,8 @@ function build(sql: Sql, clock: TestClock): Edge {
 	let net = new FakeNetwork()
 	let limits = new LocalLimiter()
 	const queue = new MemoryQueue(clock)
+	const mediaQueue = new MemoryMediaQueue(clock)
+	const media = new MemoryBucket()
 	const dead = new MemoryDeadLetters()
 
 	const services: Services = {
@@ -46,6 +52,8 @@ function build(sql: Sql, clock: TestClock): Edge {
 			return limits
 		},
 		queue,
+		mediaQueue,
+		media,
 		dead,
 		caps: { ...DEFAULT_CAPS },
 		now: clock.now,
@@ -68,6 +76,14 @@ function build(sql: Sql, clock: TestClock): Edge {
 		return last
 	}
 
+	async function drainMedia(rounds = 50): Promise<void> {
+		for (let round = 0; round < rounds; round += 1) {
+			const due = mediaQueue.ready()
+			if (due.length === 0) return
+			for (const message of due) await consumeMedia(services, message)
+		}
+	}
+
 	const edge: Edge = {
 		sql,
 		get net() {
@@ -75,6 +91,8 @@ function build(sql: Sql, clock: TestClock): Edge {
 		},
 		clock,
 		queue,
+		mediaQueue,
+		media,
 		dead,
 		get limits() {
 			return limits
@@ -89,13 +107,19 @@ function build(sql: Sql, clock: TestClock): Edge {
 			return (await drain()) ?? started
 		},
 		drain,
+		drainMedia,
 		async reset() {
 			net = new FakeNetwork()
 			limits = new LocalLimiter()
 			queue.pending.length = 0
 			queue.sent.length = 0
+			mediaQueue.pending.length = 0
+			mediaQueue.sent.length = 0
+			media.objects.clear()
 			dead.letters.length = 0
-			await sql`truncate claim, record, grouping, identifier, merge, entity, crawl, feed, source restart identity cascade`
+			// `media` belongs here too: it is keyed by digest and shared by every source, so a row
+			// left behind — a blocked hash above all — decides the next test's answer.
+			await sql`truncate claim, record, grouping, identifier, merge, entity, crawl, feed, source, media restart identity cascade`
 		},
 	}
 	return edge

@@ -97,20 +97,61 @@ describe('content negotiation', () => {
 })
 
 describe('the unverified lane is shared between zones', () => {
-	test('one registrable domain cannot take the whole lane, so a new publisher is never starved', async () => {
+	async function fill(limits: LocalLimiter, clock: TestClock, host: string, zone: string, attempts: number): Promise<number> {
+		let taken = 0
+		for (let attempt = 0; attempt < attempts; attempt += 1) {
+			if ((await limits.hostFetch(host, false, clock.now(), zone)).ok) taken += 1
+		}
+		return taken
+	}
+
+	test('one zone alone keeps a share and leaves room for the next', async () => {
 		const clock = new TestClock(AT)
 		const limits = new LocalLimiter()
-
-		// A flood of strangers' domains, all under one registrable domain, pointed at a busy host.
-		let taken = 0
-		for (let attempt = 0; attempt < 40; attempt += 1) {
-			if ((await limits.hostFetch('busy.example', false, clock.now(), 'attacker.example')).ok) taken += 1
-		}
-		expect(taken).toBe(5)
-
-		// The publisher's own new domain still gets in.
+		// Lane of 20 at a host nobody is verified at: ceil(20 / (1 + 1)).
+		expect(await fill(limits, clock, 'busy.example', 'attacker.example', 40)).toBe(10)
+		// And what it left is there for anyone else.
 		expect((await limits.hostFetch('busy.example', false, clock.now(), 'newcomer.example')).ok).toBe(true)
-		// And the host's own verified crawls were never touched.
+	})
+
+	test('more zones than slots means one slot each and the lane is the only bound', async () => {
+		const clock = new TestClock(AT)
+		const limits = new LocalLimiter()
+		let admitted = 0
+		for (let zone = 0; zone < 40; zone += 1) {
+			if ((await limits.hostFetch('busy.example', false, clock.now(), `z${zone}.example`)).ok) admitted += 1
+		}
+		expect(admitted).toBe(20)
+	})
+
+	test('the price of starving a lane scales with the lane', async () => {
+		const clock = new TestClock(AT)
+		const limits = new LocalLimiter()
+		// A host with many verified sources has a lane of 200, so filling it costs 200 zones.
+		await limits.reportVerifiedSources('huge.example', 100_000, clock.now())
+		let admitted = 0
+		for (let zone = 0; zone < 400; zone += 1) {
+			if ((await limits.hostFetch('huge.example', false, clock.now(), `z${zone}.example`)).ok) admitted += 1
+		}
+		expect(admitted).toBe(200)
+		// One zone on its own could only ever have held ceil(200 / 2).
+		const alone = new LocalLimiter()
+		await alone.reportVerifiedSources('huge.example', 100_000, clock.now())
+		expect(await fill(alone, clock, 'huge.example', 'attacker.example', 400)).toBe(100)
+	})
+
+	test('a newcomer held back by a contended lane is deferred, and gets its slot within one window', async () => {
+		const clock = new TestClock(AT)
+		const limits = new LocalLimiter()
+		for (let zone = 0; zone < 20; zone += 1) await limits.hostFetch('busy.example', false, clock.now(), `z${zone}.example`)
+
+		const held = await limits.hostFetch('busy.example', false, clock.now(), 'newcomer.example')
+		expect(held.ok).toBe(false)
+		expect(held.retryAfterMs).toBeLessThanOrEqual(POLICY.host.windowMs)
+
+		clock.advance(POLICY.host.windowMs)
+		expect((await limits.hostFetch('busy.example', false, clock.now(), 'newcomer.example')).ok).toBe(true)
+		// The host's own verified crawls were never touched by any of it.
 		expect((await limits.hostFetch('busy.example', true, clock.now())).ok).toBe(true)
 	})
 })

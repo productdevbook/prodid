@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from 'node:fs'
+import { readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
 
 import addFormats from 'ajv-formats'
@@ -8,6 +8,9 @@ type Defect = { instancePath: string; keyword: string; params?: Record<string, u
 type Problem = { instancePath: string; keyword: string; params: Record<string, unknown>; message: string }
 type TxtOutcome = 'delegation' | 'ignored' | 'malformed'
 type TxtResult = { outcome: TxtOutcome; host?: string }
+type MerchantImport = { ndjson: string; declared: { lang: string; markets: string[]; license: string }; skipped_rows: number[] }
+
+const INGESTIBLE_LICENCES = ['CC0-1.0', 'CC-BY-4.0', 'CC-BY-SA-4.0', 'CC-BY-ND-4.0', 'CC-BY-3.0', 'CC-BY-SA-3.0', 'CC-BY-ND-3.0']
 
 const MAX_TXT_BYTES = 512
 const MAX_CHARACTER_STRING_BYTES = 255
@@ -30,9 +33,23 @@ for (const name of jsonFiles(join(root, 'schemas'))) {
 }
 
 const expected = JSON.parse(readFileSync(join(root, 'fixtures', 'expected.json'), 'utf8')) as Record<string, Defect>
+const merchantExpected = JSON.parse(readFileSync(join(root, 'fixtures', 'merchant', 'expected.json'), 'utf8')) as Record<
+	string,
+	MerchantImport
+>
 const ndjsonExpected = JSON.parse(readFileSync(join(root, 'fixtures', 'ndjson', 'expected.json'), 'utf8')) as Record<string, number[]>
 const domainRule = schemas.get('org.prodid.feed')?.properties.domain as { pattern: string; maxLength: number }
 const isHost = (value: string): boolean => new RegExp(domainRule.pattern).test(value) && bytes(value) <= domainRule.maxLength
+
+if (process.argv[2] === '--emit-merchant') {
+	for (const [name, want] of Object.entries(merchantExpected)) {
+		const csv = readFileSync(join(root, 'fixtures', 'merchant', name), 'utf8')
+		const { records } = importMerchant(csv, want.declared)
+		writeFileSync(join(root, 'fixtures', 'merchant', want.ndjson), `${records.join('\n')}\n`)
+		console.log(`wrote fixtures/merchant/${want.ndjson}: ${records.length} records`)
+	}
+	process.exit(0)
+}
 
 let failures = 0
 const asserted = new Set<string>()
@@ -61,6 +78,10 @@ for (const name of jsonFiles(join(root, 'fixtures', 'gtin'))) {
 for (const name of readdirSync(join(root, 'fixtures', 'ndjson')).sort()) {
 	if (!name.endsWith('.ndjson')) continue
 	report(join(root, 'fixtures', 'ndjson', name), checkNdjsonFixture(join(root, 'fixtures', 'ndjson', name), name))
+}
+for (const name of readdirSync(join(root, 'fixtures', 'merchant')).sort()) {
+	if (!name.endsWith('.csv')) continue
+	report(join(root, 'fixtures', 'merchant', name), checkMerchantFixture(name))
 }
 report(
 	join(root, 'fixtures', 'expected.json'),
@@ -261,6 +282,165 @@ function checkNdjsonFixture(path: string, name: string): string[] {
 	const { skipped } = skippedLines(path)
 	if (skipped.join(',') === want.join(',')) return []
 	return [`skips lines ${skipped.join(', ') || 'none'}, expected ${want.join(', ') || 'none'}`]
+}
+
+function checkMerchantFixture(name: string): string[] {
+	const dir = join(root, 'fixtures', 'merchant')
+	const want = merchantExpected[name]
+	if (!want) return ['no entry in fixtures/merchant/expected.json']
+	const problems: string[] = []
+	if (!isIngestibleLicence(want.declared.license)) problems.push(`declared licence ${want.declared.license} is not ingestible`)
+
+	const imported = importMerchant(readFileSync(join(dir, name), 'utf8'), want.declared)
+	if (imported.skipped.join(',') !== want.skipped_rows.join(',')) {
+		problems.push(`skips rows ${imported.skipped.join(', ') || 'none'}, expected ${want.skipped_rows.join(', ') || 'none'}`)
+	}
+	const lines = readFileSync(join(dir, want.ndjson), 'utf8').trim().split('\n')
+	problems.push(...skippedLines(join(dir, want.ndjson)).problems.map((one) => `${want.ndjson}: ${one}`))
+	if (lines.length !== imported.records.length) {
+		problems.push(`${want.ndjson} has ${lines.length} records, the mapping produces ${imported.records.length}`)
+		return problems
+	}
+	lines.forEach((line, index) => {
+		if (line !== imported.records[index]) problems.push(`${want.ndjson} line ${index + 1} is not what the mapping produces`)
+	})
+	return problems
+}
+
+function isIngestibleLicence(licence: string): boolean {
+	return INGESTIBLE_LICENCES.includes(licence)
+}
+
+function importMerchant(csv: string, declared: MerchantImport['declared']): { records: string[]; skipped: number[] } {
+	const rows = parseCsv(csv)
+	const header = rows[0] ?? []
+	const records: string[] = []
+	const skipped: number[] = []
+	rows.slice(1).forEach((cells, index) => {
+		const record = merchantRecord(header, cells, declared)
+		const found = recordProblems(record)
+		if (typeof found === 'string' || found.length > 0) skipped.push(index + 2)
+		else records.push(JSON.stringify(record))
+	})
+	return { records, skipped }
+}
+
+function parseCsv(text: string): string[][] {
+	return text
+		.trim()
+		.split('\n')
+		.map((line) => {
+			const cells: string[] = []
+			let cell = ''
+			let quoted = false
+			for (let at = 0; at < line.length; at += 1) {
+				const character = line[at]
+				if (quoted && character === '"' && line[at + 1] === '"') {
+					cell += '"'
+					at += 1
+				} else if (character === '"') quoted = !quoted
+				else if (character === ',' && !quoted) {
+					cells.push(cell)
+					cell = ''
+				} else cell += character
+			}
+			cells.push(cell)
+			return cells
+		})
+}
+
+function merchantRecord(header: readonly string[], cells: readonly string[], declared: MerchantImport['declared']): unknown {
+	const whole = (attribute: string): string => {
+		const at = header.indexOf(attribute)
+		return at === -1 ? '' : (cells[at] ?? '').trim()
+	}
+	const repeated = (attribute: string): string[] => {
+		const columns = header.filter((name) => name === attribute).length
+		return header.flatMap((name, at) => {
+			if (name !== attribute) return []
+			const cell = (cells[at] ?? '').trim()
+			const values = columns > 1 ? [cell] : cell.split(',')
+			return values.map((value) => value.trim()).filter((value) => value !== '')
+		})
+	}
+
+	const record: Record<string, unknown> = { $type: 'org.prodid.item', key: whole('id'), brand: whole('brand'), name: whole('title') }
+	record.lang = declared.lang
+	if (whole('item_group_id') !== '') record.group = whole('item_group_id')
+
+	const variant: Record<string, string> = {}
+	for (const axis of ['color', 'size', 'material', 'pattern']) {
+		if (whole(axis) !== '') variant[axis] = whole(axis)
+	}
+	if (Object.keys(variant).length > 0) record.variant = variant
+
+	const identifiers: { scheme: string; value: string }[] = []
+	if (whole('gtin') !== '') identifiers.push({ scheme: 'gtin', value: whole('gtin') })
+	if (whole('mpn') !== '') identifiers.push({ scheme: 'mpn', value: whole('mpn') })
+	if (whole('id') !== '') identifiers.push({ scheme: 'sku', value: whole('id') })
+	record.identifiers = identifiers
+	record.markets = declared.markets
+
+	const properties: Record<string, unknown> = {}
+	const text = (attribute: string, key: string): void => {
+		if (whole(attribute) !== '') properties[key] = whole(attribute)
+	}
+	text('description', 'description')
+	text('gender', 'gender')
+	text('age_group', 'ageGroup')
+	text('size_type', 'sizeType')
+	text('size_system', 'sizeSystem')
+	text('energy_efficiency_class', 'energyEfficiencyClass')
+	text('google_product_category', 'googleProductCategory')
+	const list = (attribute: string, key: string): void => {
+		const values = repeated(attribute)
+		if (values.length > 0) properties[key] = values
+	}
+	list('product_type', 'productType')
+	list('product_highlight', 'highlights')
+	list('certification', 'certification')
+	if (whole('multipack') !== '' && Number.isFinite(Number(whole('multipack')))) properties.multipack = Number(whole('multipack'))
+	if (whole('is_bundle') !== '') properties.isBundle = whole('is_bundle') === 'yes'
+	for (const [attribute, key] of [
+		['product_weight', 'weight'],
+		['product_length', 'length'],
+		['product_width', 'width'],
+		['product_height', 'height'],
+	] as const) {
+		const measure = parseMeasure(whole(attribute))
+		if (measure !== null) properties[key] = measure
+	}
+	for (const detail of repeated('product_detail')) {
+		const parts = detail.split(':')
+		const key = parts.length === 3 ? camelCase(parts[1] ?? '') : null
+		if (key === null || parts[2] === undefined || parts[2] === '' || key in properties) continue
+		properties[key] = parts[2]
+	}
+	if (Object.keys(properties).length > 0) record.properties = properties
+
+	const media = [...repeated('image_link'), ...repeated('additional_image_link')].map((url) => ({
+		url,
+		license: declared.license,
+		kind: 'image',
+	}))
+	const documents = repeated('document_link').map((url) => ({ url, license: declared.license, kind: 'document' }))
+	if (media.length + documents.length > 0) record.media = [...media, ...documents]
+	return record
+}
+
+function parseMeasure(value: string): { value: number; unit: string } | null {
+	const [amount, unit] = value.split(' ')
+	if (amount === undefined || unit === undefined || !Number.isFinite(Number(amount))) return null
+	return { value: Number(amount), unit }
+}
+
+function camelCase(name: string): string | null {
+	const words = name
+		.trim()
+		.toLowerCase()
+		.split(/[\s_-]+/u)
+	const key = words.map((word, index) => (index === 0 ? word : word.charAt(0).toUpperCase() + word.slice(1))).join('')
+	return /^[a-z][A-Za-z0-9]*$/.test(key) ? key : null
 }
 
 function checkInvalidFixture(path: string, name: string): string[] {

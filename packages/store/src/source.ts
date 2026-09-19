@@ -36,6 +36,7 @@ export interface FeedRow {
 	last_fetched_at: Date | null
 	last_status: number | null
 	skipping_since: Date | null
+	retired_at: Date | null
 }
 
 const SOURCE_COLUMNS = `id::text, kind, name, trust, verified_by, verified_at, verified_crawl::text,
@@ -124,14 +125,74 @@ export async function accumulateCrawl(sql: Sql, input: CrawlProgress): Promise<v
 	`
 }
 
-/** The feed rows a document's URLs need before any record can name one. */
+/**
+ * One media entry that produced no claim. Media runs after its crawl has finished, so this is
+ * accumulated onto a closed row: a per-crawl count, never a per-entry report.
+ */
+export async function countMediaFailure(sql: Sql, crawl: string): Promise<void> {
+	await sql`update crawl set media_failed = media_failed + 1 where id = ${crawl}`
+}
+
+/**
+ * The feed rows a document's URLs need before any record can name one. A URL the document lists
+ * again is un-retired here: listing it is the publisher taking it back.
+ */
 export async function ensureFeeds(sql: Sql, source: string, urls: readonly string[]): Promise<void> {
 	if (urls.length === 0) return
 	await sql`
 		insert into feed (source, url)
 		select ${source}, u.url from unnest(${urls as string[]}::text[]) as u(url)
-		on conflict (source, url) do nothing
+		on conflict (source, url) do update set retired_at = null
 	`
+}
+
+/**
+ * A URL a successfully read document no longer lists. The feed is retired and everything still live
+ * in it is withdrawn, in one transaction with one timestamp: one publisher action, one outcome.
+ *
+ * Only a document that was actually read may retire anything. A `304` says the list did not change,
+ * so there is nothing to retire, and a retired feed is never fetched and so never a failed feed.
+ */
+export async function retireAbsentFeeds(
+	sql: Sql,
+	input: { source: string; keep: readonly string[]; now: Date },
+): Promise<{ feeds: number; records: number }> {
+	const rows = await sql<{ feeds: string; records: string }[]>`
+		with retired as (
+			update feed set retired_at = ${input.now}
+			where source = ${input.source} and retired_at is null and not (url = any(${input.keep as string[]}::text[]))
+			returning url
+		), gone as (
+			update record set withdrawn_at = ${input.now}
+			where source = ${input.source} and withdrawn_at is null and feed in (select url from retired)
+			returning key
+		), dropped as (
+			update claim set withdrawn_at = ${input.now}
+			where source = ${input.source} and withdrawn_at is null and record_key in (select key from gone)
+			returning id
+		)
+		select (select count(*) from retired)::text as feeds, (select count(*) from gone)::text as records
+	`
+	const counted = rows[0]
+	return { feeds: Number(counted?.feeds ?? 0), records: Number(counted?.records ?? 0) }
+}
+
+/**
+ * Whether the source still asserts anything. A source with nothing live has to be read
+ * unconditionally: its validators survive an outage, so a publisher serving unchanged bytes would
+ * answer `304` forever and never re-assert the catalogue the thirty-day sweep withdrew.
+ */
+export async function hasLiveRecords(sql: Sql, source: string): Promise<boolean> {
+	const rows = await sql<{ live: boolean }[]>`
+		select exists (select 1 from record where source = ${source} and withdrawn_at is null) as live
+	`
+	return rows[0]?.live ?? false
+}
+
+/** Whether this crawl is still the open one. A message that outlived its crawl must write nothing. */
+export async function isCrawlOpen(sql: Sql, crawl: string): Promise<boolean> {
+	const rows = await sql<{ open: boolean }[]>`select finished_at is null as open from crawl where id = ${crawl}`
+	return rows[0]?.open ?? false
 }
 
 /**
@@ -254,7 +315,7 @@ export async function setSourceLicense(sql: Sql, source: string, license: string
 
 export async function readFeedStates(sql: Sql, source: string): Promise<Map<string, FeedRow>> {
 	const rows = await sql<FeedRow[]>`
-		select source::text, url, etag, last_modified, last_fetched_at, last_status, skipping_since
+		select source::text, url, etag, last_modified, last_fetched_at, last_status, skipping_since, retired_at
 		from feed where source = ${source}
 	`
 	return new Map(rows.map((row) => [row.url, row]))
@@ -297,7 +358,14 @@ export function withinSkipGrace(feed: FeedRow | undefined, now: Date, grace = SK
 	return feed.skipping_since.getTime() > now.getTime() - grace
 }
 
-export const QUEUE_LEASE_MS = 3_600_000
+/**
+ * How long a source stays claimed before it is due again, and how old an unfinished crawl has to be
+ * before the sweep calls it abandoned. It has to be comfortably longer than the longest deferral a
+ * crawl can take (`POLICY.maxDeferralSeconds`, one hour): if they were equal, a crawl deferred for
+ * the maximum would come back exactly as the sweep decided it was gone, and a deferral would be
+ * written as `fetch-failed` — an outcome, which a deferral must never be.
+ */
+export const QUEUE_LEASE_MS = 6 * 3_600_000
 
 /**
  * Claims the sources that are due and marks them handed to the queue in the same statement, so two

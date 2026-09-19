@@ -98,6 +98,7 @@ export interface CrawlStatus {
 	records_seen?: number
 	records_changed?: number
 	lines_skipped?: number
+	media_failed?: number
 	feeds_failed?: number
 }
 

@@ -2,6 +2,9 @@ import { normalizeDomain, registrableDomain } from '@prodid/core'
 import {
 	accumulateCrawl,
 	countVerifiedSourcesAtHost,
+	hasLiveRecords,
+	isCrawlOpen,
+	retireAbsentFeeds,
 	type CrawlOutcome,
 	type Disagreement,
 	ensureFeeds,
@@ -15,6 +18,7 @@ import {
 	saveFeedState,
 	setSourceLicense,
 	SKIPPING_GRACE_MS,
+	type MediaWanted,
 	type SourceRow,
 	startCrawl,
 	upgradeSourceIdentity,
@@ -24,7 +28,7 @@ import {
 import type { Decision } from '../limits/client'
 import { POLICY } from '../limits/policy'
 import { GuardedFetcher } from '../net/guard'
-import { type CrawlMessage, type CrawlPlan, type Services, sourceKindFor } from '../services'
+import { type CrawlMessage, type CrawlPlan, type MediaMessage, type Services, sourceKindFor } from '../services'
 import { conditional, runDiscovery } from './discovery'
 import { type FeedRead, readFeed } from './feeds'
 
@@ -60,6 +64,10 @@ export async function runDiscover(services: Services, domain: string): Promise<C
 	}
 
 	const feedState: Map<string, FeedRow> = source === null ? new Map() : await readFeedStates(services.sql, source.id)
+	// A source with nothing live, and any source recovering from a lapse, is read without
+	// validators: its ETags survived the outage, and a publisher serving unchanged bytes would
+	// otherwise answer 304 forever and never re-assert the catalogue that was withdrawn.
+	const unconditional = source === null || source.lapsed_at !== null || !(await hasLiveRecords(services.sql, source.id))
 	const discovery = await runDiscovery({
 		domain: name,
 		net: services.net,
@@ -67,7 +75,9 @@ export async function runDiscover(services: Services, domain: string): Promise<C
 		caps: services.caps,
 		feedState,
 		takeHost: (host) => takeHostBudget(services, host, verifiedAtHost(source, host), zone),
-		knownFeeds: (documentUrl) => [...feedState.keys()].filter((url) => url !== documentUrl),
+		unconditional,
+		knownFeeds: (documentUrl) =>
+			[...feedState.values()].filter((row) => row.url !== documentUrl && row.retired_at === null).map((row) => row.url),
 	})
 
 	if (discovery.kind === 'deferred') return { kind: 'deferred', retryAfterMs: discovery.retryAfterMs }
@@ -105,6 +115,16 @@ export async function runDiscover(services: Services, domain: string): Promise<C
 		startedAt,
 	})
 	await ensureFeeds(services.sql, source.id, [discovery.documentUrl, ...discovery.feeds])
+	// Only a document that was read may retire anything: a 304 says the list did not change.
+	let retired = 0
+	if (discovery.document !== null) {
+		const result = await retireAbsentFeeds(services.sql, {
+			source: source.id,
+			keep: [discovery.documentUrl, ...discovery.feeds],
+			now: services.now(),
+		})
+		retired = result.records
+	}
 	await saveFeedState(services.sql, {
 		source: source.id,
 		url: discovery.documentUrl,
@@ -126,13 +146,11 @@ export async function runDiscover(services: Services, domain: string): Promise<C
 		status: discovery.status,
 		feeds: discovery.feeds,
 		zone,
-		verified: verifiedAtHost(source, discovery.host),
 		upgrade: upgrade === null ? null : upgrade.id,
-		// A lapsed source reads everything and writes nothing until the whole crawl has succeeded.
-		probe: source.lapsed_at !== null,
 		startedAt: startedAt.toISOString(),
 	}
-	await services.queue.send(nextStep(plan, 0, false))
+	// Retiring a feed withdraws records, which is a change this crawl made.
+	await services.queue.send(nextStep(plan, 0, retired > 0))
 	return { kind: 'continued' }
 }
 
@@ -141,10 +159,21 @@ export async function runFeedStep(services: Services, plan: CrawlPlan, at: numbe
 	const url = plan.feeds[at]
 	if (url === undefined) return await runFinalize(services, plan, touched)
 
-	const budget = await takeHostBudget(services, plan.host, plan.verified, plan.zone)
+	// The plan is a message, and a message outlives the moment it was written. Everything that
+	// decides whether this step may write is read again from the database, here and not in
+	// `discover`: the sweep may have closed this crawl and the source may have lapsed since.
+	const state = await stateFor(services, plan)
+	if (state === null) return { kind: 'ignored', reason: 'crawl is no longer open' }
+
+	const budget = await takeHostBudget(services, plan.host, state.verified, plan.zone)
 	if (!budget.ok) return { kind: 'deferred', retryAfterMs: budget.retryAfterMs }
 
 	const feedState = await readFeedStates(services.sql, plan.source)
+	// A feed retired since the plan was written is not fetched and is not a failed feed.
+	if (feedState.get(url)?.retired_at != null) {
+		await services.queue.send(nextStep(plan, at + 1, touched))
+		return { kind: 'continued' }
+	}
 	// Queues deliver at least once. A feed already read during this crawl is not read again: its
 	// counters are on the crawl row, and adding to them twice would report what never happened.
 	const already = feedState.get(url)?.last_fetched_at
@@ -160,11 +189,17 @@ export async function runFeedStep(services: Services, plan: CrawlPlan, at: numbe
 		caps: services.caps,
 		source: plan.source,
 		url,
-		headers: conditional(feedState.get(url)),
+		headers: state.unconditional ? {} : conditional(feedState.get(url)),
 		now,
 		// A probe reads the feed to prove it can be read; nothing it finds is written.
-		ingest: !plan.probe,
+		ingest: !state.probe,
 	})
+
+	if (read.kind === 'read' && read.media.length > 0) {
+		// A file that cannot be fetched must never fail the record or the crawl, so it is its own
+		// message on its own queue from here — one per file, carrying every record that named it.
+		await services.mediaQueue.sendBatch(groupMedia(plan, read.media))
+	}
 
 	await saveFeedResult(services, plan.source, url, read, now)
 	await accumulateCrawl(services.sql, {
@@ -179,7 +214,7 @@ export async function runFeedStep(services: Services, plan: CrawlPlan, at: numbe
 	let changed = touched || (read.kind === 'read' && read.changed > 0)
 	// A feed that answered 304 is byte-identical to the last full read, so nothing in it went away.
 	// Only a feed this crawl read in full decides what is absent, and only within itself.
-	if (read.kind === 'read' && !plan.probe && !withinSkipGrace(read, feedState.get(url), now)) {
+	if (read.kind === 'read' && !state.probe && !withinSkipGrace(read, feedState.get(url), now)) {
 		const gone = await withdrawAbsentRecords(services.sql, {
 			source: plan.source,
 			feed: url,
@@ -195,6 +230,9 @@ export async function runFeedStep(services: Services, plan: CrawlPlan, at: numbe
 
 /** The crawl's outcome, written once, from the counters every feed added to. */
 export async function runFinalize(services: Services, plan: CrawlPlan, touched = false): Promise<CrawlStep> {
+	const state = await stateFor(services, plan)
+	if (state === null) return { kind: 'ignored', reason: 'crawl already finished' }
+
 	const counts = await services.sql<{ feeds_failed: number | null }[]>`
 		select feeds_failed from crawl where id = ${plan.crawl} and finished_at is null
 	`
@@ -202,7 +240,7 @@ export async function runFinalize(services: Services, plan: CrawlPlan, touched =
 	if (row === undefined) return { kind: 'ignored', reason: 'crawl already finished' }
 
 	const failed = row.feeds_failed ?? 0
-	const outcome: CrawlOutcome = failed > 0 ? failureOutcome('transport', plan.verified) : touched ? 'changed' : 'unchanged'
+	const outcome: CrawlOutcome = failed > 0 ? failureOutcome('transport', state.verified) : touched ? 'changed' : 'unchanged'
 
 	await finishCrawl(services.sql, {
 		crawl: plan.crawl,
@@ -241,12 +279,58 @@ export async function runFinalize(services: Services, plan: CrawlPlan, touched =
 
 		// The lapse is cleared by the finished crawl; the source is ingested by the next one, which
 		// is asked for as soon as the per-domain window allows.
-		if (plan.probe) {
+		if (state.probe) {
 			await services.queue.send({ kind: 'discover', domain: plan.domain }, { delaySeconds: Math.ceil(POLICY.domainWindowMs / 1000) })
 		}
 	}
 
 	return { kind: 'done', outcome, source: plan.source, crawl: plan.crawl }
+}
+
+interface StepState {
+	probe: boolean
+	verified: boolean
+	unconditional: boolean
+}
+
+/**
+ * What the database says right now about whether this step may write, and in which lane. The plan
+ * travels in a message, and a message outlives the moment it was written: the sweep may have closed
+ * this crawl and the sweep may have lapsed this source since the plan was made.
+ */
+async function stateFor(services: Services, plan: CrawlPlan): Promise<StepState | null> {
+	if (!(await isCrawlOpen(services.sql, plan.crawl))) return null
+	const source = await findSourceById(services.sql, plan.source)
+	if (source === null) return null
+	return {
+		probe: source.lapsed_at !== null,
+		verified: verifiedAtHost(source, plan.host),
+		unconditional: source.lapsed_at !== null || !(await hasLiveRecords(services.sql, plan.source)),
+	}
+}
+
+/** One message per file: the same URL under the same licence is read once, however many records name it. */
+function groupMedia(plan: CrawlPlan, wanted: readonly MediaWanted[]): MediaMessage[] {
+	const byFile = new Map<string, MediaMessage>()
+	for (const entry of wanted) {
+		const key = `${entry.entry.url}\u0000${entry.entry.license}\u0000${entry.entry.kind ?? ''}`
+		const existing = byFile.get(key)
+		if (existing === undefined) {
+			byFile.set(key, {
+				source: plan.source,
+				crawl: plan.crawl,
+				targets: [{ recordKey: entry.key, opid: entry.opid }],
+				entry: entry.entry,
+				zone: plan.zone,
+				recheck: entry.recheck,
+			})
+			continue
+		}
+		existing.targets.push({ recordKey: entry.key, opid: entry.opid })
+		// A file any record still needs fetched for the first time is not a re-check.
+		if (!entry.recheck) existing.recheck = false
+	}
+	return [...byFile.values()]
 }
 
 function nextStep(plan: CrawlPlan, at: number, touched: boolean): CrawlMessage {

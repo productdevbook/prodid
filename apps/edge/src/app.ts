@@ -3,11 +3,13 @@ import entitySchema from '@prodid/spec/schemas/org.prodid.entity.json'
 import feedSchema from '@prodid/spec/schemas/org.prodid.feed.json'
 import itemSchema from '@prodid/spec/schemas/org.prodid.item.json'
 import sourceSchema from '@prodid/spec/schemas/org.prodid.source.json'
-import { readEntity, readEntityByGtin, readSourceStatus } from '@prodid/store'
+import { findMedia, readEntity, readEntityByGtin, readSourceStatus } from '@prodid/store'
 import { type Context, Hono } from 'hono'
 
 import { problemResponse, respond } from './http'
 import { callerKey } from './limits/policy'
+import { mediaKey } from './media/store'
+import { IMMUTABLE } from './media/store'
 import { renderEntity, renderSource } from './render'
 import type { Lifetime, Services } from './services'
 
@@ -110,6 +112,43 @@ export function createApp(build: ServicesFactory): Hono<App> {
 		return new Response(`${JSON.stringify(schema, null, '\t')}\n`, {
 			headers: { 'content-type': 'application/schema+json; charset=utf-8', 'cache-control': SCHEMA_CACHE },
 		})
+	})
+
+	/**
+	 * `media.prodid.org`. This is a Worker route rather than a bare R2 custom domain because a
+	 * bucket can serve a stored content type and cache metadata but cannot answer `410` with a
+	 * problem body for a hash on the takedown list, and cannot add the content security policy that
+	 * keeps anything served from here from being a page.
+	 */
+	app.get('/sha256/:hex', async (c) => {
+		const hex = c.req.param('hex')
+		if (!/^[0-9a-f]{64}$/.test(hex)) return problemResponse(c.req.raw, 'not-found')
+		const services = c.get('services')
+
+		const known = await findMedia(services.sql, hex)
+		if (known?.blocked_at != null) return problemResponse(c.req.raw, 'blocked-media')
+
+		const object = await services.media.get(mediaKey(hex))
+		if (object === null) return problemResponse(c.req.raw, 'not-found')
+
+		const contentType = object.contentType ?? known?.content_type ?? 'application/octet-stream'
+		const headers = new Headers({
+			'content-type': contentType,
+			'content-length': String(object.size),
+			'cache-control': IMMUTABLE,
+			etag: object.etag,
+			'x-content-type-options': 'nosniff',
+			// Nothing served from here is a page: no script, no fetch, no same-origin anything.
+			'content-security-policy': "default-src 'none'; sandbox",
+			'access-control-allow-origin': '*',
+		})
+		// A document is downloaded, never rendered in place.
+		if (contentType === 'application/pdf') headers.set('content-disposition', 'attachment')
+		if (c.req.header('if-none-match') === object.etag) {
+			await object.body.cancel().catch(() => {})
+			return new Response(null, { status: 304, headers })
+		}
+		return new Response(object.body, { headers })
 	})
 
 	app.post('/ping', async (c) => {

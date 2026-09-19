@@ -1,0 +1,136 @@
+{
+	"note": "Rules these pages state in their own words. The build fails when a recorded section changes; read the diff, fix the page, then run `bun run spec:review`.",
+	"reviewed": "2026-09-19",
+	"sections": [
+		{
+			"anchor": "identity",
+			"pages": ["/"],
+			"sha256": "6f7139d938c989a95b02bf5494335bbce469e28479a67a1ebf3956a864398228"
+		},
+		{
+			"anchor": "identifiers",
+			"pages": ["/"],
+			"sha256": "00f1350eb383dc2d0972c6decefa948922ea94be24a9eca4985ea5ab4c1d2c34"
+		},
+		{
+			"anchor": "claims",
+			"pages": ["/"],
+			"sha256": "ea6d743139478bbb63ba7a11d69878655f1c6112897a4eeec89d14a4f46f9626"
+		},
+		{
+			"anchor": "the-resolver",
+			"pages": ["/"],
+			"sha256": "fc5d23c240d7364f58b5d9b7c03ff36e3cf1ffa416768ae2be2b4d51b9e49403"
+		},
+		{
+			"anchor": "an-entity",
+			"pages": ["/"],
+			"sha256": "84435b31afdc8b88085d25bf55cc8f82416b2d531d211bb268ec8b5e86b9b24d"
+		},
+		{
+			"anchor": "licensing",
+			"pages": ["/"],
+			"sha256": "e9efe39140516a124339ac9dab38266bc9fc962e979a5373f878f6a42d49dd0e"
+		},
+		{
+			"anchor": "publishing",
+			"pages": ["/publish"],
+			"sha256": "85212ad9aa71080728dfe10e1261652b77376f4322c07ffbdb01cfe123ed69f3"
+		},
+		{
+			"anchor": "discovery",
+			"pages": ["/publish"],
+			"sha256": "66c47479bf178a2a0cac7ce49a3fbb64836a4e4ff0b7a71a04c53c3f4016a927"
+		},
+		{
+			"anchor": "the-_prodid-txt-record",
+			"pages": ["/publish"],
+			"sha256": "31fee16bc6aa0eaa4794c3a759dfdafa8ee3dca4aeaa5cb4343d1e9db03efbae"
+		},
+		{
+			"anchor": "feeds",
+			"pages": ["/publish"],
+			"sha256": "60ac11e8aa7000835715e50bc215eb28eb0323a0d2d0ea9a962d03aaf661fb6d"
+		},
+		{
+			"anchor": "three-ways-to-publish",
+			"pages": ["/publish"],
+			"sha256": "b3eb53ebd41639785333983e457333eb3b18be395ae5541a84a4e8904f18cfba"
+		},
+		{
+			"anchor": "trust",
+			"pages": ["/publish"],
+			"sha256": "b7808f67578dd3d17b115e2ae24dd452fe2941a6a674b4b3440d77c6f844d0bb"
+		},
+		{
+			"anchor": "crawling",
+			"pages": ["/publish"],
+			"sha256": "3cef30f74b48dc2bf7fa111db5d8951390d822fa0da3d6c9b2842a4f221f37bb"
+		},
+		{
+			"anchor": "lapse",
+			"pages": ["/publish"],
+			"sha256": "50694960b96d544290dd30a0843b225f38fcaf90a80fdef58371ca859b4377fe"
+		},
+		{
+			"anchor": "identity-continuity",
+			"pages": ["/publish"],
+			"sha256": "894e88ede05486ab2e2b847be7fbc27b47d8e971f72f0c9691d12efacc4965f3"
+		},
+		{
+			"anchor": "records",
+			"pages": ["/publish"],
+			"sha256": "73878924a36f91cbf49e920b6118da02d02a97c0226236c7ae7c44c92601e3d7"
+		},
+		{
+			"anchor": "security-considerations",
+			"pages": ["/publish"],
+			"sha256": "5bb200a2391d97b2c925e5f8325ba69dc1449574a4a79f7f168260c69cf5947d"
+		},
+		{
+			"anchor": "a-sources-status",
+			"pages": ["/publish"],
+			"sha256": "ca1d7cbee953acbce99b2620002e3ff0870e69b406d9d2874f20ef9d233b96fd"
+		},
+		{
+			"anchor": "which-gtins-are-identifiers",
+			"pages": ["/publish"],
+			"sha256": "5ae3b3ffb71488aa6fe31b33ef2d4c925a866dc452c5c0809143316ba5fb4275"
+		},
+		{
+			"anchor": "brand-normalization",
+			"pages": ["/publish"],
+			"sha256": "c8f64394326210a2bb27f2c525d20abc79a431077cf8d79ffed1530bd550eb5a"
+		},
+		{
+			"anchor": "media",
+			"pages": ["/publish"],
+			"sha256": "78d970be9e2a416eee2b7ce188bac94dd17007f00508233f31327c7e46c846c2"
+		},
+		{
+			"anchor": "what-is-ingested",
+			"pages": ["/publish"],
+			"sha256": "980b503336b466a7f1e1d3cca4a86bfb1a7d728cd1d6c765b7f03dfaaa782b00"
+		},
+		{
+			"anchor": "caps",
+			"pages": ["/publish"],
+			"sha256": "6e4e56d8fbd02a0f8719b21bcb78890c61ddc2535577b1da4c01cdbf9203e82b"
+		},
+		{
+			"anchor": "when-it-fails-and-when-it-changes",
+			"pages": ["/publish"],
+			"sha256": "9e49852e8a5a5461f9ef97719aaab4d0509c7a572e60f0a24208ceac72266d4f"
+		},
+		{
+			"anchor": "licences-that-can-be-ingested",
+			"pages": ["/publish"],
+			"sha256": "7a16ef8ad7ee656e221b412d09a4507d4fb6b4f04d98fb3ef71d725d1a8a723b"
+		},
+		{
+			"anchor": "appendix-importing-a-merchant-feed",
+			"pages": ["/publish"],
+			"sha256": "e9a460a54838ea10d99de72fc4033c7e86d77b5385f0848b2122271571f83d57"
+		}
+	]
+}

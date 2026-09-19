@@ -125,6 +125,7 @@ const crawl: Required<CrawlStatus> = {
 	records_seen: 3,
 	records_changed: 1,
 	lines_skipped: 0,
+	media_failed: 0,
 	feeds_failed: 0,
 }
 

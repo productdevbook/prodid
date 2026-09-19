@@ -13,6 +13,7 @@ export type ProblemType =
 	| 'invalid-request'
 	| 'rate-limited'
 	| 'not-found'
+	| 'blocked-media'
 
 /** The spec's problem table: one status per type, and only these two may ever be cached. */
 const PROBLEMS: Record<ProblemType, { title: string; status: number }> = {
@@ -21,6 +22,7 @@ const PROBLEMS: Record<ProblemType, { title: string; status: number }> = {
 	'restricted-gtin': { title: 'A restricted circulation number identifies nothing globally', status: 404 },
 	'unknown-source': { title: 'No source with that name', status: 404 },
 	'not-found': { title: 'Not found', status: 404 },
+	'blocked-media': { title: 'This file has been taken down', status: 410 },
 	'invalid-gtin': { title: 'Not a GTIN', status: 400 },
 	'invalid-request': { title: 'Malformed request', status: 400 },
 	'rate-limited': { title: 'Over the request budget', status: 429 },

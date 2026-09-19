@@ -1,4 +1,4 @@
-import { canonicalize, type EntityKind, mintOpid, type NormalizedIdentifier } from '@prodid/core'
+import { canonicalize, type EntityKind, type MediaEntry, mintOpid, type NormalizedIdentifier } from '@prodid/core'
 
 import type { Sql, TransactionSql } from './client'
 import { withRetry } from './client'
@@ -18,6 +18,8 @@ export interface RecordOutcome {
 	claimsInserted: number
 	claimsWithdrawn: number
 	disagreement: Disagreement | null
+	/** Media the record names that needs fetching: never claimed, or claimed and due a re-check. */
+	media: MediaWanted[]
 }
 
 export interface IngestResult {
@@ -27,6 +29,15 @@ export interface IngestResult {
 	claimsWithdrawn: number
 	disagreements: Disagreement[]
 	keys: string[]
+	media: MediaWanted[]
+}
+
+export interface MediaWanted {
+	key: string
+	opid: string
+	entry: MediaEntry
+	/** The file is already stored and claimed; this is the periodic re-read of it. */
+	recheck: boolean
 }
 
 interface Match {
@@ -45,7 +56,18 @@ interface ClaimRow {
 	lang: string | null
 	/** `jsonb` as text. postgres.js decides for itself whether to parse a jsonb column; this does not. */
 	value: string
+	seen_at: Date
+	/** When this claim was last re-verified, which is not when it was first asserted. */
+	checked_at: Date | null
 }
+
+/**
+ * How long a media claim stands before the file behind it is fetched again. `seen_at` cannot carry
+ * this: it means "since when this source has asserted this value without stopping" and must not
+ * move for a re-check. The stamp lives in `claim.evidence`, which is what that column is for, so
+ * nothing new is needed from the database.
+ */
+export const MEDIA_RECHECK_MS = 30 * 86_400_000
 
 /**
  * Ingests validated records for one source. Each record is its own transaction: a record's entity,
@@ -56,7 +78,15 @@ export async function ingestRecords(
 	sql: Sql,
 	input: { source: string; feed: string | null; records: readonly PreparedRecord[]; now: Date },
 ): Promise<IngestResult> {
-	const result: IngestResult = { seen: 0, changed: 0, claimsInserted: 0, claimsWithdrawn: 0, disagreements: [], keys: [] }
+	const result: IngestResult = {
+		seen: 0,
+		changed: 0,
+		claimsInserted: 0,
+		claimsWithdrawn: 0,
+		disagreements: [],
+		keys: [],
+		media: [],
+	}
 	for (const prepared of input.records) {
 		const outcome = await ingestRecord(sql, { source: input.source, feed: input.feed, record: prepared, now: input.now })
 		result.seen += 1
@@ -65,6 +95,7 @@ export async function ingestRecords(
 		result.claimsInserted += outcome.claimsInserted
 		result.claimsWithdrawn += outcome.claimsWithdrawn
 		if (outcome.disagreement !== null) result.disagreements.push(outcome.disagreement)
+		result.media.push(...outcome.media)
 	}
 	return result
 }
@@ -138,6 +169,7 @@ async function ingestOnce(
 		claimsInserted: diff.inserted,
 		claimsWithdrawn: diff.withdrawn,
 		disagreement,
+		media: diff.media,
 	}
 }
 
@@ -283,23 +315,46 @@ async function diffClaims(
 	opid: string,
 	prepared: PreparedRecord,
 	now: Date,
-): Promise<{ inserted: number; withdrawn: number }> {
+): Promise<{ inserted: number; withdrawn: number; media: MediaWanted[] }> {
 	const current = await tx<ClaimRow[]>`
-		select id::text, opid, property, lang, value::text as value from claim
+		select id::text, opid, property, lang, value::text as value, seen_at,
+			(evidence->>'checked_at')::timestamptz as checked_at
+		from claim
 		where source = ${source} and record_key = ${key} and withdrawn_at is null
 	`
 
+	// A `media` claim is written by media ingest, not here, because its value carries the digest of
+	// the stored file. The diff keeps one while the record still names that exact entry and
+	// withdraws it when the publisher stops, so it takes part in the diff like everything else.
+	const named = new Map(prepared.media.map((entry) => [mediaKey(entry), entry]))
+	const held = new Set<string>()
+	const stale = new Set<string>()
+
 	const active = new Map<string, string>()
-	for (const row of current) active.set(claimKey(row.opid, row.property, row.lang, canonicalOf(row.value)), row.id)
+	for (const row of current) {
+		if (row.property === 'media') {
+			const identity = mediaKeyOf(row.value)
+			if (identity !== null && named.has(identity)) {
+				held.add(identity)
+				const checked = row.checked_at ?? row.seen_at
+				if (checked.getTime() <= now.getTime() - MEDIA_RECHECK_MS) stale.add(identity)
+				continue
+			}
+		}
+		active.set(claimKey(row.opid, row.property, row.lang, canonicalOf(row.value)), row.id)
+	}
 
 	const wanted = new Map<string, { property: string; lang: string | null; canonical: string }>()
 	for (const claim of prepared.claims) wanted.set(claimKey(opid, claim.property, claim.lang, claim.canonical), claim)
 
-	const stale = [...active.entries()].filter(([identity]) => !wanted.has(identity)).map(([, id]) => id)
+	const gone = [...active.entries()].filter(([identity]) => !wanted.has(identity)).map(([, id]) => id)
 	const fresh = [...wanted.entries()].filter(([identity]) => !active.has(identity)).map(([, claim]) => claim)
+	const media: MediaWanted[] = [...named.entries()]
+		.filter(([identity]) => !held.has(identity) || stale.has(identity))
+		.map(([identity, entry]) => ({ key, opid, entry, recheck: held.has(identity) }))
 
-	if (stale.length > 0) {
-		await tx`update claim set withdrawn_at = ${now} where id = any(${stale}::bigint[])`
+	if (gone.length > 0) {
+		await tx`update claim set withdrawn_at = ${now} where id = any(${gone}::bigint[])`
 	}
 	if (fresh.length > 0) {
 		await tx`
@@ -312,7 +367,22 @@ async function diffClaims(
 			) as u(property, value, lang)
 		`
 	}
-	return { inserted: fresh.length, withdrawn: stale.length }
+	return { inserted: fresh.length, withdrawn: gone.length, media }
+}
+
+/** What makes one media entry the same as another: the file named, under the licence named. */
+function mediaKey(entry: MediaEntry): string {
+	return `${entry.url}\u0000${entry.license}\u0000${entry.kind ?? ''}`
+}
+
+function mediaKeyOf(text: string): string | null {
+	try {
+		const value = JSON.parse(text) as { url?: unknown; license?: unknown; kind?: unknown }
+		if (typeof value.url !== 'string' || typeof value.license !== 'string') return null
+		return `${value.url}\u0000${value.license}\u0000${typeof value.kind === 'string' ? value.kind : ''}`
+	} catch {
+		return null
+	}
 }
 
 function claimKey(opid: string, property: string, lang: string | null, canonical: string): string {

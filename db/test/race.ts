@@ -326,6 +326,38 @@ async function sameGroup(sql: Sql, source: string, s1: ReservedSql, s2: Reserved
 	return counts
 }
 
+async function mediaCounters(sql: Sql, pool: Sql, source: string): Promise<void> {
+	const scenario = 'media failures counted onto one finished crawl'
+	let rejected = 0
+	const writers = 32
+
+	for (let round = 0; round < ROUNDS; round++) {
+		const [crawl] = await sql<{ id: string }[]>`
+      insert into crawl (source, via, finished_at, outcome)
+      values (${source}, 'dns-txt', now(), 'changed')
+      returning id
+    `
+		if (!crawl) throw new Error('crawl insert returned no row')
+
+		const outcomes = await Promise.all(
+			Array.from({ length: writers }, () =>
+				attempt(pool.unsafe(`update crawl set media_failed = media_failed + 1 where id = ${crawl.id}`)),
+			),
+		)
+		rejected += outcomes.filter((outcome) => outcome !== null).length
+
+		const [counted] = await sql<{ media_failed: number }[]>`
+      select media_failed from crawl where id = ${crawl.id}
+    `
+		if (counted?.media_failed !== writers) {
+			fail(scenario, round, `${writers} increments left media_failed at ${counted?.media_failed}`)
+		}
+
+		await audit(sql, scenario, round)
+	}
+	console.log(`ok    ${scenario}: ${ROUNDS} rounds of ${writers} concurrent increments, ${rejected} rejected, none lost`)
+}
+
 function claimDue(limit: number): string {
 	return `update source set queued_at = now()
     where id in (
@@ -471,6 +503,7 @@ console.log(`created ${name}`)
 
 try {
 	const sql = postgres(target.toString(), { max: 4 })
+	const many = postgres(target.toString(), { max: 8 })
 	const one = postgres(target.toString(), { max: 1, onnotice: () => {} })
 	const two = postgres(target.toString(), { max: 1, onnotice: () => {} })
 	try {
@@ -514,12 +547,13 @@ try {
 			report('DB-6 log and state written separately', await db6(sql, s1, s2))
 			report('grouping two sessions ingesting one new group', await sameGroup(sql, source.id, s1, s2))
 			report('two cron runs claiming due sources', await claiming(sql, s1, s2))
+			await mediaCounters(sql, many, source.id)
 		} finally {
 			s1.release()
 			s2.release()
 		}
 	} finally {
-		await Promise.all([sql.end(), one.end(), two.end()])
+		await Promise.all([sql.end(), many.end(), one.end(), two.end()])
 	}
 
 	await lockRelease(admin, new URL(url))

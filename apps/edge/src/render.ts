@@ -1,8 +1,10 @@
 import type { EntityRecord, SourceRecord } from '@prodid/core'
 
+import { type EntityView, entityView, type MediaView, type PropertyView, type ValueView } from './view'
+
 /**
  * The HTML half of every answer, kept whole in this file. It is semantic and unstyled on purpose:
- * `apps/web` replaces it with a designed rendering of exactly the same data, and nothing outside
+ * `apps/web` replaces it with a designed rendering of the same `EntityView`, and nothing outside
  * this file should have to change when it does.
  */
 export interface ProblemBody {
@@ -13,21 +15,24 @@ export interface ProblemBody {
 }
 
 export function renderEntity(entity: EntityRecord): string {
-	const parents = entity.parents ?? {}
+	const view = entityView(entity)
 	const sections = [
-		heading(`${entity.kind} ${entity.opid}`),
+		heading(`${view.kind} ${view.opid}`),
 		definitions([
-			['opid', text(entity.opid)],
-			['kind', text(entity.kind)],
-			...(parents.family === undefined ? [] : [['family', link(`/id/${parents.family}`, parents.family)] as Row]),
-			...(parents.variant === undefined ? [] : [['variant', link(`/id/${parents.variant}`, parents.variant)] as Row]),
+			['opid', text(view.opid)],
+			['kind', text(view.kind)],
+			...(view.navigation.family === null ? [] : [['family', link(view.navigation.family.href, view.navigation.family.opid)] as Row]),
+			...(view.navigation.variant === null ? [] : [['variant', link(view.navigation.variant.href, view.navigation.variant.opid)] as Row]),
 		]),
-		entity.identifiers.length === 0 ? '' : identifierTable(entity),
-		entity.claims.length === 0 ? '' : claimTable(entity),
-		list('Children', entity.children ?? []),
-		list('Merged from', entity.merged_from ?? []),
+		view.names.length === 0 ? '' : `${subheading('Names')}\n${valueTable(view.names)}`,
+		view.brands.length === 0 ? '' : `${subheading('Brands')}\n${valueTable(view.brands)}`,
+		view.identifiers.length === 0 ? '' : identifierTable(view),
+		view.properties.length === 0 ? '' : propertyTables(view.properties),
+		view.media.length === 0 ? '' : mediaList(view.media),
+		links('Children', view.navigation.children),
+		links('Merged from', view.navigation.mergedFrom),
 	]
-	return page(`${entity.kind} ${entity.opid}`, sections.join('\n'))
+	return page(`${view.kind} ${view.opid}`, sections.filter((part) => part !== '').join('\n'))
 }
 
 export function renderSource(source: SourceRecord): string {
@@ -76,8 +81,8 @@ export function renderProblem(body: ProblemBody): string {
 
 type Row = [string, string]
 
-function identifierTable(entity: EntityRecord): string {
-	const rows = entity.identifiers
+function identifierTable(view: EntityView): string {
+	const rows = view.identifiers
 		.map(
 			(identifier) =>
 				`<tr><td>${escape(identifier.scheme)}</td><td>${escape(identifier.value)}</td><td>${escape(identifier.scope ?? '')}</td></tr>`,
@@ -87,25 +92,47 @@ function identifierTable(entity: EntityRecord): string {
 <table><thead><tr><th scope="col">scheme</th><th scope="col">value</th><th scope="col">scope</th></tr></thead><tbody>${rows}</tbody></table>`
 }
 
-function claimTable(entity: EntityRecord): string {
-	const rows = entity.claims
-		.map((claim) => {
-			const source = `${claim.source.name} (${claim.source.trust}${claim.source.lapsed ? ', lapsed' : ''})`
-			const withdrawn = claim.withdrawn_at === undefined ? '' : escape(claim.withdrawn_at)
-			return `<tr><td>${escape(claim.property)}</td><td>${escape(JSON.stringify(claim.value))}</td><td>${escape(
-				claim.lang ?? '',
-			)}</td><td>${escape(source)}</td><td><time datetime="${escape(claim.seen_at)}">${escape(
-				claim.seen_at,
-			)}</time></td><td>${withdrawn}</td></tr>`
+function propertyTables(properties: readonly PropertyView[]): string {
+	return properties
+		.map((property) => {
+			const title = property.disagreement ? `${property.property} — sources disagree` : property.property
+			return `${subheading(title)}\n${valueTable(property.values)}`
 		})
-		.join('')
-	return `${subheading('Claims')}
-<table><thead><tr><th scope="col">property</th><th scope="col">value</th><th scope="col">lang</th><th scope="col">source</th><th scope="col">seen at</th><th scope="col">withdrawn at</th></tr></thead><tbody>${rows}</tbody></table>`
+		.join('\n')
 }
 
-function list(title: string, opids: readonly string[]): string {
-	if (opids.length === 0) return ''
-	const items = opids.map((opid) => `<li>${link(`/id/${opid}`, opid)}</li>`).join('')
+function valueTable(values: readonly ValueView[]): string {
+	const rows = values
+		.map((entry) => {
+			const source = `${entry.source.name} (${entry.source.trust}${entry.source.lapsed ? ', lapsed' : ''})`
+			return `<tr><td>${escape(JSON.stringify(entry.value))}</td><td>${escape(entry.lang ?? '')}</td><td>${link(
+				entry.source.href,
+				source,
+			)}</td><td><time datetime="${escape(entry.seenAt)}">${escape(entry.seenAt)}</time></td><td>${escape(
+				entry.withdrawnAt ?? '',
+			)}</td></tr>`
+		})
+		.join('')
+	return `<table><thead><tr><th scope="col">value</th><th scope="col">lang</th><th scope="col">source</th><th scope="col">seen at</th><th scope="col">withdrawn at</th></tr></thead><tbody>${rows}</tbody></table>`
+}
+
+function mediaList(media: readonly MediaView[]): string {
+	const items = media
+		.map((entry) => {
+			const figure =
+				entry.kind === 'document' ? link(entry.mediaUrl, entry.mediaUrl) : `<img src="${escape(entry.mediaUrl)}" alt="" loading="lazy">`
+			return `<li><figure>${figure}<figcaption>${escape(entry.license)} — ${link(
+				entry.source.href,
+				entry.source.name,
+			)}${entry.withdrawnAt === null ? '' : ' (withdrawn)'}</figcaption></figure></li>`
+		})
+		.join('')
+	return `${subheading('Media')}\n<ul>${items}</ul>`
+}
+
+function links(title: string, entries: readonly { opid: string; href: string }[]): string {
+	if (entries.length === 0) return ''
+	const items = entries.map((entry) => `<li>${link(entry.href, entry.opid)}</li>`).join('')
 	return `${subheading(title)}\n<ul>${items}</ul>`
 }
 
