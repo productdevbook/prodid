@@ -10,7 +10,7 @@ publishers ──► edge (Cloudflare Workers) ──► index (Postgres) ◄─
                  └─► R2: media, hosted feeds, dumps
 ```
 
-- **edge** serves everything request-facing: the resolver (`/id/{opid}`, `/01/{gtin}`), schemas, ping, hosted publisher feeds on `*.prodid.org`, and the crawl/ingest/media pipeline on Queues and Cron Triggers. QR scans come from anywhere in the world; resolver responses are cached at the edge.
+- **edge** is the index's face: the resolver (`/id/{opid}`, `/01/{gtin}`), source status, schemas, ping, stored media, and the crawl/ingest/media pipeline on Queues and Cron Triggers. **hosted** is a separate Worker that publishes on behalf of those who cannot: it serves `<slug>.prodid.org` and nothing in the index. QR scans come from anywhere in the world; resolver responses are cached at the edge.
 - **index** is Postgres, the system of record, reached from Workers through Hyperdrive. It is not D1: the claims store is expected to pass D1's per-database size limit, and entity resolution needs trigram, vector and large-join queries.
 - **batch** is a bun CLI that runs next to Postgres with a direct connection, for work that does not fit a Worker: bulk imports of open datasets, entity resolution passes, nightly dumps.
 - One language, TypeScript, so the edge, batch and the SDK integrators use share the same validation code.
@@ -75,7 +75,8 @@ A source row is permanent and its `id` never changes; `sku` identifiers are scop
 | `db/` | SQL migrations, dev Postgres, migrate script | db |
 | root workspace files, `packages/core/` | pure TypeScript, no I/O: GTIN, opid, record validation, NDJSON, discovery rules | core |
 | `packages/store/`, `apps/edge/` | SQL access, the Worker | edge |
-| `apps/batch/` | bulk imports, resolution, dumps | edge |
+| `apps/hosted/` | the hosted publisher: serves `<slug>.prodid.org`, the operator publish endpoint | hosted |
+| `apps/batch/` | operator CLI: Merchant import and publish now; bulk imports, resolution and dumps later | hosted |
 | `apps/web/` | the prodid.org website: landing, rendered spec, publisher guide | web |
 
 An owner changes only its own paths. A change that needs another owner's path goes through the coordinator. A **review** member owns no path: it re-runs every check itself and audits each delivery against the spec and this file.
@@ -85,11 +86,13 @@ An owner changes only its own paths. A change that needs another owner's path go
 | route | served by |
 | --- | --- |
 | `prodid.org/id/*`, `prodid.org/01/*`, `prodid.org/source/*`, `prodid.org/ping`, `prodid.org/schemas/*` | edge |
-| `*.prodid.org/*` | edge (hosted publisher feeds) |
-| `media.prodid.org/*` | R2 bucket `prodid-media` |
+| `*.prodid.org/*` | hosted, a Worker of its own |
+| `media.prodid.org/*` | edge, in front of the `prodid-media` bucket; the bucket has no public domain of its own, or the takedown list could be walked around |
 | everything else on `prodid.org` | web, a static site on Workers Static Assets |
 
-edge and web deploy independently; the more specific routes win.
+edge, hosted and web deploy independently; the more specific routes win.
+
+The hosted publisher is a publisher, not part of the index. It shares no database, no bucket and no code path with edge beyond `@prodid/core`: the index discovers a slug over DNS and HTTPS exactly as it discovers anybody else's host, and the hosted publisher asks for a crawl through the public `ping` like anybody else. Whoever replaces the index does not have to take the hosting with it, and a fault in the hosting cannot write to the index.
 
 ## Index contract
 
