@@ -266,10 +266,9 @@ function classifyGtin(value: string): 'gtin' | 'rcn' | 'invalid' {
 	if (![8, 12, 13, 14].includes(value.length)) return 'invalid'
 	if (!hasGtinCheckDigit(value)) return 'invalid'
 	if (/^0+$/.test(value)) return 'invalid'
-	if (value.length === 8) return value.startsWith('0') || value.startsWith('2') ? 'rcn' : 'gtin'
-	const thirteen = value.length === 14 ? value.slice(1) : value.padStart(13, '0')
-	if (/^(02|04|2[0-9]|0000000)/.test(thirteen)) return 'rcn'
-	return 'gtin'
+	const fourteen = value.padStart(14, '0')
+	if (fourteen.startsWith('000000')) return /^[02]/.test(fourteen.slice(6)) ? 'rcn' : 'gtin'
+	return /^(02|04|2[0-9])/.test(fourteen.slice(1)) ? 'rcn' : 'gtin'
 }
 
 function hasGtinCheckDigit(value: string): boolean {

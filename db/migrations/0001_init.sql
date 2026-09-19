@@ -78,7 +78,10 @@ create table entity (
     created_at  timestamptz not null default now(),
 
     check (parent is null or parent <> opid),
-    check (merged_into is null or merged_into <> opid)
+    check (merged_into is null or merged_into <> opid),
+    -- lets grouping key a foreign key on (opid, kind); it also makes kind a key column, so
+    -- changing it takes `for update` and cannot pass a reader of this row
+    unique (opid, kind)
 );
 
 create index entity_children on entity (parent) where parent is not null;
@@ -131,6 +134,18 @@ end $$;
 create trigger entity_parent_kind
     before insert or update of kind, parent on entity
     for each row execute function entity_parent_kind();
+
+-- ------------------------------------------------------------- groupings
+
+create table grouping (
+    source bigint not null references source (id) on delete restrict,
+    kind   text not null check (kind in ('family','variant')),
+    key    text not null check (key ~ '^[0-9a-f]{64}$'),
+    opid   text not null references entity (opid) on delete restrict,
+
+    primary key (source, kind, key),
+    foreign key (opid, kind) references entity (opid, kind)
+);
 
 -- ---------------------------------------------------------------- merges
 

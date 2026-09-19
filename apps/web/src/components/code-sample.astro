@@ -9,10 +9,12 @@ interface Props {
 	label?: string | undefined
 	badge?: string | undefined
 	caption?: string | undefined
+	/** Caps a long sample so it does not swallow the page; the block scrolls and stays keyboard reachable. */
+	scroll?: boolean | undefined
 	class?: string | undefined
 }
 
-const { code, lang = 'plaintext', label, badge, caption, class: className } = Astro.props
+const { code, lang = 'plaintext', label, badge, caption, scroll = false, class: className } = Astro.props
 ---
 
 <figure class:list={['not-prose w-full min-w-0', className]}>
@@ -25,7 +27,13 @@ const { code, lang = 'plaintext', label, badge, caption, class: className } = As
 				</div>
 			)
 		}
-		<Code code={code} lang={lang} themes={SHIKI_THEMES} defaultColor={false} class="overflow-x-auto p-4 text-[0.8125rem] leading-relaxed" />
+		<Code
+			code={code}
+			lang={lang}
+			themes={SHIKI_THEMES}
+			defaultColor={false}
+			class:list={['overflow-auto overscroll-contain p-4 text-[0.8125rem] leading-relaxed', scroll && 'max-h-[34rem]']}
+		/>
 	</div>
 	{caption && <figcaption class="mt-2.5 text-sm leading-relaxed text-soft">{caption}</figcaption>}
 </figure>

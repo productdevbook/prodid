@@ -1,6 +1,7 @@
 ---
 import CodeSample from '@/components/code-sample.astro'
 import Layout from '@/layouts/base.astro'
+import { examples } from '@/lib/spec'
 
 const DESCRIPTION =
 	'prodid gives every physical product a permanent open identifier. GTIN, MPN and every other code resolve to it, and every fact is a claim attributed to its source.'
@@ -37,7 +38,7 @@ const identifiers = [
 const steps = [
 	{
 		verb: 'Publish',
-		body: 'A manufacturer serves one file on its own domain, listing feeds of the products it makes. No account, no API key, no contract. A software vendor that hosts thousands of merchants serves the same file on each merchant domain. A manufacturer that cannot serve files at all delegates the hosting with one DNS TXT record — checked before anything served on the domain, because only the domain owner can set it.',
+		body: 'A manufacturer serves one file on its own domain listing feeds of the products it makes, and publishes one DNS TXT record naming the host that serves it. DNS is checked first, because only the domain owner can write it. A software vendor that hosts thousands of merchants does the same on each merchant domain; a manufacturer that cannot serve files at all points the record at a host that can.',
 		link: { href: '/publish', label: 'How to publish' },
 	},
 	{
@@ -48,7 +49,7 @@ const steps = [
 	{
 		verb: 'Resolve',
 		body: 'The code on the box becomes an address. prodid.org/01/{gtin} is GS1 Digital Link syntax, which means it can be the QR code printed on the product itself. Ask for HTML and you get a page a shopper can read; ask for JSON and you get the record, every claim carrying its source.',
-		link: { href: '/spec#resolving', label: 'How resolving works' },
+		link: { href: '/spec#the-resolver', label: 'How resolving works' },
 	},
 ]
 
@@ -63,54 +64,17 @@ const audiences = [
 	},
 	{
 		title: 'Developers and data consumers',
-		body: 'Resolve any barcode to a stable identifier that survives repackaging and market changes. Every fact carries the source that made it, when it was seen and under what licence, so you decide what to trust rather than inheriting somebody else’s merge. Identifiers and full dumps are open.',
+		body: 'Resolve any barcode to a stable identifier that survives repackaging and market changes. Every fact carries the source that made it, when it was seen and whether that source has lapsed, so you decide what to trust rather than inheriting somebody else’s merge. The schemas, the identifiers and the mappings between them are CC0.',
 	},
 ]
 
-const response = `{
-  "opid": "7qk2m9x4rb3fhd80",
-  "kind": "item",
-  "parent": "9htb4e0qmr75w2xk",
-  "identifiers": [
-    { "scheme": "gtin", "value": "09506000134352" },
-    { "scheme": "mpn", "value": "TJ-2041-NVY-M", "scope": "acme" }
-  ],
-  "claims": [
-    {
-      "property": "brand",
-      "value": "Acme",
-      "source": "acme.example",
-      "trust": "verified",
-      "seen_at": "2026-09-12T08:31:44Z"
-    },
-    {
-      "property": "name",
-      "value": "Trail Jacket",
-      "lang": "en",
-      "source": "acme.example",
-      "trust": "verified",
-      "seen_at": "2026-09-12T08:31:44Z"
-    },
-    {
-      "property": "properties.material",
-      "value": "100% recycled polyester",
-      "source": "acme.example",
-      "trust": "verified",
-      "seen_at": "2026-09-12T08:31:44Z"
-    },
-    {
-      "property": "properties.material",
-      "value": "polyester",
-      "source": "example-open-db.org",
-      "trust": "unverified",
-      "seen_at": "2026-08-30T19:02:10Z"
-    }
-  ]
-}`
-
 const request = `GET /01/09506000134352 HTTP/1.1
 Host: prodid.org
-Accept: application/json`
+Accept: application/json
+
+HTTP/1.1 200 OK
+Content-Type: application/json
+Content-Location: /id/kq7m3v9dn2hb4t5x`
 ---
 
 <Layout title="prodid — open identity for every physical product" description={DESCRIPTION}>
@@ -253,21 +217,34 @@ Accept: application/json`
 					One URL, printed on the product.
 				</h2>
 				<p class="mt-6 text-base leading-relaxed text-soft sm:text-lg">
-					<code class="chip">https://prodid.org/01/09506000134352</code> is a GS1 Digital Link, so it can be the QR code on
-					the label itself. A shopper scanning it gets a page. A system asking for JSON gets the record — the same
-					mechanism the EU Digital Product Passport is built on.
+					<code class="chip">https://prodid.org/01/09506000134352</code> is a GS1 Digital Link, so it can be the QR code
+					printed on the label itself. A shopper scanning it gets a page; a system asking for JSON gets the record below,
+					every value inside a claim that names its source.
 				</p>
 			</div>
 			<div class="mt-10 grid max-w-3xl gap-5 [&>*]:min-w-0">
-				<CodeSample code={request} lang="http" label="Request" />
+				<CodeSample code={request} lang="http" label="Request and response headers" />
+				<p class="text-[0.9375rem] leading-relaxed text-soft">
+					The specification's own example, rendered from that file. Nothing in it is a bare field: every value sits inside a
+					claim carrying the source that made it, that source’s trust, and whether it has lapsed. Scroll to the seventh claim
+					and you will find a second <code class="chip">name</code>, from a shop that has since stopped publishing — kept,
+					attributed and marked rather than deleted or quietly overruled.
+				</p>
 				<CodeSample
-					code={response}
+					code={examples.entityItem}
 					lang="json"
-					label="Response"
+					label="spec/examples/entity.item.json"
 					badge="application/json"
-					caption="Two sources disagree about the material. Both claims are kept, both attributed, neither silently wins. The response shape is part of the v0 draft and will change before v1."
+					scroll
 				/>
 			</div>
+			<p class="mt-6 max-w-3xl rounded-lg border border-line bg-surface p-5 text-[0.9375rem] leading-relaxed text-soft">
+				<strong class="font-medium text-ink">On the EU Digital Product Passport.</strong> ESPR requires a passport that is
+				reachable from a data carrier on the product and tied to a unique product identifier, and GS1 Digital Link is one of
+				the carrier syntaxes being standardised for that. prodid is not a passport service, and publishing here is not
+				compliance with anything. It is the same underlying work: one machine-readable record per product, at a stable
+				address, that you control.
+			</p>
 		</div>
 	</section>
 
@@ -302,7 +279,7 @@ Accept: application/json`
 						<p class="font-medium">The specification is a v0 draft.</p>
 						<p class="mt-1 text-[0.9375rem] leading-relaxed text-soft">
 							Anything in it may change until v1, including the record schemas and the shape of a resolver response.{' '}
-							<a href="/spec" class="rounded-sm text-accent underline-offset-4 hover:underline">Read it</a> and say where it
+							<a href="/spec" class="rounded-sm text-accent underline underline-offset-4">Read it</a> and say where it
 							is wrong.
 						</p>
 					</li>
@@ -317,8 +294,13 @@ Accept: application/json`
 					<li class="border-l-2 border-rule pl-5">
 						<p class="font-medium">The index is meant to be replaceable.</p>
 						<p class="mt-1 text-[0.9375rem] leading-relaxed text-soft">
-							The specification, the schemas, the identifiers and the full data dumps are CC0. If this index is run badly,
-							somebody else can run it from the same data. That is the point, and it only holds while those stay open.
+							The specification, the schemas, the <code class="chip">opid</code>s and the mappings from every other code to
+							them are <a href="/spec#licensing" class="rounded-sm text-accent underline underline-offset-4">CC0</a>. The product
+							data itself is not prodid's to give away: every claim carries the licence of the source that made it, so a copy of
+							the index comes with those obligations attached rather than with none. What makes this replaceable is not a licence
+							on somebody else's facts — it is that the facts are published by the domains that own them. If this index is run
+							badly, the same domains can be crawled by someone else, and the identifiers already printed on products keep meaning
+							what they meant.
 						</p>
 					</li>
 				</ul>

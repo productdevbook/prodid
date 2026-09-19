@@ -650,6 +650,79 @@ async function upgrade(sql: Sql, built: Chain): Promise<void> {
 	equals('the sku still resolves to the same opid', kept?.opid, built.item)
 }
 
+async function groupings(sql: Sql, source: string, built: Chain): Promise<void> {
+	const familyKey = 'f'.repeat(64)
+	const variantKey = 'e'.repeat(64)
+
+	await accepts(
+		'a family grouping inserts',
+		() => sql`insert into grouping (source, kind, key, opid) values (${source}, 'family', ${familyKey}, ${built.family})`,
+	)
+
+	await accepts(
+		'a variant grouping inserts',
+		() => sql`insert into grouping (source, kind, key, opid) values (${source}, 'variant', ${variantKey}, ${built.variant})`,
+	)
+
+	await rejects(
+		'duplicate (source, kind, key) is rejected',
+		() => sql`insert into grouping (source, kind, key, opid) values (${source}, 'family', ${familyKey}, ${built.family})`,
+	)
+
+	await rejects(
+		'a family grouping pointing at a variant is rejected',
+		() => sql`insert into grouping (source, kind, key, opid) values (${source}, 'family', ${'a'.repeat(64)}, ${built.variant})`,
+	)
+
+	await rejects(
+		'a variant grouping pointing at a family is rejected',
+		() => sql`insert into grouping (source, kind, key, opid) values (${source}, 'variant', ${'b'.repeat(64)}, ${built.family})`,
+	)
+
+	await rejects(
+		'a grouping pointing at an item is rejected',
+		() => sql`insert into grouping (source, kind, key, opid) values (${source}, 'variant', ${'c'.repeat(64)}, ${built.item})`,
+	)
+
+	await rejects(
+		'grouping kind outside the value set is rejected',
+		() => sql`insert into grouping (source, kind, key, opid) values (${source}, 'item', ${'d'.repeat(64)}, ${built.item})`,
+	)
+
+	await rejects(
+		'a grouping key that is not a sha-256 digest is rejected',
+		() => sql`insert into grouping (source, kind, key, opid) values (${source}, 'family', 'not-a-digest', ${built.family})`,
+	)
+
+	const [other] = await sql<{ id: string }[]>`
+    insert into source (kind, name) values ('dataset', 'open-data.example') returning id
+  `
+	if (!other) throw new Error('source insert returned no row')
+
+	await accepts(
+		'the same grouping key under another source is accepted',
+		() => sql`insert into grouping (source, kind, key, opid) values (${other.id}, 'family', ${familyKey}, ${built.family})`,
+	)
+
+	const spare = opid()
+	const host = opid()
+	await sql`insert into entity (opid, kind) values (${spare}, 'family')`
+	await sql`insert into entity (opid, kind) values (${host}, 'family')`
+
+	await accepts(
+		'a childless family can become a variant of another family',
+		() => sql`update entity set kind = 'variant', parent = ${host} where opid = ${spare}`,
+	)
+	await sql`update entity set kind = 'family', parent = null where opid = ${spare}`
+
+	await sql`insert into grouping (source, kind, key, opid) values (${source}, 'family', ${'9'.repeat(64)}, ${spare})`
+
+	await rejects(
+		'the kind of an entity a grouping points at cannot change',
+		() => sql`update entity set kind = 'variant', parent = ${host} where opid = ${spare}`,
+	)
+}
+
 function merged(sql: Sql, from: string, into: string, reason: string): Promise<unknown> {
 	return sql.begin(async (tx) => {
 		await tx`
@@ -746,6 +819,7 @@ async function run(sql: Sql): Promise<void> {
 	const key = await records(sql, source, built)
 	await claims(sql, source, built, key)
 	await withdrawal(sql, source, built)
+	await groupings(sql, source, built)
 	await upgrade(sql, built)
 	await merges(sql)
 }

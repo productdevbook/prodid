@@ -72,6 +72,10 @@ const AUDIT: { what: string; query: string }[] = [
 		query: `select m.from_opid as bad from merge m join entity e on e.opid = m.from_opid
             where m.reverted_at is null and e.merged_into is distinct from m.into_opid`,
 	},
+	{
+		what: 'a grouping pointing at the wrong kind of entity',
+		query: `select g.key as bad from grouping g join entity e on e.opid = g.opid where g.kind <> e.kind`,
+	},
 ]
 
 let failures = 0
@@ -286,6 +290,42 @@ async function db6(sql: Sql, s1: ReservedSql, s2: ReservedSql): Promise<Tally> {
 	return counts
 }
 
+async function sameGroup(sql: Sql, source: string, s1: ReservedSql, s2: ReservedSql): Promise<Tally> {
+	const scenario = 'grouping two sessions ingesting one new group'
+	const counts = tally()
+
+	for (let round = 0; round < ROUNDS; round++) {
+		const key = randomBytes(32).toString('hex')
+		const first = opid()
+		const second = opid()
+
+		await s1.unsafe('begin')
+		await s2.unsafe('begin')
+		await s1.unsafe(`insert into entity (opid, kind) values ('${first}', 'family')`)
+		await s2.unsafe(`insert into entity (opid, kind) values ('${second}', 'family')`)
+		await s1.unsafe(`insert into grouping (source, kind, key, opid) values (${source}, 'family', '${key}', '${first}')`)
+		const blocked = attempt(s2.unsafe(`insert into grouping (source, kind, key, opid) values (${source}, 'family', '${key}', '${second}')`))
+		const e1 = await attempt(s1.unsafe('commit'))
+		let e2 = await blocked
+		e2 = e2 ?? (await attempt(s2.unsafe('commit')))
+		record(counts, e1, e2)
+
+		await reset(s1, s2)
+
+		const rows = await sql<{ opid: string }[]>`
+      select opid from grouping where source = ${source} and kind = 'family' and key = ${key}
+    `
+		if (rows.length !== 1) fail(scenario, round, `${rows.length} grouping rows for one key`)
+		else if (rows[0]?.opid !== first) fail(scenario, round, `the key points at ${rows[0]?.opid}, expected ${first}`)
+
+		const loser = await sql<{ opid: string }[]>`select opid from entity where opid = ${second}`
+		if (loser.length !== 0) fail(scenario, round, `the loser left entity ${second} behind`)
+
+		await audit(sql, scenario, round)
+	}
+	return counts
+}
+
 async function db10(admin: Sql, base: URL): Promise<void> {
 	const scenario = 'DB-10 concurrent migrations'
 	let applied = 0
@@ -372,6 +412,7 @@ try {
 			report('DB-3b withdrawal first', await db3(sql, source.id, s1, s2, true))
 			report('DB-3b claim insert first', await db3(sql, source.id, s1, s2, false))
 			report('DB-6 log and state written separately', await db6(sql, s1, s2))
+			report('grouping two sessions ingesting one new group', await sameGroup(sql, source.id, s1, s2))
 		} finally {
 			s1.release()
 			s2.release()

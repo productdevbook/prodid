@@ -1,0 +1,123 @@
+---
+import Layout from '@/layouts/base.astro'
+
+type Row = { name: string; href: string; kind: 'dir' | 'file'; bytes: number }
+
+/** Directory listings for the paths the spec links to; `/spec` itself belongs to the rendered specification. */
+export function getStaticPaths() {
+	const raw = import.meta.glob('../../../../../spec/{schemas,examples,fixtures}/**/*', {
+		query: '?raw',
+		import: 'default',
+		eager: true,
+	}) as Record<string, string>
+
+	const dirs = new Map<string, Map<string, Row>>()
+	const at = (dir: string) => {
+		const rows = dirs.get(dir) ?? new Map<string, Row>()
+		dirs.set(dir, rows)
+		return rows
+	}
+
+	for (const [key, body] of Object.entries(raw)) {
+		const segments = key.replace('../../../../../spec/', '').split('/')
+		for (let i = 0; i < segments.length; i++) {
+			const name = segments[i]
+			if (name === undefined) continue
+			const full = segments.slice(0, i + 1).join('/')
+			const leaf = i === segments.length - 1
+			at(segments.slice(0, i).join('/')).set(name, {
+				name: leaf ? name : `${name}/`,
+				href: `/spec/${full}`,
+				kind: leaf ? 'file' : 'dir',
+				bytes: leaf ? new TextEncoder().encode(body).length : 0,
+			})
+		}
+	}
+	dirs.delete('')
+
+	return [...dirs].map(([path, rows]) => ({
+		params: { path },
+		props: {
+			rows: [...rows.values()].sort((a, b) =>
+				a.kind === b.kind ? a.name.localeCompare(b.name) : a.kind === 'dir' ? -1 : 1,
+			),
+		},
+	}))
+}
+
+interface Props {
+	rows: Row[]
+}
+
+const { rows } = Astro.props
+const path = Astro.params.path ?? ''
+const segments = path.split('/')
+const crumbs = segments.map((name, i) => ({ name, href: `/spec/${segments.slice(0, i + 1).join('/')}` }))
+
+const kb = (bytes: number) => (bytes < 1024 ? `${bytes} B` : `${(bytes / 1024).toFixed(1)} KiB`)
+const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? '' : 's'}`
+const counts = [
+	rows.filter((row) => row.kind === 'dir').length,
+	rows.filter((row) => row.kind === 'file').length,
+]
+const summary = [counts[0] ? plural(counts[0], 'directory').replace('directorys', 'directories') : '', counts[1] ? plural(counts[1], 'file') : '']
+	.filter(Boolean)
+	.join(' and ')
+---
+
+<Layout
+	title={`spec/${path} — prodid`}
+	description={`Files published under spec/${path} in the prodid specification.`}
+	active="spec"
+	noindex
+>
+	<div class="shell">
+		<div class="max-w-3xl py-12 sm:py-16">
+			<nav aria-label="Breadcrumb" class="font-mono text-xs tracking-[0.12em] text-soft uppercase">
+				<ol class="flex flex-wrap items-center gap-x-2 gap-y-1">
+					<li><a href="/spec" class="rounded-sm underline-offset-4 hover:text-accent">spec</a></li>
+					{
+						crumbs.map((crumb, i) => (
+							<li class="flex items-center gap-2">
+								<span aria-hidden="true">/</span>
+								{i === crumbs.length - 1 ? (
+									<span aria-current="page" class="text-ink">
+										{crumb.name}
+									</span>
+								) : (
+									<a href={crumb.href} class="rounded-sm underline-offset-4 hover:text-accent">
+										{crumb.name}
+									</a>
+								)}
+							</li>
+						))
+					}
+				</ol>
+			</nav>
+
+			<h1 class="mt-6 font-mono text-2xl font-semibold tracking-tight break-all sm:text-3xl">spec/{path}</h1>
+			<p class="mt-4 leading-relaxed text-soft">
+				{summary} published from the specification repository, served as static files so the links inside the{' '}
+				<a href="/spec" class="rounded-sm text-accent underline underline-offset-4">specification</a> resolve to the real
+				thing.
+			</p>
+
+			<div class="mt-8 overflow-hidden rounded-xl border border-line bg-surface">
+				<ul class="divide-y divide-line">
+					{
+						rows.map((row) => (
+							<li>
+								<a href={row.href} class="flex items-baseline justify-between gap-4 px-5 py-3 hover:bg-sunken">
+									<span class="truncate font-mono text-[0.875rem]">{row.name}</span>
+									<span class="shrink-0 font-mono text-xs text-soft">
+										{row.kind === 'dir' ? 'directory' : kb(row.bytes)}
+									</span>
+								</a>
+							</li>
+						))
+					}
+				</ul>
+			</div>
+		</div>
+	</div>
+</Layout>

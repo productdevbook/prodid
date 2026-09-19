@@ -46,10 +46,14 @@ A correct check digit is not enough to make a number a global identifier.
 - **All zeros is not a GTIN**, at any length. Catalogues use it as a "no barcode" placeholder, its check digit is valid, and taking it at face value would merge every product that carries it into one entity. A record whose `gtin` is all zeros is invalid, like a record with a wrong check digit.
 - **Restricted circulation numbers are not global.** GS1 reserves ranges for numbers whose meaning is local to a company or a region, so the same value means different things at two sources. The index stores them under the scheme `rcn`, scoped to the source, and never merges two sources on one. `/01/{gtin}` answers a restricted number with a problem response instead of resolving it.
 
-| form | restricted when |
+Classification reads the normalized 14-digit form, never the spelling: the index stores only that form, so the same number has to classify the same way however it was written. A 14-digit form that begins with six zeros is a GTIN-8 — GS1 leaves the GTIN-13 prefixes `0000001`–`0000099` unused to avoid exactly this collision — so the GTIN-8 rule governs it whether the publisher wrote 8, 13 or 14 digits.
+
+| the normalized 14-digit form | restricted when |
 | --- | --- |
-| GTIN-8 | the first digit is `0` or `2` (GS1-8 prefixes `000`–`099` and `200`–`299`) |
-| GTIN-12, -13, -14 | read as 13 digits — a GTIN-12 gains a leading zero, a GTIN-14 drops its indicator digit — it begins with `02`, `04`, `20`–`29` or `0000000` |
+| begins with six zeros, so the number is a GTIN-8 | the seventh digit is `0` or `2` (GS1-8 prefixes `000`–`099` and `200`–`299`) |
+| anything else | the 13 digits after the indicator digit begin with `02`, `04` or `20`–`29` |
+
+`01234565` is a restricted GTIN-8; written out as `0000001234565` or `00000001234565` it is the same restricted number, which a rule keyed on the written length would miss. The GS1 prefix `0000000` needs no row of its own: a 13-digit number beginning with it has eight leading zeros once normalized, so the first row reads it as a GTIN-8 beginning with `0`, which is restricted as well. The two readings agree, which is the point.
 
 Verified against the GS1 General Specifications, figures 1.4.2-1, 1.4.3-1 and 1.4.5-1: GS1 Prefix `02` and `20`–`29` are "used to issue Restricted Circulation Numbers within a geographic region", `04` and `0000000` "within a company", and the GS1-8 Prefix ranges `000`–`099` and `200`–`299` likewise. `05` is reserved for future use, not restricted, and is treated as an ordinary GTIN.
 
