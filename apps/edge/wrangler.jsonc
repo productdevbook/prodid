@@ -39,10 +39,9 @@
 		"RateLimiter": { "type": "durable-object", "storage": "sqlite" },
 	},
 	"r2_buckets": [
-		// Stored media, served immutably from media.prodid.org under sha256/{hex}.
+		// Stored media, served immutably from media.prodid.org under sha256/{hex}. The bucket has
+		// no public domain of its own: a blocked hash has to answer 410, which only a Worker can do.
 		{ "binding": "MEDIA", "bucket_name": "prodid-media" },
-		// The documents and feeds the index hosts for a slug on *.prodid.org.
-		{ "binding": "FEEDS", "bucket_name": "prodid-feeds" },
 	],
 	"queues": {
 		"producers": [
@@ -89,7 +88,8 @@
 		"CRAWL_INTERVAL_MINUTES": "360",
 		"DOH_ENDPOINT": "https://cloudflare-dns.com/dns-query",
 		// Names under this zone are hosted slugs, whatever they serve: a document there proves
-		// control of a slug, not of a domain.
+		// control of a slug, not of a domain. The index only classifies them; `apps/hosted` serves
+		// them, and the crawler reaches it over DNS and HTTPS like any other host.
 		"HOSTING_ZONE": "prodid.org",
 	},
 }
