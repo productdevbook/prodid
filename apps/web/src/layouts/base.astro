@@ -1,0 +1,56 @@
+---
+import SiteFooter from '@/components/site-footer.astro'
+import SiteHeader from '@/components/site-header.astro'
+import '@/styles/global.css'
+
+interface Props {
+	title: string
+	description: string
+	active?: 'spec' | 'publish' | undefined
+	noindex?: boolean | undefined
+}
+
+const { title, description, active, noindex = false } = Astro.props
+
+const path = Astro.url.pathname.replace(/\/+$/, '') || '/'
+const canonical = new URL(path, Astro.site).href
+---
+
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>{title}</title>
+		<meta name="description" content={description} />
+		<link rel="canonical" href={canonical} />
+		{noindex && <meta name="robots" content="noindex, follow" />}
+
+		<meta property="og:type" content="website" />
+		<meta property="og:site_name" content="prodid" />
+		<meta property="og:title" content={title} />
+		<meta property="og:description" content={description} />
+		<meta property="og:url" content={canonical} />
+		<meta property="og:locale" content="en" />
+		<meta name="twitter:card" content="summary" />
+		<meta name="twitter:title" content={title} />
+		<meta name="twitter:description" content={description} />
+
+		<meta name="color-scheme" content="light dark" />
+		<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+		<link rel="alternate" type="application/xml" href="/sitemap.xml" title="Sitemap" />
+	</head>
+	<body class="flex min-h-svh flex-col">
+		<a
+			href="#main"
+			class="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:rounded-md focus:border focus:border-line focus:bg-surface focus:px-4 focus:py-2 focus:text-sm focus:font-medium"
+		>
+			Skip to content
+		</a>
+		<SiteHeader active={active} />
+		<main id="main" tabindex="-1" class="flex-1">
+			<slot />
+		</main>
+		<SiteFooter />
+	</body>
+</html>

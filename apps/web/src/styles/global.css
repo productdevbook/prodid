@@ -1,0 +1,281 @@
+@import 'tailwindcss';
+
+@theme inline {
+	--font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+	--font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+
+	--color-bg: var(--bg);
+	--color-surface: var(--surface);
+	--color-sunken: var(--sunken);
+	--color-ink: var(--ink);
+	--color-soft: var(--soft);
+	--color-line: var(--line);
+	--color-rule: var(--rule);
+	--color-accent: var(--accent);
+	--color-accent-bg: var(--accent-bg);
+}
+
+:root {
+	color-scheme: light dark;
+	--bg: oklch(0.985 0.0035 85);
+	--surface: oklch(1 0 0);
+	--sunken: oklch(0.955 0.004 265);
+	--ink: oklch(0.22 0.012 265);
+	--soft: oklch(0.5 0.014 265);
+	--line: oklch(0.91 0.005 265);
+	--rule: oklch(0.84 0.006 265);
+	--accent: oklch(0.47 0.13 252);
+	--accent-bg: oklch(0.955 0.018 252);
+}
+
+@media (prefers-color-scheme: dark) {
+	:root {
+		--bg: oklch(0.165 0.008 265);
+		--surface: oklch(0.205 0.009 265);
+		--sunken: oklch(0.225 0.01 265);
+		--ink: oklch(0.93 0.005 85);
+		--soft: oklch(0.7 0.012 265);
+		--line: oklch(0.28 0.01 265);
+		--rule: oklch(0.36 0.012 265);
+		--accent: oklch(0.79 0.1 252);
+		--accent-bg: oklch(0.26 0.035 252);
+	}
+}
+
+@layer base {
+	html {
+		font-family: var(--font-sans);
+		scroll-behavior: smooth;
+		scroll-padding-top: 5rem;
+		-webkit-text-size-adjust: 100%;
+	}
+
+	body {
+		background-color: var(--bg);
+		color: var(--ink);
+		-webkit-font-smoothing: antialiased;
+		text-rendering: optimizeLegibility;
+	}
+
+	:focus-visible {
+		outline: 2px solid var(--accent);
+		outline-offset: 3px;
+		border-radius: 3px;
+	}
+
+	::selection {
+		background-color: var(--accent-bg);
+	}
+
+	:where(h1, h2, h3, h4) {
+		text-wrap: balance;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		html {
+			scroll-behavior: auto;
+		}
+
+		*,
+		*::before,
+		*::after {
+			animation-duration: 0.01ms !important;
+			transition-duration: 0.01ms !important;
+		}
+	}
+}
+
+@utility shell {
+	@apply mx-auto w-full max-w-5xl px-5 sm:px-8;
+}
+
+/* Shiki is asked for two themes and no default, so the colours are picked here rather than by a script. */
+.astro-code,
+.astro-code span {
+	color: var(--shiki-light);
+}
+
+.astro-code {
+	background-color: var(--surface) !important;
+}
+
+@media (prefers-color-scheme: dark) {
+	.astro-code,
+	.astro-code span {
+		color: var(--shiki-dark);
+	}
+}
+
+.table-scroll {
+	overflow-x: auto;
+	overscroll-behavior-x: contain;
+}
+
+.table-scroll:focus-visible {
+	outline-offset: 0;
+}
+
+.prose {
+	font-size: 1rem;
+	line-height: 1.7;
+}
+
+.prose > * + * {
+	margin-top: 1.1em;
+}
+
+.prose h2 {
+	margin-top: 3.25rem;
+	padding-top: 1.75rem;
+	border-top: 1px solid var(--line);
+	font-size: 1.375rem;
+	font-weight: 600;
+	letter-spacing: -0.015em;
+	line-height: 1.25;
+}
+
+.prose h3 {
+	margin-top: 2.25rem;
+	font-size: 1.0625rem;
+	font-weight: 600;
+	letter-spacing: -0.01em;
+}
+
+.prose h1 {
+	font-size: 1.875rem;
+	font-weight: 600;
+	letter-spacing: -0.02em;
+}
+
+.prose :where(h1, h2, h3, h4, h5, h6) + * {
+	margin-top: 0.9em;
+}
+
+.prose a {
+	color: var(--accent);
+	text-decoration: underline;
+	text-decoration-thickness: from-font;
+	text-underline-offset: 0.2em;
+}
+
+.prose a:hover {
+	text-decoration-thickness: 2px;
+}
+
+.prose code,
+.chip {
+	font-family: var(--font-mono);
+	font-size: 0.875em;
+	background-color: var(--sunken);
+	border: 1px solid var(--line);
+	border-radius: 4px;
+	padding: 0.1em 0.35em;
+	word-break: break-word;
+}
+
+.prose pre {
+	margin-top: 1.5em;
+	margin-bottom: 1.5em;
+	overflow-x: auto;
+	border: 1px solid var(--line);
+	border-radius: 8px;
+	padding: 1rem 1.125rem;
+	font-size: 0.875rem;
+	line-height: 1.65;
+	tab-size: 2;
+}
+
+.prose pre code {
+	background: none;
+	border: 0;
+	padding: 0;
+	font-size: inherit;
+}
+
+.prose table,
+.data-table {
+	width: 100%;
+	/* Below this the last column collapses to two words a line; the scroll container takes over instead. */
+	min-width: 30rem;
+	border-collapse: collapse;
+	font-size: 0.9375rem;
+	line-height: 1.55;
+}
+
+.prose :where(th, td),
+.data-table :where(th, td) {
+	border-bottom: 1px solid var(--line);
+	padding: 0.6rem 1rem 0.6rem 0;
+	text-align: left;
+	vertical-align: top;
+}
+
+.prose th,
+.data-table th {
+	font-weight: 600;
+	font-size: 0.75rem;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--soft);
+	border-bottom-color: var(--rule);
+	white-space: nowrap;
+}
+
+.prose :where(ul, ol) {
+	padding-left: 1.4em;
+}
+
+.prose ul {
+	list-style: disc;
+}
+
+.prose ol {
+	list-style: decimal;
+}
+
+.prose li + li {
+	margin-top: 0.4em;
+}
+
+.prose li::marker {
+	color: var(--soft);
+}
+
+.prose blockquote {
+	border-left: 2px solid var(--rule);
+	padding-left: 1rem;
+	color: var(--soft);
+}
+
+.prose hr {
+	border: 0;
+	border-top: 1px solid var(--line);
+	margin: 2.5rem 0;
+}
+
+.heading-anchor {
+	margin-left: 0.4em;
+	color: var(--soft);
+	text-decoration: none;
+	opacity: 0;
+	font-weight: 400;
+}
+
+.heading-anchor::before {
+	content: '#';
+}
+
+.heading-anchor:hover {
+	color: var(--accent);
+}
+
+:where(h1, h2, h3, h4, h5, h6):hover > .heading-anchor,
+.heading-anchor:focus-visible {
+	opacity: 1;
+}
+
+@media (hover: none) {
+	.heading-anchor {
+		opacity: 0.45;
+	}
+}

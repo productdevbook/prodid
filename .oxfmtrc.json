@@ -1,0 +1,18 @@
+{
+	"$schema": "./node_modules/oxfmt/configuration_schema.json",
+	"useTabs": true,
+	"printWidth": 140,
+	"singleQuote": true,
+	"semi": false,
+	"trailingComma": "all",
+	"sortImports": true,
+	"ignorePatterns": [
+		"**/*.md",
+		"**/.astro/**",
+		"**/.wrangler/**",
+		"**/dist/**",
+		"**/*.generated.js",
+		"**/*.generated.d.ts",
+		"**/worker-configuration.d.ts"
+	]
+}

@@ -1,0 +1,39 @@
+---
+import Wordmark from '@/components/wordmark.astro'
+import { SPEC_STATUS } from '@/lib/spec'
+---
+
+<footer class="mt-24 border-t border-line">
+	<div class="shell flex flex-col gap-8 py-10 sm:flex-row sm:justify-between">
+		<div class="max-w-sm">
+			<Wordmark class="text-[0.95rem]" />
+			<p class="mt-3 text-sm leading-relaxed text-soft">
+				An open identity and data layer for every physical product.
+			</p>
+			<p class="mt-3 text-xs text-soft">{SPEC_STATUS}</p>
+		</div>
+		<nav aria-label="Footer" class="text-sm">
+			<h2 class="text-xs font-semibold tracking-wider text-soft uppercase">Site</h2>
+			<ul class="mt-3 grid gap-2">
+				<li><a href="/spec" class="rounded-sm underline-offset-4 hover:text-accent hover:underline">Specification</a></li>
+				<li><a href="/publish" class="rounded-sm underline-offset-4 hover:text-accent hover:underline">Publish your products</a></li>
+				<li>
+					<a href="/spec/schemas/org.prodid.item.json" class="rounded-sm font-mono text-[0.8125rem] underline-offset-4 hover:text-accent hover:underline">
+						org.prodid.item.json
+					</a>
+				</li>
+				<li>
+					<a href="/spec/schemas/org.prodid.feed.json" class="rounded-sm font-mono text-[0.8125rem] underline-offset-4 hover:text-accent hover:underline">
+						org.prodid.feed.json
+					</a>
+				</li>
+			</ul>
+		</nav>
+	</div>
+	<div class="shell border-t border-line py-6">
+		<p class="text-xs leading-relaxed text-soft">
+			Specification, schemas, identifiers and data dumps are <abbr title="Creative Commons Zero">CC0</abbr>. The reference
+			implementation is Apache-2.0. Every other claim carries the licence of the source that made it.
+		</p>
+	</div>
+</footer>

@@ -1,0 +1,27 @@
+{
+	"name": "prodid",
+	"private": true,
+	"workspaces": [
+		"spec",
+		"db",
+		"packages/*",
+		"apps/*"
+	],
+	"type": "module",
+	"scripts": {
+		"build": "bun run --filter '@prodid/core' build",
+		"check": "bun run build && bun run format:check && bun run lint && bun run typecheck && bun test && bun run --filter '@prodid/spec' check",
+		"check:db": "bun run --filter '@prodid/db' check",
+		"format": "oxfmt",
+		"format:check": "oxfmt --check",
+		"lint": "oxlint",
+		"typecheck": "bun run --filter '*' typecheck"
+	},
+	"devDependencies": {
+		"@types/bun": "1.4.2",
+		"oxfmt": "0.68.0",
+		"oxlint": "1.83.0",
+		"typescript": "7.0.2"
+	},
+	"packageManager": "bun@1.4.2"
+}

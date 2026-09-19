@@ -1,0 +1,12 @@
+{
+	"$schema": "./node_modules/wrangler/config-schema.json",
+	"name": "prodid-web",
+	"compatibility_date": "2026-09-19",
+	// Assets-only Worker: no `main`, no code. Routes are attached by the coordinator, because
+	// edge owns the more specific ones on the same zone.
+	"assets": {
+		"directory": "./dist",
+		"html_handling": "auto-trailing-slash",
+		"not_found_handling": "404-page",
+	},
+}

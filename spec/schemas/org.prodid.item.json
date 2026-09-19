@@ -1,107 +1,107 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://prodid.org/schemas/v0/org.prodid.item.json",
-  "title": "org.prodid.item",
-  "description": "One trade item as published by a source. The index derives variants and families from `group` and `variant`.",
-  "type": "object",
-  "required": ["$type", "key", "brand", "name", "identifiers"],
-  "additionalProperties": false,
-  "properties": {
-    "$type": { "const": "org.prodid.item" },
-    "key": {
-      "description": "Stable record key, unique within the feed. Reusing a key updates the record.",
-      "type": "string",
-      "pattern": "^[A-Za-z0-9._:~-]{1,512}$"
-    },
-    "brand": { "type": "string", "minLength": 1, "maxLength": 256 },
-    "name": { "type": "string", "minLength": 1, "maxLength": 1024 },
-    "lang": {
-      "description": "BCP 47 tag for the human-readable text in this record.",
-      "type": "string",
-      "pattern": "^[A-Za-z]{2,8}(-[A-Za-z0-9]{1,8})*$"
-    },
-    "group": {
-      "description": "Publisher's own grouping key. Items sharing a group are variants of one family.",
-      "type": "string",
-      "minLength": 1,
-      "maxLength": 512
-    },
-    "variant": {
-      "description": "Axes that distinguish this item within its group, such as color or size.",
-      "type": "object",
-      "propertyNames": { "pattern": "^[a-z][A-Za-z0-9]*$" },
-      "additionalProperties": { "type": "string", "minLength": 1, "maxLength": 256 }
-    },
-    "identifiers": {
-      "type": "array",
-      "minItems": 1,
-      "uniqueItems": true,
-      "items": { "$ref": "#/$defs/identifier" }
-    },
-    "category": {
-      "description": "GS1 GPC brick code.",
-      "type": "string",
-      "pattern": "^gpc:[0-9]{8}$"
-    },
-    "markets": {
-      "description": "ISO 3166-1 alpha-2 codes of the markets this item is sold in.",
-      "type": "array",
-      "uniqueItems": true,
-      "items": { "type": "string", "pattern": "^[A-Z]{2}$" }
-    },
-    "properties": {
-      "type": "object",
-      "propertyNames": { "pattern": "^[a-z][A-Za-z0-9]*$" },
-      "additionalProperties": { "$ref": "#/$defs/propertyValue" }
-    },
-    "media": {
-      "type": "array",
-      "items": { "$ref": "#/$defs/media" }
-    }
-  },
-  "$defs": {
-    "identifier": {
-      "type": "object",
-      "required": ["scheme", "value"],
-      "additionalProperties": false,
-      "properties": {
-        "scheme": { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,31}$" },
-        "value": { "type": "string", "minLength": 1, "maxLength": 256 }
-      },
-      "if": { "properties": { "scheme": { "const": "gtin" } } },
-      "then": { "properties": { "value": { "type": "string", "pattern": "^([0-9]{8}|[0-9]{12,14})$" } } }
-    },
-    "propertyValue": {
-      "oneOf": [
-        { "type": "string", "maxLength": 4096 },
-        { "type": "number" },
-        { "type": "boolean" },
-        { "type": "array", "items": { "type": "string", "maxLength": 4096 } },
-        {
-          "type": "object",
-          "required": ["value", "unit"],
-          "additionalProperties": false,
-          "properties": {
-            "value": { "type": "number" },
-            "unit": { "type": "string", "minLength": 1, "maxLength": 32 }
-          }
-        }
-      ]
-    },
-    "media": {
-      "type": "object",
-      "required": ["url", "license"],
-      "additionalProperties": false,
-      "properties": {
-        "url": { "type": "string", "format": "uri", "pattern": "^https://" },
-        "license": {
-          "description": "SPDX license identifier. Media without a license is not ingested.",
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 64
-        },
-        "kind": { "enum": ["image", "document"] }
-      }
-    }
-  }
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://prodid.org/schemas/v0/org.prodid.item.json",
+	"title": "org.prodid.item",
+	"description": "One trade item as published by a source. The index derives variants and families from `group` and `variant`.",
+	"type": "object",
+	"required": ["$type", "key", "brand", "name", "identifiers"],
+	"additionalProperties": false,
+	"properties": {
+		"$type": { "const": "org.prodid.item" },
+		"key": {
+			"description": "Stable record key, unique within the feed. Reusing a key updates the record.",
+			"type": "string",
+			"pattern": "^[A-Za-z0-9._:~-]{1,512}$"
+		},
+		"brand": { "type": "string", "minLength": 1, "maxLength": 256 },
+		"name": { "type": "string", "minLength": 1, "maxLength": 1024 },
+		"lang": {
+			"description": "BCP 47 tag for the human-readable text in this record.",
+			"type": "string",
+			"pattern": "^[A-Za-z]{2,8}(-[A-Za-z0-9]{1,8})*$"
+		},
+		"group": {
+			"description": "Publisher's own grouping key. Items sharing a group are variants of one family.",
+			"type": "string",
+			"minLength": 1,
+			"maxLength": 512
+		},
+		"variant": {
+			"description": "Axes that distinguish this item within its group, such as color or size.",
+			"type": "object",
+			"propertyNames": { "pattern": "^[a-z][A-Za-z0-9]*$" },
+			"additionalProperties": { "type": "string", "minLength": 1, "maxLength": 256 }
+		},
+		"identifiers": {
+			"type": "array",
+			"minItems": 1,
+			"uniqueItems": true,
+			"items": { "$ref": "#/$defs/identifier" }
+		},
+		"category": {
+			"description": "GS1 GPC brick code.",
+			"type": "string",
+			"pattern": "^gpc:[0-9]{8}$"
+		},
+		"markets": {
+			"description": "ISO 3166-1 alpha-2 codes of the markets this item is sold in.",
+			"type": "array",
+			"uniqueItems": true,
+			"items": { "type": "string", "pattern": "^[A-Z]{2}$" }
+		},
+		"properties": {
+			"type": "object",
+			"propertyNames": { "pattern": "^[a-z][A-Za-z0-9]*$" },
+			"additionalProperties": { "$ref": "#/$defs/propertyValue" }
+		},
+		"media": {
+			"type": "array",
+			"items": { "$ref": "#/$defs/media" }
+		}
+	},
+	"$defs": {
+		"identifier": {
+			"type": "object",
+			"required": ["scheme", "value"],
+			"additionalProperties": false,
+			"properties": {
+				"scheme": { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,31}$" },
+				"value": { "type": "string", "minLength": 1, "maxLength": 256 }
+			},
+			"if": { "properties": { "scheme": { "const": "gtin" } } },
+			"then": { "properties": { "value": { "type": "string", "pattern": "^([0-9]{8}|[0-9]{12,14})$" } } }
+		},
+		"propertyValue": {
+			"oneOf": [
+				{ "type": "string", "maxLength": 4096 },
+				{ "type": "number" },
+				{ "type": "boolean" },
+				{ "type": "array", "items": { "type": "string", "maxLength": 4096 } },
+				{
+					"type": "object",
+					"required": ["value", "unit"],
+					"additionalProperties": false,
+					"properties": {
+						"value": { "type": "number" },
+						"unit": { "type": "string", "minLength": 1, "maxLength": 32 }
+					}
+				}
+			]
+		},
+		"media": {
+			"type": "object",
+			"required": ["url", "license"],
+			"additionalProperties": false,
+			"properties": {
+				"url": { "type": "string", "format": "uri", "pattern": "^https://" },
+				"license": {
+					"description": "SPDX license identifier. Media without a license is not ingested.",
+					"type": "string",
+					"minLength": 1,
+					"maxLength": 64
+				},
+				"kind": { "enum": ["image", "document"] }
+			}
+		}
+	}
 }

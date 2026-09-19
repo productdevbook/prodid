@@ -1,0 +1,9 @@
+{
+	"extends": ["../../tsconfig.base.json", "astro/tsconfigs/strict"],
+	"include": [".astro/types.d.ts", "**/*"],
+	"exclude": ["dist"],
+	"compilerOptions": {
+		"types": ["node"],
+		"paths": { "@/*": ["./src/*"] }
+	}
+}

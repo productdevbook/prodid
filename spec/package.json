@@ -1,0 +1,18 @@
+{
+	"name": "@prodid/spec",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"exports": {
+		"./schemas/*.json": "./schemas/*.json",
+		"./package.json": "./package.json"
+	},
+	"scripts": {
+		"check": "bun run validate.ts"
+	},
+	"devDependencies": {
+		"@types/bun": "1.4.2",
+		"ajv": "8.20.0",
+		"ajv-formats": "3.0.1"
+	}
+}

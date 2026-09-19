@@ -1,0 +1,8 @@
+{
+	"$type": "org.prodid.feed",
+	"version": 0,
+	"domain": "localhost",
+	"publisher": { "name": "Acme Tekstil" },
+	"license": "CC0-1.0",
+	"feeds": ["https://acme.example/prodid/items.ndjson"]
+}

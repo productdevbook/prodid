@@ -1,0 +1,42 @@
+---
+import type { MarkdownHeading } from 'astro'
+
+interface Props {
+	headings: MarkdownHeading[]
+}
+
+const { headings } = Astro.props
+
+type Section = { slug: string; text: string; children: { slug: string; text: string }[] }
+
+const sections = headings
+	.filter((heading) => heading.depth === 2 || heading.depth === 3)
+	.reduce<Section[]>((acc, heading) => {
+		if (heading.depth === 2) acc.push({ slug: heading.slug, text: heading.text, children: [] })
+		else acc.at(-1)?.children.push({ slug: heading.slug, text: heading.text })
+		return acc
+	}, [])
+---
+
+<ul class="grid gap-2.5 text-sm">
+	{
+		sections.map((section) => (
+			<li>
+				<a href={`#${section.slug}`} class="rounded-sm underline-offset-4 hover:text-accent hover:underline">
+					{section.text}
+				</a>
+				{section.children.length > 0 && (
+					<ul class="mt-1.5 grid gap-1.5 border-l border-line pl-3 text-[0.8125rem]">
+						{section.children.map((child) => (
+							<li>
+								<a href={`#${child.slug}`} class="rounded-sm text-soft underline-offset-4 hover:text-accent hover:underline">
+									{child.text}
+								</a>
+							</li>
+						))}
+					</ul>
+				)}
+			</li>
+		))
+	}
+</ul>

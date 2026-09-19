@@ -1,0 +1,4 @@
+.astro/
+.shots/
+.wrangler/
+dist/

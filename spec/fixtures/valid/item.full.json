@@ -1,0 +1,28 @@
+{
+	"$type": "org.prodid.item",
+	"key": "TJ-2041-OLV-L",
+	"brand": "Acme",
+	"name": "Trail Jacket",
+	"lang": "en-GB",
+	"group": "TJ-2041",
+	"variant": { "color": "olive", "size": "L" },
+	"identifiers": [
+		{ "scheme": "gtin", "value": "09506000134437" },
+		{ "scheme": "mpn", "value": "TJ-2041-OLV-L" },
+		{ "scheme": "sku", "value": "ACME-TJ2041-OLV-L" },
+		{ "scheme": "oeko-tex", "value": "SH025 123456" }
+	],
+	"markets": ["TR", "DE", "GB"],
+	"properties": {
+		"material": "100% recycled polyester",
+		"madeIn": "TR",
+		"waterproof": true,
+		"hydrostaticHead": 10000,
+		"weight": { "value": 520, "unit": "g" },
+		"careInstructions": ["machine wash 30C", "do not tumble dry"]
+	},
+	"media": [
+		{ "url": "https://acme.example/img/tj2041-olive.webp", "license": "CC-BY-4.0", "kind": "image" },
+		{ "url": "https://acme.example/doc/tj2041-care.pdf", "license": "CC0-1.0", "kind": "document" }
+	]
+}

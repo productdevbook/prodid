@@ -1,0 +1,71 @@
+---
+import SpecToc from '@/components/spec-toc.astro'
+import Layout from '@/layouts/base.astro'
+import { getEntry, render } from 'astro:content'
+
+const entry = await getEntry('spec', 'readme')
+if (!entry) {
+	throw new Error('spec/README.md could not be loaded; /spec renders it at build time and must not be built without it.')
+}
+
+const { Content, headings } = await render(entry)
+
+const files = Object.keys(
+	import.meta.glob('../../../../spec/{schemas,examples}/*', { query: '?raw', import: 'default', eager: true }),
+)
+	.map((path) => path.replace('../../../../spec/', ''))
+	.sort()
+---
+
+<Layout
+	title="Specification — prodid"
+	description="The prodid specification, v0 draft: identifiers, entity kinds, publishing and discovery, claims, resolving and media."
+	active="spec"
+>
+	<div class="shell">
+		<div class="py-12 lg:grid lg:grid-cols-[minmax(0,1fr)_15rem] lg:gap-14 lg:py-16">
+			<article class="prose max-w-[68ch] min-w-0">
+				<p class="not-prose mb-6 font-mono text-xs tracking-[0.18em] text-soft uppercase">Specification</p>
+				<Content />
+			</article>
+
+			<aside class="mt-14 lg:order-last lg:mt-0">
+				<details class="rounded-lg border border-line bg-surface lg:hidden">
+					<summary class="cursor-pointer px-4 py-3 text-sm font-medium">On this page</summary>
+					<div class="border-t border-line px-4 py-3">
+						<SpecToc headings={headings} />
+					</div>
+				</details>
+
+				<nav aria-label="On this page" class="sticky top-20 hidden max-h-[calc(100svh-6rem)] overflow-y-auto border-l border-line pl-5 lg:block">
+					<h2 class="text-xs font-semibold tracking-wider text-soft uppercase">On this page</h2>
+					<div class="mt-3">
+						<SpecToc headings={headings} />
+					</div>
+
+					<h2 class="mt-9 text-xs font-semibold tracking-wider text-soft uppercase">Files</h2>
+					<ul class="mt-3 grid gap-2 font-mono text-[0.78rem]">
+						{
+							files.map((file) => (
+								<li>
+									<a href={`/spec/${file}`} class="rounded-sm break-all text-soft underline-offset-4 hover:text-accent hover:underline">
+										{file}
+									</a>
+								</li>
+							))
+						}
+					</ul>
+
+					<h2 class="mt-9 text-xs font-semibold tracking-wider text-soft uppercase">Source</h2>
+					<p class="mt-3 text-sm leading-relaxed text-soft">
+						This page is rendered from{' '}
+						<a href="/spec/README.md" class="rounded-sm font-mono text-[0.8125rem] underline-offset-4 hover:text-accent hover:underline">
+							spec/README.md
+						</a>{' '}
+						at build time.
+					</p>
+				</nav>
+			</aside>
+		</div>
+	</div>
+</Layout>

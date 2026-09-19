@@ -1,0 +1,10 @@
+{
+	"$type": "org.prodid.item",
+	"key": "TB-100.CAP",
+	"brand": "Acme",
+	"name": "Trail Bottle Cap",
+	"identifiers": [
+		{ "scheme": "gtin", "value": "95060002" },
+		{ "scheme": "asin", "value": "B000000000" }
+	]
+}

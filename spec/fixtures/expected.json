@@ -1,0 +1,50 @@
+{
+	"feed.domain-ip-literal.json": {
+		"instancePath": "/domain",
+		"keyword": "pattern"
+	},
+	"feed.domain-single-label.json": {
+		"instancePath": "/domain",
+		"keyword": "pattern"
+	},
+	"feed.domain-uppercase.json": {
+		"instancePath": "/domain",
+		"keyword": "pattern"
+	},
+	"feed.domain-with-scheme.json": {
+		"instancePath": "/domain",
+		"keyword": "pattern"
+	},
+	"feed.feeds-empty.json": {
+		"instancePath": "/feeds",
+		"keyword": "minItems"
+	},
+	"feed.version-not-zero.json": {
+		"instancePath": "/version",
+		"keyword": "const"
+	},
+	"item.gtin-wrong-length.json": {
+		"instancePath": "/identifiers/0/value",
+		"keyword": "pattern"
+	},
+	"item.key-forbidden-character.json": {
+		"instancePath": "/key",
+		"keyword": "pattern"
+	},
+	"item.media-http-url.json": {
+		"instancePath": "/media/0/url",
+		"keyword": "pattern"
+	},
+	"item.media-no-license.json": {
+		"instancePath": "/media/0",
+		"keyword": "required"
+	},
+	"item.scheme-uppercase.json": {
+		"instancePath": "/identifiers/0/scheme",
+		"keyword": "pattern"
+	},
+	"item.unknown-field.json": {
+		"instancePath": "",
+		"keyword": "additionalProperties"
+	}
+}

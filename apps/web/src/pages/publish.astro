@@ -1,0 +1,545 @@
+---
+import CodeSample from '@/components/code-sample.astro'
+import PageHeader from '@/components/page-header.astro'
+import Layout from '@/layouts/base.astro'
+import { examples } from '@/lib/spec'
+
+const DESCRIPTION =
+	'How a manufacturer or a software vendor publishes product data to prodid: the discovery document, the NDJSON feed, the one DNS TXT record for delegation, and the ping.'
+
+const routes = [
+	{
+		n: '1',
+		when: 'You can serve files on your own domain.',
+		who: 'A brand with an IT team, or a platform — e-commerce, ERP, PIM — publishing for every merchant it hosts.',
+		how: 'Serve the discovery document on the domain itself. No DNS record needed.',
+		identity: 'the domain',
+		trust: 'verified',
+		href: '#own-domain',
+	},
+	{
+		n: '2',
+		when: 'You own a domain but cannot serve files from it.',
+		who: 'A manufacturer whose website is on a platform it does not control.',
+		how: 'Upload at a hosted slug and add one DNS TXT record on your domain.',
+		identity: 'the domain, proven by DNS',
+		trust: 'verified',
+		href: '#delegated',
+	},
+	{
+		n: '3',
+		when: 'You have no domain at all.',
+		who: 'A small producer or a cooperative.',
+		how: 'Upload at a hosted slug and publish under it. Add a domain whenever you get one.',
+		identity: 'the slug host',
+		trust: 'unverified',
+		href: '#hosted',
+	},
+]
+
+const feedFields = [
+	{ field: '$type', required: 'yes', note: 'Always org.prodid.feed.' },
+	{ field: 'version', required: 'yes', note: '0 while the specification is a draft.' },
+	{ field: 'publisher.name', required: 'yes', note: 'The name a person should see next to your claims.' },
+	{ field: 'publisher.contact', required: 'no', note: 'An email address someone actually reads.' },
+	{ field: 'license', required: 'yes', note: 'SPDX identifier covering the facts in your feeds, such as CC0-1.0.' },
+	{ field: 'feeds', required: 'yes', note: 'One or more https URLs, every one on the same host as this document.' },
+	{
+		field: 'domain',
+		required: 'when delegating',
+		note: 'The domain this document speaks for. Required when the document is reached through a TXT record on a different host, and it must name that domain.',
+	},
+]
+
+const itemFields = [
+	{ field: '$type', required: 'yes', note: 'Always org.prodid.item.' },
+	{ field: 'key', required: 'yes', note: 'Your stable name for this record inside the feed. Publishing the same key again replaces it.' },
+	{ field: 'brand', required: 'yes', note: 'The brand as it appears on the product.' },
+	{ field: 'name', required: 'yes', note: 'The product name, without the variant axes.' },
+	{ field: 'identifiers', required: 'yes', note: 'At least one { scheme, value }. gtin values are checked, including the check digit.' },
+	{ field: 'lang', required: 'no', note: 'BCP 47 tag for the human-readable text in this record.' },
+	{ field: 'group', required: 'no', note: 'Your own grouping key. Items that share one are variants of a single family.' },
+	{ field: 'variant', required: 'no', note: 'The axes that distinguish this item within the group: color, size, capacity.' },
+	{ field: 'category', required: 'no', note: 'GS1 GPC brick code, written gpc: followed by eight digits.' },
+	{ field: 'markets', required: 'no', note: 'ISO 3166-1 alpha-2 codes of the markets this item is sold in.' },
+	{ field: 'properties', required: 'no', note: 'Strings, numbers, booleans, lists, or { value, unit } for a measurement.' },
+	{ field: 'media', required: 'no', note: 'https URLs, each with an SPDX license. Media without a licence is not fetched.' },
+]
+
+const trust = [
+	{ level: 'authoritative', meaning: 'Domain control proven and ownership of the brand confirmed.' },
+	{ level: 'verified', meaning: 'Domain control proven, through the document on the domain or through the DNS record.' },
+	{ level: 'unverified', meaning: 'A hosted slug with no domain, a dataset import, or a community contribution.' },
+]
+
+const ping = `curl -X POST https://prodid.org/ping \\
+  -H 'content-type: application/json' \\
+  -d '{"domain": "acme.example"}'`
+
+const wellKnown = `https://acme.example/.well-known/prodid.json`
+
+const checklist = [
+	'Discovery answers with HTTP 200 and a JSON body that validates against the feed schema — not an HTML “page not found” served with a 200.',
+	'If you use DNS, there is exactly one v=prodid0 TXT record at _prodid.<your domain>. Two is an error, not a choice.',
+	'The feed URL in that record ends in /.well-known/prodid.json, is https, and carries no port.',
+	'Every URL in feeds is https and on the same host as the discovery document that lists it.',
+	'The discovery document is served as application/json and does not redirect to another host.',
+	'Every feed line is one complete JSON object, UTF-8, newline separated, no array wrapper and no trailing commas.',
+	'Every key is stable and is never reused for a different product.',
+	'Every gtin is digits only, with a correct check digit.',
+	'No record contains an opid. The index assigns those.',
+	'Every media entry has an SPDX license, or it will be skipped.',
+]
+---
+
+<Layout title="Publish your products — prodid" description={DESCRIPTION} active="publish">
+	<PageHeader
+		eyebrow="Publisher guide"
+		title="Publish your products"
+		lead="Publishing to prodid means putting two files on the web. There is no account, no API key and no contract. What you publish is attributed to the domain you control, and you change or withdraw it by changing the files."
+	/>
+
+	<section aria-labelledby="discovery" class="border-t border-line">
+		<div class="shell py-14 sm:py-16">
+			<div class="max-w-3xl">
+				<h2 id="discovery" class="text-2xl font-semibold tracking-tight">How the index finds you</h2>
+				<p class="mt-5 text-base leading-relaxed text-soft sm:text-lg">
+					Before anything else, it is worth knowing how prodid decides where your data lives, because it decides which
+					of the three routes below is yours. Discovery runs from scratch on every crawl, DNS first.
+				</p>
+			</div>
+
+			<ol class="mt-9 grid max-w-3xl gap-px overflow-hidden rounded-xl border border-line bg-line [&>*]:min-w-0">
+				<li class="bg-surface p-6">
+					<p class="font-mono text-xs text-soft">First</p>
+					<h3 class="mt-2 text-base font-semibold tracking-tight">
+						A DNS TXT record at <code class="chip">_prodid.acme.example</code>
+					</h3>
+					<p class="mt-3 text-[0.9375rem] leading-relaxed text-soft">
+						If a <code class="chip">v=prodid0</code> record is there, it is followed and nothing else is tried. The
+						document it points at must name your domain back, unless it is on your domain anyway.
+					</p>
+				</li>
+				<li class="bg-surface p-6">
+					<p class="font-mono text-xs text-soft">Only if there is no such record</p>
+					<h3 class="mt-2 text-base font-semibold tracking-tight">
+						<code class="chip">{wellKnown}</code>
+					</h3>
+					<p class="mt-3 text-[0.9375rem] leading-relaxed text-soft">
+						The document on the domain itself. Whoever serves the domain over HTTPS speaks for it.
+					</p>
+				</li>
+			</ol>
+
+			<div class="mt-8 max-w-3xl">
+				<p class="text-base leading-relaxed text-soft">
+					DNS comes first because it is the stronger proof: whoever can put a file on a host is not always who owns the
+					domain, and the owner has to be able to override that.
+				</p>
+				<p class="mt-4 text-base leading-relaxed text-soft">
+					What that means for you in practice: <strong class="font-medium text-ink">serving the file on your own domain
+					is enough</strong>, and most publishers need nothing else. Add the TXT record when you cannot serve files at
+					all, or when you want DNS — the one thing only you control — to be the single place that says where your data
+					lives.
+				</p>
+			</div>
+
+			<div class="mt-8 grid max-w-3xl gap-4 [&>*]:min-w-0">
+				<p class="rounded-lg border border-line bg-surface p-5 text-[0.9375rem] leading-relaxed text-soft">
+					<strong class="font-medium text-ink">Exactly one record, and nothing behind it.</strong> More than one{' '}
+					<code class="chip">v=prodid0</code> record at that name is an error, not a choice between them, and a single
+					malformed one is an error too. There is also no fallback: once a record exists, a delegation that does not
+					answer is a failed discovery, not a reason to go and look at your domain instead. If you are migrating hosts,
+					replace the record — never add a second. The exact grammar is in the{' '}
+					<a href="/spec#the-_prodid-txt-record" class="rounded-sm text-accent underline-offset-4 hover:underline">
+						specification
+					</a>, with test vectors.
+				</p>
+				<p class="rounded-lg border border-line bg-surface p-5 text-[0.9375rem] leading-relaxed text-soft">
+					<strong class="font-medium text-ink">What counts as an answer.</strong> HTTP 200, a JSON body that validates
+					against the feed schema, and a <code class="chip">domain</code> field that is either absent or names the domain
+					being discovered. A site that answers unknown paths with an HTML page and a 200 is not answering; so is a
+					document that claims a domain it has no delegation from.
+				</p>
+			</div>
+		</div>
+	</section>
+
+	<section aria-labelledby="routes" class="border-t border-line">
+		<div class="shell py-14 sm:py-16">
+			<div class="max-w-3xl">
+				<h2 id="routes" class="text-2xl font-semibold tracking-tight">Choose how you publish</h2>
+				<p class="mt-5 text-base leading-relaxed text-soft sm:text-lg">
+					Identity and hosting are separate. Your identity is a domain you control; where the feed is physically hosted
+					is a detail you can change later without changing your identity or any identifier prodid has assigned to your
+					products. Three routes, all producing exactly the same records.
+				</p>
+			</div>
+			<ol class="mt-10 grid gap-px overflow-hidden rounded-xl border border-line bg-line lg:grid-cols-3 [&>*]:min-w-0">
+				{
+					routes.map((route) => (
+						<li class="flex flex-col bg-surface p-6">
+							<p class="font-mono text-xs text-soft">Route {route.n}</p>
+							<h3 class="mt-3 text-base font-semibold tracking-tight">{route.when}</h3>
+							<p class="mt-3 text-[0.9375rem] leading-relaxed text-soft">{route.who}</p>
+							<p class="mt-3 flex-1 text-[0.9375rem] leading-relaxed text-soft">{route.how}</p>
+							<dl class="mt-5 grid gap-1.5 border-t border-line pt-4 text-[0.8125rem] [&>*]:min-w-0">
+								<div class="flex gap-2">
+									<dt class="w-16 shrink-0 text-soft">Identity</dt>
+									<dd>{route.identity}</dd>
+								</div>
+								<div class="flex gap-2">
+									<dt class="w-16 shrink-0 text-soft">Trust</dt>
+									<dd class="font-mono">{route.trust}</dd>
+								</div>
+							</dl>
+							<a href={route.href} class="mt-5 rounded-sm text-sm font-medium text-accent underline-offset-4 hover:underline">
+								Steps for route {route.n} →
+							</a>
+						</li>
+					))
+				}
+			</ol>
+		</div>
+	</section>
+
+	<section aria-labelledby="own-domain" class="border-t border-line">
+		<div class="shell py-14 sm:py-16">
+			<div class="max-w-3xl">
+				<p class="font-mono text-xs tracking-[0.18em] text-soft uppercase">Route 1</p>
+				<h2 id="own-domain" class="mt-4 text-2xl font-semibold tracking-tight sm:text-3xl">
+					Publish on your own domain
+				</h2>
+				<p class="mt-5 text-base leading-relaxed text-soft sm:text-lg">
+					Two files and no DNS change. A platform publishing on behalf of merchants does the same thing on each merchant
+					domain, so every merchant keeps its own identity and its own trust level.
+				</p>
+			</div>
+
+			<div class="mt-12 grid gap-12 [&>*]:min-w-0">
+				<div>
+					<h3 class="text-lg font-semibold tracking-tight">Step 1 — Serve the discovery document</h3>
+					<p class="mt-3 max-w-3xl text-base leading-relaxed text-soft">
+						One file, at a fixed path, listing where your product feeds are:{' '}
+						<code class="chip">{wellKnown}</code>
+					</p>
+					<div class="mt-6 grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-start [&>*]:min-w-0">
+						<CodeSample
+							code={examples.feed}
+							lang="json"
+							label=".well-known/prodid.json"
+							badge="application/json"
+							caption="The example from spec/examples/prodid.json, rendered from the file itself."
+						/>
+						<div class="table-scroll" role="region" aria-label="Discovery document fields" tabindex="0">
+							<table class="data-table">
+								<thead>
+									<tr><th scope="col">Field</th><th scope="col">Required</th><th scope="col">What it is</th></tr>
+								</thead>
+								<tbody>
+									{
+										feedFields.map((row) => (
+											<tr>
+												<td class="font-mono text-[0.8125rem] whitespace-nowrap">{row.field}</td>
+												<td class="text-soft whitespace-nowrap">{row.required}</td>
+												<td class="text-soft">{row.note}</td>
+											</tr>
+										))
+									}
+								</tbody>
+							</table>
+						</div>
+					</div>
+					<p class="mt-5 max-w-3xl text-[0.9375rem] leading-relaxed text-soft">
+						Serve it over HTTPS on the default port, with a valid certificate, as{' '}
+						<code class="chip">application/json</code>. Do not redirect it to another host — the one redirect the crawler
+						follows is <code class="chip">acme.example</code> to <code class="chip">www.acme.example</code>.
+					</p>
+				</div>
+
+				<div>
+					<h3 class="text-lg font-semibold tracking-tight">Step 2 — Serve the feed</h3>
+					<p class="mt-3 max-w-3xl text-base leading-relaxed text-soft">
+						A feed is NDJSON: one complete JSON object per line, UTF-8, newline separated. No array around it, no commas
+						between lines. That way a feed of two million products streams line by line and one bad line never costs you
+						the rest.
+					</p>
+					<CodeSample
+						class="mt-6"
+						code={examples.items}
+						lang="jsonl"
+						label="prodid/items.ndjson"
+						badge="application/x-ndjson"
+						caption="Three variants of one product, from spec/examples/items.ndjson. They share a group, so the index builds one family with three variants from them."
+					/>
+					<p class="mt-6 max-w-3xl rounded-lg border border-line bg-surface p-5 text-[0.9375rem] leading-relaxed text-soft">
+						<strong class="font-medium text-ink">Feeds live on the same host as the document that lists them.</strong>{' '}
+						A discovery document naming a feed on another host is rejected whole, not in part — you lose the whole source,
+						not one feed, and it counts as a definite negative, so it starts the lapse clock below. Serving the JSON from
+						your site and the NDJSON from a separate CDN hostname is a normal thing to want and it is not supported in v0.
+						Put both on one host.
+					</p>
+					<p class="mt-8 max-w-3xl text-base leading-relaxed text-soft">The first of those lines, laid out to read:</p>
+					<div class="mt-4 grid gap-8 lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)] lg:items-start [&>*]:min-w-0">
+						<CodeSample code={examples.itemJacket} lang="json" label="one org.prodid.item record" />
+						<div class="table-scroll" role="region" aria-label="Item record fields" tabindex="0">
+							<table class="data-table">
+								<thead>
+									<tr><th scope="col">Field</th><th scope="col">Required</th><th scope="col">What it is</th></tr>
+								</thead>
+								<tbody>
+									{
+										itemFields.map((row) => (
+											<tr>
+												<td class="font-mono text-[0.8125rem] whitespace-nowrap">{row.field}</td>
+												<td class="text-soft whitespace-nowrap">{row.required}</td>
+												<td class="text-soft">{row.note}</td>
+											</tr>
+										))
+									}
+								</tbody>
+							</table>
+						</div>
+					</div>
+					<p class="mt-6 max-w-3xl text-[0.9375rem] leading-relaxed text-soft">
+						Send flat items. You never build families or variants yourself and you never send an{' '}
+						<code class="chip">opid</code> — the index derives the first from <code class="chip">group</code> and assigns
+						the second. If you already produce a Google Merchant feed, <code class="chip">group</code> is your{' '}
+						<code class="chip">item_group_id</code>.
+					</p>
+				</div>
+
+				<div>
+					<h3 class="text-lg font-semibold tracking-tight">Step 3 — Tell the index it changed</h3>
+					<p class="mt-3 max-w-3xl text-base leading-relaxed text-soft">
+						Optional. Every known domain is re-crawled on a schedule with conditional requests, so an unchanged feed
+						costs nobody anything. Ping when you want the change picked up now.
+					</p>
+					<CodeSample class="mt-6 max-w-2xl" code={ping} lang="bash" label="ask the index to run discovery for your domain" />
+					<p class="mt-4 max-w-3xl text-[0.9375rem] leading-relaxed text-soft">
+						There is no key to send, because the ping gives the caller no say over content: it only asks the index to run
+						discovery for that domain. It is rate limited per domain, per registrable domain, per fetched host and per
+						caller.
+					</p>
+				</div>
+			</div>
+		</div>
+	</section>
+
+	<section aria-labelledby="delegated" class="border-t border-line">
+		<div class="shell py-14 sm:py-16">
+			<div class="max-w-3xl">
+				<p class="font-mono text-xs tracking-[0.18em] text-soft uppercase">Route 2</p>
+				<h2 id="delegated" class="mt-4 text-2xl font-semibold tracking-tight sm:text-3xl">
+					Delegate the hosting, keep the identity
+				</h2>
+				<p class="mt-5 text-base leading-relaxed text-soft sm:text-lg">
+					Plenty of manufacturers own a domain and cannot put a file on it. Host the feed somewhere else and prove the
+					domain with DNS instead. Your source identity is still your domain, your trust level is still{' '}
+					<code class="chip">verified</code>, and the record takes precedence over anything served on the domain itself.
+				</p>
+			</div>
+
+			<div class="mt-12 grid gap-12 [&>*]:min-w-0">
+				<div>
+					<h3 class="text-lg font-semibold tracking-tight">Step 1 — Upload your catalogue</h3>
+					<p class="mt-3 max-w-3xl text-base leading-relaxed text-soft">
+						Upload a CSV or use the API at your hosted slug, for example <code class="chip">acme.prodid.org</code>. Your
+						discovery document and your feed are both served from there.
+					</p>
+				</div>
+
+				<div>
+					<h3 class="text-lg font-semibold tracking-tight">Step 2 — Add one DNS TXT record</h3>
+					<p class="mt-3 max-w-3xl text-base leading-relaxed text-soft">
+						One record, on the domain you own, with exactly this shape. The feed URL is always a host plus the fixed path{' '}
+						<code class="chip">/.well-known/prodid.json</code> — no other path, no port, always{' '}
+						<code class="chip">https</code>. That is deliberate: a TXT record can point the crawler at a host, never at an
+						arbitrary URL.
+					</p>
+					<div class="table-scroll mt-6 max-w-3xl" role="region" aria-label="DNS record" tabindex="0">
+						<table class="data-table">
+							<thead>
+								<tr><th scope="col">Name</th><th scope="col">Type</th><th scope="col">Value</th></tr>
+							</thead>
+							<tbody>
+								<tr>
+									<td class="font-mono text-[0.8125rem] whitespace-nowrap">_prodid.acme.example</td>
+									<td class="font-mono text-[0.8125rem]">TXT</td>
+									<td class="font-mono text-[0.8125rem]">v=prodid0; feed=https://acme.prodid.org/.well-known/prodid.json</td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+				</div>
+
+				<div>
+					<h3 class="text-lg font-semibold tracking-tight">Step 3 — Name your domain in the document</h3>
+					<p class="mt-3 max-w-3xl text-base leading-relaxed text-soft">
+						The document served at that host must carry your domain. DNS says <em>my document is over there</em>; the
+						document says <em>I speak for that domain</em>. Both have to agree, or the feed is attributed to nobody — which
+						is what stops anyone pointing a TXT record at somebody else's feed.
+					</p>
+					<CodeSample
+						class="mt-6 max-w-2xl"
+						code={examples.feedDelegated}
+						lang="json"
+						label="acme.prodid.org/.well-known/prodid.json"
+						badge="application/json"
+						caption="From spec/examples/prodid.delegated.json. The only difference from route 1 is the domain field."
+					/>
+					<p class="mt-5 max-w-3xl text-[0.9375rem] leading-relaxed text-soft">
+						A hosted publisher writes <code class="chip">domain</code> into the document only after it has seen your TXT
+						record itself. Until then the slug keeps publishing under its own unverified identity, so there is no window
+						where a document claims a domain that has not asked for it.
+					</p>
+				</div>
+
+				<div>
+					<h3 class="text-lg font-semibold tracking-tight">Step 4 — Ping</h3>
+					<p class="mt-3 max-w-3xl text-base leading-relaxed text-soft">
+						Same call as route 1, with your own domain — not the slug. The index queries your TXT record, fetches the
+						document from the host it names, and checks that the document names you back.
+					</p>
+				</div>
+			</div>
+		</div>
+	</section>
+
+	<section aria-labelledby="hosted" class="border-t border-line">
+		<div class="shell py-14 sm:py-16">
+			<div class="max-w-3xl">
+				<p class="font-mono text-xs tracking-[0.18em] text-soft uppercase">Route 3</p>
+				<h2 id="hosted" class="mt-4 text-2xl font-semibold tracking-tight sm:text-3xl">Publish without a domain</h2>
+				<p class="mt-5 text-base leading-relaxed text-soft sm:text-lg">
+					Upload at <code class="chip">&lt;slug&gt;.prodid.org</code> and publish under it. Your source identity is the
+					slug host and your trust level is <code class="chip">unverified</code>, because nothing has been proven about a
+					domain. The records are real records: they get identifiers, they resolve, and they are attributed to you.
+				</p>
+				<p class="mt-5 text-base leading-relaxed text-soft sm:text-lg">
+					When you do get a domain, add the TXT record and route 2 applies —{' '}
+					<strong class="font-medium text-ink">every identifier and every <code class="chip">opid</code> you already have
+					is kept</strong>. Your source is one permanent row that changes its name; nothing that pointed at your products
+					breaks, and your <code class="chip">sku</code> identifiers stay attached to you rather than to the old slug.
+				</p>
+			</div>
+		</div>
+	</section>
+
+	<section aria-labelledby="trust" class="border-t border-line">
+		<div class="shell py-14 sm:py-16">
+			<div class="max-w-3xl">
+				<h2 id="trust" class="text-2xl font-semibold tracking-tight">What trust means here</h2>
+				<p class="mt-5 text-base leading-relaxed text-soft sm:text-lg">
+					Trust is a property of the source, not of a claim. It says what has been proven about who is speaking, and
+					nothing about whether a particular fact is correct. A consumer of the data decides what to do with that.
+				</p>
+				<div class="table-scroll mt-8" role="region" aria-label="Trust levels" tabindex="0">
+					<table class="data-table">
+						<thead>
+							<tr><th scope="col">Level</th><th scope="col">Meaning</th></tr>
+						</thead>
+						<tbody>
+							{
+								trust.map((row) => (
+									<tr>
+										<td class="font-mono text-[0.8125rem] whitespace-nowrap">{row.level}</td>
+										<td class="text-soft">{row.meaning}</td>
+									</tr>
+								))
+							}
+						</tbody>
+					</table>
+				</div>
+			</div>
+		</div>
+	</section>
+
+	<section aria-labelledby="after" class="border-t border-line">
+		<div class="shell py-14 sm:py-16">
+			<div class="max-w-3xl">
+				<h2 id="after" class="text-2xl font-semibold tracking-tight">After you publish</h2>
+				<ul class="mt-8 grid gap-6 [&>*]:min-w-0">
+					<li class="border-l-2 border-rule pl-5">
+						<p class="font-medium">Changing a record is editing a line.</p>
+						<p class="mt-1 text-[0.9375rem] leading-relaxed text-soft">
+							Publishing a record with a key that already exists replaces the previous one. There is no update endpoint,
+							because the feed is the state.
+						</p>
+					</li>
+					<li class="border-l-2 border-rule pl-5">
+						<p class="font-medium">Removing a line withdraws your claims, not the product.</p>
+						<p class="mt-1 text-[0.9375rem] leading-relaxed text-soft">
+							A key that disappears from your feed marks your claims about it as withdrawn. The entity and its identifier
+							stay: other people's links to it keep working, and so do the claims other sources made.
+						</p>
+					</li>
+					<li class="border-l-2 border-rule pl-5">
+						<p class="font-medium">If discovery stops working, your source lapses.</p>
+						<p class="mt-1 text-[0.9375rem] leading-relaxed text-soft">
+							A network failure changes nothing — a DNS timeout, a 5xx, a rate limit, and the index simply retries. But a
+							definite negative, meaning the TXT record is gone or malformed, the document is gone or no longer valid, it
+							no longer agrees about your domain, or it lists a feed off its host, marks the source{' '}
+							<strong class="font-medium text-ink">lapsed</strong>. Readers are shown that, no new claims are taken, and
+							after 30 days of continuous lapse your active claims are withdrawn — kept as history, not deleted. Any
+							successful discovery clears it. This is the reason to think twice before letting a domain expire or tidying
+							away a TXT record nobody recognises. A feed that fails to fetch is outside all of this: it withdraws nothing
+							and lapses nobody.
+						</p>
+					</li>
+					<li class="border-l-2 border-rule pl-5">
+						<p class="font-medium">Other sources will publish about your products.</p>
+						<p class="mt-1 text-[0.9375rem] leading-relaxed text-soft">
+							Retailers, registries, open datasets and contributors are sources like any other. Their claims are
+							attributed to them and never overwrite yours; where you disagree, both claims are visible with their
+							sources side by side.
+						</p>
+					</li>
+					<li class="border-l-2 border-rule pl-5">
+						<p class="font-medium">Media needs a licence or it is not fetched.</p>
+						<p class="mt-1 text-[0.9375rem] leading-relaxed text-soft">
+							Each media entry states an SPDX licence. The index stores the file under its SHA-256 and keeps the hash,
+							the original URL, the licence, the source and the fetch time, so anyone can see what they are allowed to do
+							with the image.
+						</p>
+					</li>
+				</ul>
+			</div>
+		</div>
+	</section>
+
+	<section aria-labelledby="checklist" class="border-t border-line">
+		<div class="shell py-14 sm:py-16">
+			<div class="max-w-3xl">
+				<h2 id="checklist" class="text-2xl font-semibold tracking-tight">Before you go live</h2>
+				<ul class="mt-8 grid gap-3 [&>*]:min-w-0">
+					{
+						checklist.map((item) => (
+							<li class="flex gap-3 text-[0.9375rem] leading-relaxed">
+								<span aria-hidden="true" class="mt-[0.45em] size-1.5 shrink-0 rounded-full bg-rule" />
+								<span class="text-soft">{item}</span>
+							</li>
+						))
+					}
+				</ul>
+				<p class="mt-8 text-[0.9375rem] leading-relaxed text-soft">
+					The rules a record is validated against are in the{' '}
+					<a href="/spec" class="rounded-sm text-accent underline-offset-4 hover:underline">specification</a>, and the
+					schemas themselves are served at{' '}
+					<a href="/spec/schemas/org.prodid.feed.json" class="rounded-sm font-mono text-[0.8125rem] text-accent underline-offset-4 hover:underline">
+						org.prodid.feed.json
+					</a>{' '}
+					and{' '}
+					<a href="/spec/schemas/org.prodid.item.json" class="rounded-sm font-mono text-[0.8125rem] text-accent underline-offset-4 hover:underline">
+						org.prodid.item.json
+					</a>.
+				</p>
+				<p class="mt-6 rounded-lg border border-line bg-surface p-5 text-[0.9375rem] leading-relaxed text-soft">
+					<strong class="font-medium text-ink">Status:</strong> the specification is a v0 draft and the index is not running
+					yet, so nothing you publish today is crawled today. The file formats on this page are what will be read when it
+					is, and they are worth generating now.
+				</p>
+			</div>
+		</div>
+	</section>
+</Layout>

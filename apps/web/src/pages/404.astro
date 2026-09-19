@@ -1,0 +1,41 @@
+---
+import Layout from '@/layouts/base.astro'
+
+const elsewhere = [
+	{ href: '/spec', label: 'The specification', note: 'Identifiers, records, claims, resolving.' },
+	{ href: '/publish', label: 'Publish your products', note: 'The discovery document, the feed, the DNS record.' },
+	{ href: '/', label: 'What prodid is', note: 'The problem, the model, an example.' },
+]
+---
+
+<Layout
+	title="Not found — prodid"
+	description="No page at this address on prodid.org."
+	noindex
+>
+	<div class="shell">
+		<div class="max-w-2xl py-20 sm:py-28">
+			<p class="font-mono text-xs tracking-[0.18em] text-soft uppercase">Error 404</p>
+			<h1 class="mt-5 text-3xl font-semibold tracking-tight sm:text-4xl">There is no page at this address.</h1>
+			<p class="mt-6 text-base leading-relaxed text-soft sm:text-lg">
+				If you followed a product link such as <code class="chip">prodid.org/01/09506000134352</code>, the resolver is not
+				running yet — the reference implementation is still being built.
+			</p>
+			<ul class="mt-10 grid gap-px overflow-hidden rounded-xl border border-line bg-line [&>*]:min-w-0">
+				{
+					elsewhere.map((item) => (
+						<li class="bg-surface">
+							<a href={item.href} class="flex items-baseline justify-between gap-4 px-5 py-4 hover:bg-sunken">
+								<span>
+									<span class="font-medium">{item.label}</span>
+									<span class="mt-1 block text-sm text-soft">{item.note}</span>
+								</span>
+								<span aria-hidden="true" class="text-soft">→</span>
+							</a>
+						</li>
+					))
+				}
+			</ul>
+		</div>
+	</div>
+</Layout>

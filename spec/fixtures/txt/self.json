@@ -1,0 +1,5 @@
+{
+	"value": ["v=prodid0; feed=https://acme.example/.well-known/prodid.json"],
+	"valid": true,
+	"feed": "https://acme.example/.well-known/prodid.json"
+}
