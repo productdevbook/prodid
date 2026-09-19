@@ -1,0 +1,7 @@
+{
+  "$type": "org.prodid.feed",
+  "version": 0,
+  "publisher": { "name": "Acme Tekstil", "contact": "data@acme.example" },
+  "license": "CC0-1.0",
+  "feeds": ["https://acme.example/prodid/items.ndjson"]
+}
