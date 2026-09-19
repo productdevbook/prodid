@@ -12,8 +12,11 @@ export interface Limiter {
 	caller(key: string, now: Date): Promise<Decision>
 	/** First contact with a domain under a registrable domain nobody has introduced yet. */
 	firstContact(registrable: string, now: Date): Promise<Decision>
-	/** One fetch of one host, in the verified or the unverified lane. */
-	hostFetch(host: string, verified: boolean, now: Date): Promise<HostDecision>
+	/**
+	 * One fetch of one host, in the verified or the unverified lane. `zone` is the registrable
+	 * domain the fetch is on behalf of; it bounds any one zone's share of the unverified lane.
+	 */
+	hostFetch(host: string, verified: boolean, now: Date, zone?: string): Promise<HostDecision>
 	/** Tells the host's bucket how many sources are verified there, so both lanes can scale. */
 	reportVerifiedSources(host: string, count: number, now: Date): Promise<void>
 }
@@ -33,8 +36,8 @@ export class DurableLimiter implements Limiter {
 		return this.at(`registrable:${registrable}`).take('first-contact', now.getTime(), POLICY.registrable.windowMs, POLICY.registrable.limit)
 	}
 
-	hostFetch(host: string, verified: boolean, now: Date): Promise<HostDecision> {
-		return this.at(`host:${host}`).host(now.getTime(), POLICY.host.windowMs, verified, POLICY.host.staleAfterMs)
+	hostFetch(host: string, verified: boolean, now: Date, zone?: string): Promise<HostDecision> {
+		return this.at(`host:${host}`).host(now.getTime(), POLICY.host.windowMs, verified, POLICY.host.staleAfterMs, zone)
 	}
 
 	async reportVerifiedSources(host: string, count: number, now: Date): Promise<void> {

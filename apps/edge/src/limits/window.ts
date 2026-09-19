@@ -17,6 +17,13 @@ export interface HostDecision extends Decision {
 	needsCount: boolean
 }
 
+/**
+ * No single registrable domain may take more than this share of the unverified lane at a host, so
+ * a publisher pointing its own new domain at a busy shared host is never behind strangers' domains
+ * alone: at least four zones can always make progress there.
+ */
+export const ZONE_SHARE = 4
+
 export const BASE_VERIFIED_LANE = 40
 export const BASE_UNVERIFIED_LANE = 20
 export const MAX_VERIFIED_LANE = 600
@@ -34,9 +41,16 @@ export function laneLimits(verifiedSources: number): { total: number; unverified
 }
 
 export function initLimitSchema(sql: SqlLike): void {
-	sql.exec('create table if not exists hits (lane text not null, at integer not null)')
+	sql.exec("create table if not exists hits (lane text not null, at integer not null, zone text not null default '')")
 	sql.exec('create index if not exists hits_lane on hits (lane, at)')
 	sql.exec('create table if not exists meta (name text primary key, value integer not null, at integer not null)')
+}
+
+/** True once nothing is left inside any window: the bucket can be deleted rather than kept forever. */
+export function isEmpty(sql: SqlLike, now: number, windowMs: number): boolean {
+	sql.exec('delete from hits where at <= ?', now - windowMs)
+	const rows = sql.exec<{ used: number }>('select count(*) as used from hits').toArray()
+	return (rows[0]?.used ?? 0) === 0
 }
 
 /** One event per window: the per-domain discovery gate. A second attempt inside it is deferred, never refused. */
@@ -69,14 +83,14 @@ export function takeHost(
 	now: number,
 	windowMs: number,
 	verified: boolean,
-	options: { staleAfterMs: number; fallbackVerifiedSources?: number },
+	options: { staleAfterMs: number; zone?: string },
 ): HostDecision {
 	const since = now - windowMs
 	sql.exec('delete from hits where lane in (?, ?) and at <= ?', 'verified', 'unverified', since)
 
 	const counted = sql.exec<{ value: number; at: number }>('select value, at from meta where name = ?', 'verified_sources').toArray()
 	const stored = counted[0]
-	const verifiedSources = stored?.value ?? options.fallbackVerifiedSources ?? 0
+	const verifiedSources = stored?.value ?? 0
 	const needsCount = stored === undefined || now - stored.at > options.staleAfterMs
 	const limits = laneLimits(verifiedSources)
 
@@ -99,7 +113,23 @@ export function takeHost(
 	if (total >= limits.total || (!verified && unverified >= limits.unverified)) {
 		return { ok: false, retryAfterMs: retryAfter(oldest, now, windowMs), needsCount }
 	}
-	sql.exec('insert into hits (lane, at) values (?, ?)', verified ? 'verified' : 'unverified', now)
+
+	const zone = options.zone ?? ''
+	if (!verified && zone !== '') {
+		const share = Math.max(1, Math.ceil(limits.unverified / ZONE_SHARE))
+		const mine = sql
+			.exec<{ used: number; oldest: number | null }>(
+				'select count(*) as used, min(at) as oldest from hits where lane = ? and zone = ?',
+				'unverified',
+				zone,
+			)
+			.toArray()[0]
+		if ((mine?.used ?? 0) >= share) {
+			return { ok: false, retryAfterMs: retryAfter(mine?.oldest ?? null, now, windowMs), needsCount }
+		}
+	}
+
+	sql.exec('insert into hits (lane, at, zone) values (?, ?, ?)', verified ? 'verified' : 'unverified', now, zone)
 	return { ok: true, retryAfterMs: 0, needsCount }
 }
 

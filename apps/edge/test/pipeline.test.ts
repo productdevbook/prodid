@@ -216,13 +216,28 @@ describe.skipIf(!reachable)('delegation', () => {
 		expect((await entityFor(at, GTINS.navy)).claims.length).toBeGreaterThan(0)
 	})
 
-	test('a slug that gains a domain keeps every sku and every opid', async () => {
+	test('a name under the hosting zone is hosted and unverified however it was discovered', async () => {
+		const at = edge!
+		at.net.document('acme.prodid.org', document({ feeds: ['https://acme.prodid.org/items.ndjson'] }))
+		at.net.feed('https://acme.prodid.org/items.ndjson', [JACKET.navy])
+
+		// Discovered by a plain ping, through the delivered path, with no row prepared for it.
+		expect((await at.fetch('/ping', { method: 'POST', body: JSON.stringify({ domain: 'acme.prodid.org' }) })).status).toBe(202)
+		await at.drain()
+
+		const slug = await json<SourceRecord>(await at.fetch('/source/acme.prodid.org'))
+		expect(validateSource(slug).ok).toBe(true)
+		expect(slug.kind).toBe('hosted')
+		expect(slug.trust).toBe('unverified')
+		expect(slug.verified_by).toBeUndefined()
+	})
+
+	test('a slug that gains a domain keeps every sku and every opid, through the delivered path', async () => {
 		const at = edge!
 		at.net.document('acme.prodid.org', document({ feeds: ['https://acme.prodid.org/items.ndjson'] }))
 		at.net.feed('https://acme.prodid.org/items.ndjson', [JACKET.navy, JACKET.black])
 
-		// The hosted publisher exists first, unverified, under its slug.
-		await at.sql`insert into source (kind, name) values ('hosted', 'acme.prodid.org')`
+		// The hosted publisher is created by its own crawl, not by the test.
 		expect(await at.crawl('acme.prodid.org')).toMatchObject({ kind: 'done', outcome: 'changed' })
 
 		const before = await entityFor(at, GTINS.navy)
@@ -252,12 +267,18 @@ describe.skipIf(!reachable)('delegation', () => {
 		const skusAfter = await at.sql<{ scope: string; value: string; opid: string }[]>`
 			select scope, value, opid from identifier where scheme = 'sku' order by value
 		`
-		expect(skusAfter).toEqual(skusBefore)
+		expect([...skusAfter]).toEqual([...skusBefore])
 		// The public scope is the source's name, which is now the domain.
 		expect(after.identifiers).toContainEqual({ scheme: 'sku', value: 'TJ-NV-M', scope: 'acme.example' })
 
+		// One publisher, one row, one sku namespace, and the claims were not said twice.
 		const rows = await at.sql<{ count: string }[]>`select count(*)::text as count from source`
 		expect(rows[0]?.count).toBe('1')
+		const names = await at.sql<{ property: string; count: string }[]>`
+			select property, count(*)::text as count from claim
+			where opid = ${after.opid} and withdrawn_at is null group by property order by property
+		`
+		for (const row of names) expect(row.count).toBe('1')
 	})
 })
 
@@ -354,7 +375,7 @@ describe.skipIf(!reachable)('conditional requests', () => {
 		expect(status.last_crawl?.outcome).toBe('success')
 	})
 
-	test('a feed that answers 304 beside one that changed is read again, so withdrawal stays exact', async () => {
+	test('withdrawal is scoped to the feed that was read, and a 304 sibling is left alone', async () => {
 		edge!.net.document('acme.example', document({ feeds: [FEED_A, FEED_B] }), { etag: 'd1' })
 		edge!.net.feed(FEED_A, [JACKET.navy, JACKET.black], { etag: 'a1' })
 		edge!.net.feed(FEED_B, [JACKET.olive], { etag: 'b1' })
@@ -365,10 +386,34 @@ describe.skipIf(!reachable)('conditional requests', () => {
 		const before = edge!.net.fetched.filter((url) => url === FEED_B).length
 		expect(await edge!.crawl('acme.example')).toMatchObject({ kind: 'done', outcome: 'changed' })
 
-		// B answered 304, then was asked again without the validator so its keys are known.
-		expect(edge!.net.fetched.filter((url) => url === FEED_B).length - before).toBe(2)
+		// B answered 304 once and was not read again: `record.feed` says which keys were its.
+		expect(edge!.net.fetched.filter((url) => url === FEED_B).length - before).toBe(1)
 		expect((await entityFor(edge!, GTINS.black)).claims).toHaveLength(0)
 		expect((await entityFor(edge!, GTINS.olive)).claims.length).toBeGreaterThan(0)
 		expect((await entityFor(edge!, GTINS.navy)).claims.length).toBeGreaterThan(0)
+
+		const feeds = await edge!.sql<{ key: string; feed: string | null }[]>`
+			select key, feed from record where withdrawn_at is null order by key
+		`
+		expect([...feeds]).toEqual([
+			{ key: 'tj-navy-m', feed: FEED_A },
+			{ key: 'tj-olive-m', feed: FEED_B },
+		])
+	})
+
+	test('a key that moves to another feed is withdrawn by neither', async () => {
+		edge!.net.document('acme.example', document({ feeds: [FEED_A, FEED_B] }), { etag: 'd1' })
+		edge!.net.feed(FEED_A, [JACKET.navy, JACKET.black])
+		edge!.net.feed(FEED_B, [JACKET.olive])
+		await edge!.crawl('acme.example')
+
+		edge!.clock.advance(TEN_MINUTES)
+		edge!.net.feed(FEED_A, [JACKET.navy])
+		edge!.net.feed(FEED_B, [JACKET.olive, JACKET.black])
+		await edge!.crawl('acme.example')
+
+		expect((await entityFor(edge!, GTINS.black)).claims.length).toBeGreaterThan(0)
+		const moved = await edge!.sql<{ feed: string }[]>`select feed from record where key = 'tj-black-m'`
+		expect(moved[0]?.feed).toBe(FEED_B)
 	})
 })

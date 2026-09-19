@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 
-import { normalizeBrand, normalizeIdentifier } from '../src/identifier'
+import { type IdentifierScope, normalizeBrand, normalizeIdentifier } from '../src/identifier'
 
 describe('normalizeBrand', () => {
 	test('applies NFKC, case folding and whitespace collapsing', () => {
@@ -12,7 +12,7 @@ describe('normalizeBrand', () => {
 })
 
 describe('normalizeIdentifier', () => {
-	const scope = { brand: 'Acme Tekstil', sourceScope: '01JQZ9' }
+	const scope = { brand: 'Acme Tekstil', sourceScope: '42' }
 
 	test('normalizes a gtin to 14 digits in the global scope', () => {
 		expect(normalizeIdentifier({ scheme: 'gtin', value: '9506000134420' }, scope)).toEqual({
@@ -26,11 +26,11 @@ describe('normalizeIdentifier', () => {
 		// 20… is issued inside one region: as a global gtin it merged unrelated products across sources.
 		expect(normalizeIdentifier({ scheme: 'gtin', value: '2001234567893' }, scope)).toEqual({
 			scheme: 'rcn',
-			scope: '01JQZ9',
+			scope: '42',
 			value: '02001234567893',
 		})
 		expect(normalizeIdentifier({ scheme: 'gtin', value: '01234565' }, scope)?.scheme).toBe('rcn')
-		expect(normalizeIdentifier({ scheme: 'rcn', value: 'X-1' }, scope)).toEqual({ scheme: 'rcn', scope: '01JQZ9', value: 'X-1' })
+		expect(normalizeIdentifier({ scheme: 'rcn', value: 'X-1' }, scope)).toEqual({ scheme: 'rcn', scope: '42', value: 'X-1' })
 	})
 
 	test('rejects a gtin that does not check out', () => {
@@ -45,17 +45,22 @@ describe('normalizeIdentifier', () => {
 			scope: 'acme tekstil',
 			value: 'TJ-2041',
 		})
-		expect(normalizeIdentifier({ scheme: 'mpn', value: 'TJ-2041' }, {})).toEqual({ scheme: 'mpn', scope: '', value: 'TJ-2041' })
+		// An unscoped mpn would sit in the global namespace beside every other brand's part numbers.
+		expect(normalizeIdentifier({ scheme: 'mpn', value: 'TJ-2041' }, {})).toBeNull()
+		expect(normalizeIdentifier({ scheme: 'mpn', value: 'TJ-2041' }, { brand: '   ' })).toBeNull()
 	})
 
 	test('scopes a sku to the source id and leaves that id alone', () => {
 		expect(normalizeIdentifier({ scheme: 'sku', value: 'ACME-TJ2041' }, scope)).toEqual({
 			scheme: 'sku',
-			scope: '01JQZ9',
+			scope: '42',
 			value: 'ACME-TJ2041',
 		})
-		expect(normalizeIdentifier({ scheme: 'sku', value: 'x' }, { sourceScope: 'Acme.Example' })?.scope).toBe('Acme.Example')
-		expect(normalizeIdentifier({ scheme: 'sku', value: 'x' }, {})?.scope).toBe('')
+		// The index stores the scope of a sku or rcn as source.id, and its check constraint wants digits.
+		expect(normalizeIdentifier({ scheme: 'sku', value: 'x' }, { sourceScope: 'acme.example' })).toBeNull()
+		expect(normalizeIdentifier({ scheme: 'sku', value: 'x' }, { sourceScope: '' })).toBeNull()
+		expect(normalizeIdentifier({ scheme: 'sku', value: 'x' }, {})).toBeNull()
+		expect(normalizeIdentifier({ scheme: 'gtin', value: '2001234567893' }, { brand: 'Acme' })).toBeNull()
 	})
 
 	test('leaves every other scheme global and only trims the value', () => {
@@ -69,6 +74,29 @@ describe('normalizeIdentifier', () => {
 			scope: '',
 			value: 'SH025 123456',
 		})
+	})
+
+	test('never produces a scope the index would refuse to store', () => {
+		// identifier's check constraint: mpn non-empty, sku and rcn digits, every other scheme empty.
+		const scopes: IdentifierScope[] = [{}, scope, { brand: 'Acme' }, { sourceScope: '7' }, { brand: '  ', sourceScope: 'x' }]
+		const identifiers = [
+			{ scheme: 'gtin', value: '9506000134420' },
+			{ scheme: 'gtin', value: '2001234567893' },
+			{ scheme: 'mpn', value: 'TJ-1' },
+			{ scheme: 'sku', value: 'S-1' },
+			{ scheme: 'rcn', value: 'R-1' },
+			{ scheme: 'asin', value: 'B000000000' },
+			{ scheme: 'oeko-tex', value: 'SH025 123456' },
+		]
+		for (const candidate of scopes) {
+			for (const identifier of identifiers) {
+				const normalized = normalizeIdentifier(identifier, candidate)
+				if (normalized === null) continue
+				if (normalized.scheme === 'mpn') expect(normalized.scope).not.toBe('')
+				else if (normalized.scheme === 'sku' || normalized.scheme === 'rcn') expect(normalized.scope).toMatch(/^[0-9]+$/)
+				else expect(normalized.scope).toBe('')
+			}
+		}
 	})
 
 	test('rejects an empty scheme or value', () => {

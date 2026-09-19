@@ -5,6 +5,8 @@ import type { RecordIdentifier } from './record/types'
 const DOTTED_OR_DOTLESS_I = new RegExp('[\\u0130\\u0131]', 'gu')
 // The whole run of dots, not one: `i` + two dots has to fold in a single pass, or normalizing twice differs.
 const I_WITH_COMBINING_DOTS = new RegExp('i\\u0307+', 'gu')
+/** `source.id` is a bigint identity, and the index's identifier check demands digits for sku and rcn. */
+const SOURCE_ID = /^[0-9]+$/
 
 export interface NormalizedIdentifier {
 	scheme: string
@@ -15,7 +17,7 @@ export interface NormalizedIdentifier {
 export interface IdentifierScope {
 	/** The record's brand, which scopes `mpn`. */
 	brand?: string
-	/** The index's `source.id`, which scopes `sku`. Opaque: it is never parsed or case folded. */
+	/** The index's `source.id`, which scopes `sku` and `rcn`: a decimal integer written as a string. */
 	sourceScope?: string
 }
 
@@ -39,7 +41,12 @@ export function normalizeBrand(brand: string): string {
 	)
 }
 
-/** Normalizes a published identifier into the `(scheme, scope, value)` triple the index is unique on. */
+/**
+ * Normalizes a published identifier into the `(scheme, scope, value)` triple the index is unique on,
+ * or null when it cannot be stored. An identifier with no usable scope is null rather than
+ * `scope: ''`: an unscoped `mpn` would sit in the global namespace and match every other brand's
+ * part number. The scope each scheme needs is what the index's own check constraint demands.
+ */
 export function normalizeIdentifier(identifier: RecordIdentifier, scope: IdentifierScope = {}): NormalizedIdentifier | null {
 	const scheme = identifier.scheme.trim().toLowerCase()
 	const value = identifier.value.trim()
@@ -49,15 +56,24 @@ export function normalizeIdentifier(identifier: RecordIdentifier, scope: Identif
 			const gtin = parseGtin(value)
 			if (!gtin.ok) return null
 			// A restricted-circulation number is not a GTIN anyone else can resolve: it belongs to its source.
-			if (gtin.restricted) return { scheme: 'rcn', scope: scope.sourceScope ?? '', value: gtin.value }
-			return { scheme, scope: '', value: gtin.value }
+			if (!gtin.restricted) return { scheme, scope: '', value: gtin.value }
+			const source = sourceScope(scope)
+			return source === null ? null : { scheme: 'rcn', scope: source, value: gtin.value }
 		}
-		case 'mpn':
-			return { scheme, scope: scope.brand === undefined ? '' : normalizeBrand(scope.brand), value }
+		case 'mpn': {
+			const brand = scope.brand === undefined ? '' : normalizeBrand(scope.brand)
+			return brand === '' ? null : { scheme, scope: brand, value }
+		}
 		case 'rcn':
-		case 'sku':
-			return { scheme, scope: scope.sourceScope ?? '', value }
+		case 'sku': {
+			const source = sourceScope(scope)
+			return source === null ? null : { scheme, scope: source, value }
+		}
 		default:
 			return { scheme, scope: '', value }
 	}
+}
+
+function sourceScope(scope: IdentifierScope): string | null {
+	return scope.sourceScope !== undefined && SOURCE_ID.test(scope.sourceScope) ? scope.sourceScope : null
 }

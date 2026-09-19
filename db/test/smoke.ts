@@ -307,6 +307,40 @@ async function verification(sql: Sql, source: string, proof: string): Promise<vo
 	equals('a source that has already lapsed is not found again', gone?.id, undefined)
 
 	await sql`update source set lapsed_at = null, failing_since = null where id = ${source}`
+
+	await sql`update source set last_crawled_at = null, queued_at = null where id = ${source}`
+	const claim = (): Promise<{ id: string }[]> =>
+		sql<{ id: string }[]>`
+      select id from source
+      where (last_crawled_at is null or last_crawled_at <= now() - interval '6 hours')
+        and (queued_at is null or queued_at <= now() - interval '15 minutes')
+      order by last_crawled_at nulls first, id
+      limit 100
+    `
+	const uncrawled = await claim()
+	equals(
+		'a never-crawled source is due',
+		uncrawled.some((row) => row.id === source),
+		true,
+	)
+
+	await sql`update source set queued_at = now() where id = ${source}`
+	const afterQueue = await claim()
+	equals(
+		'a source just handed to the queue is not due again',
+		afterQueue.some((row) => row.id === source),
+		false,
+	)
+
+	await sql`update source set queued_at = now() - interval '16 minutes' where id = ${source}`
+	const afterGrace = await claim()
+	equals(
+		'a source whose queued crawl never came back is due again',
+		afterGrace.some((row) => row.id === source),
+		true,
+	)
+
+	await sql`update source set queued_at = null where id = ${source}`
 }
 
 async function hierarchy(sql: Sql): Promise<Chain> {

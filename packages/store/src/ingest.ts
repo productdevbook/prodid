@@ -54,11 +54,11 @@ interface ClaimRow {
  */
 export async function ingestRecords(
 	sql: Sql,
-	input: { source: string; records: readonly PreparedRecord[]; now: Date },
+	input: { source: string; feed: string | null; records: readonly PreparedRecord[]; now: Date },
 ): Promise<IngestResult> {
 	const result: IngestResult = { seen: 0, changed: 0, claimsInserted: 0, claimsWithdrawn: 0, disagreements: [], keys: [] }
 	for (const prepared of input.records) {
-		const outcome = await ingestRecord(sql, { source: input.source, record: prepared, now: input.now })
+		const outcome = await ingestRecord(sql, { source: input.source, feed: input.feed, record: prepared, now: input.now })
 		result.seen += 1
 		result.keys.push(outcome.key)
 		if (outcome.changed) result.changed += 1
@@ -69,11 +69,25 @@ export async function ingestRecords(
 	return result
 }
 
-export function ingestRecord(sql: Sql, input: { source: string; record: PreparedRecord; now: Date }): Promise<RecordOutcome> {
-	return withRetry(() => sql.begin((tx) => ingestOnce(tx, input.source, input.record, input.now)))
+export function ingestRecord(
+	sql: Sql,
+	input: { source: string; feed?: string | null; record: PreparedRecord; now: Date },
+): Promise<RecordOutcome> {
+	// Defence in depth behind the same rule in `prepareRecord`: an entity minted for a record that
+	// can never be found again is an orphan the next crawl repeats.
+	if (input.record.identifiers.length === 0) {
+		throw new RangeError(`record ${input.record.record.key} has no identifier that survives normalization`)
+	}
+	return withRetry(() => sql.begin((tx) => ingestOnce(tx, input.source, input.feed ?? null, input.record, input.now)))
 }
 
-async function ingestOnce(tx: TransactionSql, source: string, prepared: PreparedRecord, now: Date): Promise<RecordOutcome> {
+async function ingestOnce(
+	tx: TransactionSql,
+	source: string,
+	feed: string | null,
+	prepared: PreparedRecord,
+	now: Date,
+): Promise<RecordOutcome> {
 	const key = prepared.record.key
 	const matches = await resolveIdentifiers(tx, prepared.identifiers)
 	const items = matches.filter((match) => match.kind === 'item')
@@ -114,7 +128,7 @@ async function ingestOnce(tx: TransactionSql, source: string, prepared: Prepared
 	}
 
 	await insertIdentifiers(tx, source, opid, prepared.identifiers, matches, now)
-	const changedBody = await upsertRecord(tx, source, prepared, opid, now)
+	const changedBody = await upsertRecord(tx, source, feed, prepared, opid, now)
 	const diff = await diffClaims(tx, source, key, opid, prepared, now)
 
 	return {
@@ -227,21 +241,32 @@ function triple(identifier: { scheme: string; scope: string; value: string }): s
  * the object. Going through `text` makes Postgres parse it, as it does for the claim values that
  * arrive through `unnest(… ::text[])`.
  */
-async function upsertRecord(tx: TransactionSql, source: string, prepared: PreparedRecord, opid: string, now: Date): Promise<boolean> {
-	const rows = await tx<{ hash: string; opid: string; withdrawn_at: Date | null }[]>`
-		select hash, opid, withdrawn_at from record where source = ${source} and key = ${prepared.record.key} for update
+async function upsertRecord(
+	tx: TransactionSql,
+	source: string,
+	feed: string | null,
+	prepared: PreparedRecord,
+	opid: string,
+	now: Date,
+): Promise<boolean> {
+	const rows = await tx<{ hash: string; opid: string; feed: string | null; withdrawn_at: Date | null }[]>`
+		select hash, opid, feed, withdrawn_at from record where source = ${source} and key = ${prepared.record.key} for update
 	`
 	const previous = rows[0]
 	if (previous === undefined) {
 		await tx`
-			insert into record (source, key, opid, hash, body, first_seen, last_seen)
-			values (${source}, ${prepared.record.key}, ${opid}, ${prepared.hash}, ${prepared.canonical}::text::jsonb, ${now}, ${now})
+			insert into record (source, key, feed, opid, hash, body, first_seen, last_seen)
+			values (
+				${source}, ${prepared.record.key}, ${feed}, ${opid}, ${prepared.hash},
+				${prepared.canonical}::text::jsonb, ${now}, ${now}
+			)
 		`
 		return true
 	}
+	// The feed moves with the record: a key that changed file is withdrawn by neither of them.
 	await tx`
-		update record set opid = ${opid}, hash = ${prepared.hash}, body = ${prepared.canonical}::text::jsonb,
-			last_seen = ${now}, withdrawn_at = null
+		update record set opid = ${opid}, feed = ${feed}, hash = ${prepared.hash},
+			body = ${prepared.canonical}::text::jsonb, last_seen = ${now}, withdrawn_at = null
 		where source = ${source} and key = ${prepared.record.key}
 	`
 	return previous.hash !== prepared.hash || previous.opid !== opid || previous.withdrawn_at !== null

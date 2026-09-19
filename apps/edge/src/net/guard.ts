@@ -10,9 +10,14 @@ export interface Caps {
 	feedBytes: number
 	feedMs: number
 	lineBytes: number
-	maxFeeds: number
 }
 
+/**
+ * The spec's caps, which the crawl structure is built to fit rather than the other way round: one
+ * queue message reads one feed, so the longest invocation is one 10-minute feed inside the 15-minute
+ * wall clock a Queue consumer gets, and the CPU that feed costs sits inside the `limits.cpu_ms` set
+ * in `wrangler.jsonc`.
+ */
 export const DEFAULT_CAPS: Caps = {
 	dnsMs: 5_000,
 	documentBytes: 1_048_576,
@@ -20,7 +25,6 @@ export const DEFAULT_CAPS: Caps = {
 	feedBytes: 268_435_456,
 	feedMs: 600_000,
 	lineBytes: 65_536,
-	maxFeeds: 100,
 }
 
 /**
@@ -40,12 +44,13 @@ export class CapExceeded extends Error {}
 
 /**
  * The one way out of this Worker. Every rule the spec puts on a crawler fetch lives here: https on
- * the default port, a DNS name that reaches a public address, at most one redirect and only to
- * `www.` of the same host with the same path, and a size and time cap on every byte read.
+ * the default port, a DNS name every one of whose addresses is public, at most one redirect under
+ * core's policy, and a size and time cap on every byte read.
+ *
+ * The address check is re-done for every fetch and its answer is never kept: a name that resolved
+ * publicly a minute ago is a name, not a promise. See `reachable` for what the check is and is not.
  */
 export class GuardedFetcher {
-	private readonly resolved = new Map<string, 'public' | 'blocked' | 'empty'>()
-
 	constructor(
 		private readonly net: Network,
 		private readonly caps: Caps,
@@ -64,7 +69,7 @@ export class GuardedFetcher {
 			if (hop === 1) return { ok: false, kind: 'negative', reason: 'too-many-redirects', status: attempt.status }
 
 			const next = resolveLocation(target, location)
-			if (next === null || !isRedirectAllowed(target, next) || !samePath(target, next)) {
+			if (next === null || !isRedirectAllowed(target, next)) {
 				return { ok: false, kind: 'negative', reason: 'redirect-off-host', status: attempt.status }
 			}
 			target = next
@@ -142,23 +147,28 @@ export class GuardedFetcher {
 		return { ok: true, url, status: response.status, headers: response.headers, body: response.body }
 	}
 
+	/**
+	 * Every address the name resolves to must be public — one private answer among public ones is a
+	 * name that can be made to resolve privately, and the crawler does not choose which answer the
+	 * connection takes.
+	 *
+	 * This check is the control, and it is not airtight: it resolves the name, and then `fetch`
+	 * resolves it again. Cloudflare documents no guarantee that a Worker's global `fetch()` refuses
+	 * private, loopback, link-local or metadata addresses. What it documents is narrower — error
+	 * 1024, "Worker cannot make a subrequest to a Cloudflare-owned IP address", and error 1021,
+	 * "Worker has requested a host it cannot access" — and Workers VPC exists precisely because
+	 * reaching a private network otherwise needs an explicit binding. So the race is residual, and
+	 * what bounds it is that the fetch is `https` to the name that was checked: an answer that wins
+	 * the second resolution still has to present a certificate valid for that public hostname. The
+	 * body is never handed back to whoever asked for the crawl, so nothing it returns is readable.
+	 */
 	private async reachable(host: string): Promise<'ok' | Extract<FetchOutcome, { ok: false }>> {
-		const cached = this.resolved.get(host)
-		if (cached === 'public') return 'ok'
-		if (cached === 'blocked') return { ok: false, kind: 'negative', reason: 'not-a-public-address' }
-		if (cached === 'empty') return { ok: false, kind: 'negative', reason: 'no-address' }
-
 		const lookup = await this.net.resolveAddresses(host, this.caps.dnsMs)
 		if (!lookup.ok) return { ok: false, kind: 'transport', reason: `dns-${lookup.reason}` }
-		if (lookup.addresses.length === 0) {
-			this.resolved.set(host, 'empty')
-			return { ok: false, kind: 'negative', reason: 'no-address' }
-		}
-		if (!lookup.addresses.some((address) => isPublicAddress(address))) {
-			this.resolved.set(host, 'blocked')
+		if (lookup.addresses.length === 0) return { ok: false, kind: 'negative', reason: 'no-address' }
+		if (!lookup.addresses.every((address) => isPublicAddress(address))) {
 			return { ok: false, kind: 'negative', reason: 'not-a-public-address' }
 		}
-		this.resolved.set(host, 'public')
 		return 'ok'
 	}
 }
@@ -169,13 +179,6 @@ function resolveLocation(from: string, location: string): string | null {
 	} catch {
 		return null
 	}
-}
-
-/** The one permitted redirect keeps the path and the query; core's policy only rules on the host. */
-function samePath(from: string, to: string): boolean {
-	const left = new URL(from)
-	const right = new URL(to)
-	return left.pathname === right.pathname && left.search === right.search
 }
 
 function rejectOnAbort(signal: AbortSignal): Promise<never> {

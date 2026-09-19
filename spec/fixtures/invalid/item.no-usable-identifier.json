@@ -1,0 +1,12 @@
+{
+	"$type": "org.prodid.item",
+	"key": "TB-100",
+	"brand": "   ",
+	"name": "Trail Bottle 1L",
+	"identifiers": [
+		{
+			"scheme": "mpn",
+			"value": "TB-100"
+		}
+	]
+}

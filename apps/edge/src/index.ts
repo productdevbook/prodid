@@ -17,7 +17,7 @@ export default {
 					await consumeCrawl(services, message.body)
 					message.ack()
 				} catch (error) {
-					console.error('crawl failed', message.body.domain, error)
+					console.error('crawl failed', message.body.kind, error)
 					message.retry()
 				}
 			}

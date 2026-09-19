@@ -319,3 +319,40 @@ describe('what an entity may not say about itself', () => {
 		)
 	})
 })
+
+describe('a record must keep an identifier the index can store', () => {
+	const base = { $type: 'org.prodid.item', key: 'TB-100', name: 'Trail Bottle 1L' }
+
+	test('refuses a record whose only identifier is an mpn with no brand to scope it', () => {
+		// It normalized to nothing, matched nothing, and minted a fresh entity on every crawl.
+		const result = validateItem({ ...base, brand: '   ', identifiers: [{ scheme: 'mpn', value: 'TB-100' }] })
+		expect(result.ok).toBe(false)
+		if (result.ok) return
+		expect(result.errors).toContainEqual(expect.objectContaining({ path: '/identifiers', keyword: 'identifiable' }))
+	})
+
+	test('keeps the record when one other identifier survives', () => {
+		const identifiers = [
+			{ scheme: 'mpn', value: 'TB-100' },
+			{ scheme: 'gtin', value: '9506000134420' },
+		]
+		expect(validateItem({ ...base, brand: '   ', identifiers }).ok).toBe(true)
+		expect(validateItem({ ...base, brand: 'Acme', identifiers: [{ scheme: 'mpn', value: 'TB-100' }] }).ok).toBe(true)
+		expect(validateItem({ ...base, brand: '   ', identifiers: [{ scheme: 'sku', value: 'S-1' }] }).ok).toBe(true)
+		expect(validateItem({ ...base, brand: '   ', identifiers: [{ scheme: 'asin', value: 'B000000000' }] }).ok).toBe(true)
+	})
+
+	test('refuses a blank or padded identifier value before it gets that far', () => {
+		for (const value of ['   ', ' TB-100', 'TB-100 ', '\t']) {
+			const result = validateItem({ ...base, brand: 'Acme', identifiers: [{ scheme: 'sku', value }] })
+			expect(result.ok).toBe(false)
+			if (result.ok) continue
+			expect(result.errors).toContainEqual(expect.objectContaining({ path: '/identifiers/0/value', keyword: 'pattern' }))
+		}
+	})
+
+	test('a brand that normalizes to nothing does not cost a record with a gtin', () => {
+		const derived = validateItem({ ...base, brand: '   ', identifiers: [{ scheme: 'gtin', value: '9506000134420' }] })
+		expect(derived.ok).toBe(true)
+	})
+})

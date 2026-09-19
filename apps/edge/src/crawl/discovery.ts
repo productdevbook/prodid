@@ -156,16 +156,6 @@ async function acceptResponse(
 			reason: decision.detail === undefined ? decision.reason : `${decision.reason}: ${decision.detail}`,
 		}
 	}
-	if (decision.feeds.length > input.caps.maxFeeds) {
-		return {
-			kind: 'negative',
-			outcome: 'rejected',
-			via,
-			documentUrl: url,
-			status: response.status,
-			reason: `too-many-feeds: ${decision.feeds.length}`,
-		}
-	}
 	return {
 		kind: 'ok',
 		via,

@@ -125,7 +125,7 @@ function recordProblems(record: unknown): Problem[] | string {
 		}
 	}
 	problems.push(...storabilityProblems(record, ''))
-	if (type === 'org.prodid.item') problems.push(...gtinProblems(record))
+	if (type === 'org.prodid.item') problems.push(...gtinProblems(record), ...identifiableProblems(record))
 	if (type === 'org.prodid.entity') problems.push(...entityProblems(record))
 	return problems
 }
@@ -203,6 +203,20 @@ function gtinProblems(record: unknown): Problem[] {
 		const at = `/identifiers/${index}/value`
 		return [problem(at, 'gtin', `${at} is not a GTIN`)]
 	})
+}
+
+function identifiableProblems(record: unknown): Problem[] {
+	const { identifiers, brand } = record as { identifiers?: unknown; brand?: unknown }
+	if (!Array.isArray(identifiers) || identifiers.length === 0) return []
+	const usable = identifiers.some((identifier) => {
+		if (typeof identifier !== 'object' || identifier === null) return false
+		const { scheme, value } = identifier as { scheme?: unknown; value?: unknown }
+		if (typeof value !== 'string' || value.trim() === '') return false
+		if (scheme === 'mpn') return typeof brand === 'string' && normalizeBrand(brand) !== ''
+		return true
+	})
+	if (usable) return []
+	return [problem('/identifiers', 'identifiable', '/identifiers has nothing the index can store')]
 }
 
 function problem(instancePath: string, keyword: string, message: string): Problem {

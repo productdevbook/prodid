@@ -14,6 +14,8 @@ export const POLICY = {
 	/** How long a crawl held back by these limits waits before it is tried again. */
 	maxDeferralSeconds: 3600,
 	maxDeferrals: 12,
+	/** How long a crawl waits when the limiter itself could not be asked. */
+	limiterOutageMs: 60_000,
 } as const
 
 /** IPv4 to its /32 and IPv6 to its /64: one caller is one address block, not one address. */

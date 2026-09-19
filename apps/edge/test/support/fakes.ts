@@ -15,7 +15,7 @@ import {
 	takeWindow,
 } from '../../src/limits/window'
 import type { AddressLookup, LookupFailure, Network, NetworkRequest, NetworkResponse, TxtLookup } from '../../src/net/types'
-import type { CrawlMessage, CrawlProducer } from '../../src/services'
+import type { CrawlMessage, CrawlProducer, DeadLetters } from '../../src/services'
 
 export class TestClock {
 	constructor(private at: Date) {}
@@ -49,6 +49,7 @@ const PUBLIC_ADDRESS = '93.184.216.34'
 export class FakeNetwork implements Network {
 	readonly fetched: string[] = []
 	readonly resolvedNames: string[] = []
+	readonly resolvedAddresses: string[] = []
 	private readonly txt = new Map<string, TxtRecord[] | { fail: LookupFailure }>()
 	private readonly addresses = new Map<string, string[] | { fail: LookupFailure }>()
 	private readonly routes = new Map<string, FakeHandler>()
@@ -85,6 +86,7 @@ export class FakeNetwork implements Network {
 	}
 
 	async resolveAddresses(host: string, _timeoutMs: number): Promise<AddressLookup> {
+		this.resolvedAddresses.push(host)
 		const entry = this.addresses.get(host)
 		if (entry === undefined) return { ok: true, addresses: [PUBLIC_ADDRESS] }
 		if (!Array.isArray(entry)) return { ok: false, reason: entry.fail }
@@ -157,7 +159,7 @@ function toStream(body: string | Uint8Array | ReadableStream<Uint8Array>): Reada
 	})
 }
 
-class MemorySql implements SqlLike {
+export class MemorySql implements SqlLike {
 	private readonly db = new Database(':memory:')
 
 	exec<T = Record<string, unknown>>(query: string, ...bindings: unknown[]): { toArray(): T[] } {
@@ -191,14 +193,20 @@ export class LocalLimiter implements Limiter {
 		)
 	}
 
-	async hostFetch(host: string, verified: boolean, now: Date): Promise<HostDecision> {
+	async hostFetch(host: string, verified: boolean, now: Date, zone?: string): Promise<HostDecision> {
 		return takeHost(this.bucket(`host:${host}`), now.getTime(), POLICY.host.windowMs, verified, {
 			staleAfterMs: POLICY.host.staleAfterMs,
+			zone: zone ?? '',
 		})
 	}
 
 	async reportVerifiedSources(host: string, count: number, now: Date): Promise<void> {
 		setVerifiedSources(this.bucket(`host:${host}`), count, now.getTime())
+	}
+
+	/** The same storage the Durable Object would hold, for a test that needs to look inside one. */
+	bucketFor(name: string): MemorySql {
+		return this.bucket(name)
 	}
 
 	private bucket(name: string): MemorySql {
@@ -209,6 +217,14 @@ export class LocalLimiter implements Limiter {
 			this.buckets.set(name, bucket)
 		}
 		return bucket
+	}
+}
+
+export class MemoryDeadLetters implements DeadLetters {
+	readonly letters: { reason: string; message: CrawlMessage }[] = []
+
+	async send(message: CrawlMessage, reason: string): Promise<void> {
+		this.letters.push({ reason, message })
 	}
 }
 

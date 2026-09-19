@@ -99,10 +99,11 @@
 			"properties": {
 				"scheme": { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,31}$" },
 				"value": {
-					"description": "Normalized: a GTIN or a restricted circulation number is the 14-digit form, left-padded with zeros.",
+					"description": "Normalized: a GTIN or a restricted circulation number is the 14-digit form, left-padded with zeros. Never blank or untrimmed.",
 					"type": "string",
 					"minLength": 1,
-					"maxLength": 256
+					"maxLength": 256,
+					"pattern": "^\\S([\\s\\S]*\\S)?$"
 				},
 				"scope": {
 					"description": "What the value is unique within. Required for mpn, sku and rcn, and present for nothing else: the normalized brand for mpn, the source's name for sku and rcn. Without it a restricted number would read as a global one.",
@@ -110,7 +111,7 @@
 				}
 			}
 		},
-		"scope": { "type": "string", "minLength": 1, "maxLength": 256 },
+		"scope": { "type": "string", "minLength": 1, "maxLength": 256, "pattern": "^\\S([\\s\\S]*\\S)?$" },
 		"gtinValue": {
 			"description": "The normalized 14-digit form. All zeros is a placeholder, not an identifier.",
 			"type": "string",
@@ -153,7 +154,7 @@
 				},
 				"source": { "$ref": "#/$defs/source" },
 				"seen_at": {
-					"description": "When this source first asserted this value. It does not change while the claim keeps being asserted.",
+					"description": "When this source began asserting this value, and has not stopped since. It does not change while the claim keeps being asserted, and it is not when the fact was first published anywhere: a claim re-asserted after a withdrawal carries the later date.",
 					"type": "string",
 					"format": "date-time"
 				},

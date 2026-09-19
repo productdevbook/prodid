@@ -1,4 +1,5 @@
 import { parseGtin } from '../gtin'
+import { normalizeIdentifier } from '../identifier'
 import type { EntityClaim, EntityRecord, FeedRecord, ItemRecord, SourceRecord } from './types'
 import {
 	entity as entitySchema,
@@ -47,7 +48,21 @@ export function validateItem(value: unknown): ValidationResult<ItemRecord> {
 		const gtin = parseGtin(identifier.value)
 		return gtin.ok ? [] : [{ path: `/identifiers/${index}/value`, keyword: 'gtin', message: `must be a GTIN (${gtin.problem})` }]
 	})
+	if (errors.length === 0 && !isIdentifiable(result.value)) {
+		errors.push({ path: '/identifiers', keyword: 'identifiable', message: 'must keep one identifier the index can store' })
+	}
 	return errors.length === 0 ? result : { ok: false, errors }
+}
+
+/**
+ * Whether anything is left to match on once the identifiers are normalized. An `mpn` whose brand
+ * normalizes to nothing has no scope to be unique within, and a record with nothing usable would
+ * mint a fresh entity on every crawl. The source id always exists at ingest, so `sku` and `rcn` are
+ * asked only whether they would normalize at all.
+ */
+function isIdentifiable(record: ItemRecord): boolean {
+	const scope = { brand: record.brand, sourceScope: '1' }
+	return record.identifiers.some((identifier) => normalizeIdentifier(identifier, scope) !== null)
 }
 
 export function validateFeed(value: unknown): ValidationResult<FeedRecord> {

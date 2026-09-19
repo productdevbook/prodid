@@ -6,10 +6,17 @@
 	// `nodejs_compat` because postgres.js reaches for Node built-ins; it is the driver Hyperdrive
 	// documents for PostgreSQL.
 	//
-	// `global_fetch_strictly_public` because every crawl fetch is a URL a stranger pointed us at.
-	// The crawler resolves the name and refuses non-public addresses itself, but that check races
-	// with the connection; this flag is the runtime enforcing the same rule underneath it.
+	// `global_fetch_strictly_public` is about routing, not addresses: it makes a fetch of our own
+	// zone go to the front door and be treated as a request from the Internet instead of being
+	// routed to the origin behind it, bypassing Cloudflare's security settings. It is not an
+	// address filter and does not keep the crawler out of private networks; `net/guard.ts` says
+	// what does and what does not.
 	"compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+	// One queue message reads at most one 256 MiB feed. Review measured 119 ms of CPU per MiB, so
+	// the worst message is ~30 s of CPU — over the 30 s default and far inside this.
+	"limits": {
+		"cpu_ms": 120000,
+	},
 	"observability": {
 		"enabled": true,
 	},
@@ -32,12 +39,18 @@
 		"RateLimiter": { "type": "durable-object", "storage": "sqlite" },
 	},
 	"queues": {
-		"producers": [{ "binding": "CRAWL", "queue": "prodid-crawl" }],
+		"producers": [
+			{ "binding": "CRAWL", "queue": "prodid-crawl" },
+			// Written to directly: a crawl held back by our own limits past the cap is not a failed
+			// message, so it never reaches the consumer's dead letter queue on its own.
+			{ "binding": "CRAWL_DLQ", "queue": "prodid-crawl-dlq" },
+		],
 		"consumers": [
 			{
 				"queue": "prodid-crawl",
-				// One crawl per message: a crawl streams feeds and can take minutes, so batching
-				// them would put unrelated domains behind each other's timeouts.
+				// One unit of work per message — discovery, one feed, or the finalize — so the
+				// longest invocation is one feed's 10-minute deadline inside the 15-minute wall
+				// clock a Queue consumer gets.
 				"max_batch_size": 1,
 				"max_batch_timeout": 5,
 				"max_retries": 3,
@@ -53,5 +66,8 @@
 		// How long a source waits between scheduled crawls. A ping only makes the next one sooner.
 		"CRAWL_INTERVAL_MINUTES": "360",
 		"DOH_ENDPOINT": "https://cloudflare-dns.com/dns-query",
+		// Names under this zone are hosted slugs, whatever they serve: a document there proves
+		// control of a slug, not of a domain.
+		"HOSTING_ZONE": "prodid.org",
 	},
 }

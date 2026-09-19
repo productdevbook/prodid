@@ -147,6 +147,10 @@
 		"instancePath": "/identifiers/0/value",
 		"keyword": "pattern"
 	},
+	"item.identifier-blank.json": {
+		"instancePath": "/identifiers/0/value",
+		"keyword": "pattern"
+	},
 	"item.key-forbidden-character.json": {
 		"instancePath": "/key",
 		"keyword": "pattern"
@@ -165,6 +169,10 @@
 		"params": {
 			"missingProperty": "license"
 		}
+	},
+	"item.no-usable-identifier.json": {
+		"instancePath": "/identifiers",
+		"keyword": "identifiable"
 	},
 	"item.null-character.json": {
 		"instancePath": "/properties/madeIn",

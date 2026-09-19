@@ -109,7 +109,7 @@ describe.skipIf(!reachable)('the cron', () => {
 
 		edge!.clock.advance(7 * DAY)
 		await runScheduled(edge!.services)
-		expect(edge!.queue.sent).toEqual([{ domain: 'acme.example' }])
+		expect(edge!.queue.sent).toEqual([{ kind: 'discover', domain: 'acme.example' }])
 
 		// A source whose failures started eight days ago lapses on the sweep alone.
 		await edge!.sql`update source set failing_since = ${new Date(edge!.clock.now().getTime() - 8 * DAY)} where name = 'acme.example'`

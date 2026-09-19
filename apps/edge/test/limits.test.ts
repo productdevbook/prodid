@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'bun:test'
 
 import { chooseVariant } from '../src/http'
-import { callerKey, POLICY } from '../src/limits/policy'
-import { laneLimits } from '../src/limits/window'
+import { callerKey, HOUR_MS, POLICY } from '../src/limits/policy'
+import { isEmpty, laneLimits } from '../src/limits/window'
 import { LocalLimiter, TestClock } from './support/fakes'
 
 const AT = new Date('2026-09-19T08:00:00.000Z')
@@ -93,5 +93,37 @@ describe('content negotiation', () => {
 		expect(chooseVariant(null)).toBe('json')
 		expect(chooseVariant('text/html')).toBe('html')
 		expect(chooseVariant('application/json;q=0.1, text/html;q=0.9')).toBe('html')
+	})
+})
+
+describe('the unverified lane is shared between zones', () => {
+	test('one registrable domain cannot take the whole lane, so a new publisher is never starved', async () => {
+		const clock = new TestClock(AT)
+		const limits = new LocalLimiter()
+
+		// A flood of strangers' domains, all under one registrable domain, pointed at a busy host.
+		let taken = 0
+		for (let attempt = 0; attempt < 40; attempt += 1) {
+			if ((await limits.hostFetch('busy.example', false, clock.now(), 'attacker.example')).ok) taken += 1
+		}
+		expect(taken).toBe(5)
+
+		// The publisher's own new domain still gets in.
+		expect((await limits.hostFetch('busy.example', false, clock.now(), 'newcomer.example')).ok).toBe(true)
+		// And the host's own verified crawls were never touched.
+		expect((await limits.hostFetch('busy.example', true, clock.now())).ok).toBe(true)
+	})
+})
+
+describe('a bucket goes away again', () => {
+	test('once nothing is left inside the window the storage is empty and can be deleted', async () => {
+		const clock = new TestClock(AT)
+		const limits = new LocalLimiter()
+		await limits.domainGate('acme.example', clock.now())
+		const bucket = limits.bucketFor('domain:acme.example')
+
+		expect(isEmpty(bucket, clock.now().getTime(), HOUR_MS)).toBe(false)
+		clock.advance(HOUR_MS + 1)
+		expect(isEmpty(bucket, clock.now().getTime(), HOUR_MS)).toBe(true)
 	})
 })

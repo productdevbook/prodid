@@ -24,6 +24,12 @@ async function sourceCount(name: string): Promise<number> {
 
 type Status = Omit<SourceRecord, 'last_crawl'> & { last_crawl?: CrawlStatus & { feeds_failed?: number } }
 
+async function entityClaims(gtin: string): Promise<unknown[]> {
+	const response = await edge!.fetch(`/01/${gtin}`)
+	if (response.status !== 200) return []
+	return (await json<{ claims: unknown[] }>(response)).claims
+}
+
 async function status(name: string): Promise<Status> {
 	const response = await edge!.fetch(`/source/${name}`)
 	expect(response.status).toBe(200)
@@ -118,12 +124,24 @@ describe.skipIf(!reachable)('the crawler never reaches a private network', () =>
 		})
 	}
 
-	test('a name with one public address among private ones is still fetched', async () => {
-		edge!.net.setAddresses('acme.example', ['10.0.0.1', '93.184.216.34'])
+	test('one private address among public ones is still not fetched', async () => {
+		// The crawler does not choose which answer the connection takes, so one private answer is a
+		// name that can be made to resolve privately.
+		edge!.net.setAddresses('acme.example', ['93.184.216.34', '10.0.0.1'])
 		edge!.net.document('acme.example', document({ feeds: ['https://acme.example/items.ndjson'] }))
 		edge!.net.feed('https://acme.example/items.ndjson', [JACKET.navy])
 
-		expect(await edge!.crawl('acme.example')).toMatchObject({ kind: 'done', outcome: 'changed' })
+		expect(await edge!.crawl('acme.example')).toMatchObject({ kind: 'ignored' })
+		expect(edge!.net.fetched).toHaveLength(0)
+	})
+
+	test('the address is checked again for every fetch, never once for a crawl', async () => {
+		edge!.net.document('acme.example', document({ feeds: ['https://acme.example/a.ndjson'] }))
+		edge!.net.feed('https://acme.example/a.ndjson', [JACKET.navy])
+		await edge!.crawl('acme.example')
+		const first = edge!.net.resolvedAddresses.filter((host) => host === 'acme.example').length
+		// The document and the feed are two fetches, so two lookups; nothing is remembered between them.
+		expect(first).toBe(2)
 	})
 })
 
@@ -135,7 +153,16 @@ describe.skipIf(!reachable)('caps', () => {
 		edge!.services.caps.documentMs = 30_000
 	})
 
-	test('an oversized document is a transport failure, not a negative', async () => {
+	async function verifiedAcme(): Promise<void> {
+		edge!.net.document('acme.example', document({ feeds: ['https://acme.example/items.ndjson'] }))
+		edge!.net.feed('https://acme.example/items.ndjson', [JACKET.navy])
+		expect(await edge!.crawl('acme.example')).toMatchObject({ kind: 'done', outcome: 'changed' })
+		expect((await status('acme.example')).trust).toBe('verified')
+		edge!.clock.advance(TEN_MINUTES)
+	}
+
+	test('an oversized document is a transport failure at a host the source is verified at', async () => {
+		await verifiedAcme()
 		edge!.services.caps.documentBytes = 256
 		edge!.net.serve('https://acme.example/.well-known/prodid.json', {
 			status: 200,
@@ -143,15 +170,32 @@ describe.skipIf(!reachable)('caps', () => {
 			body: JSON.stringify({ $type: 'org.prodid.feed', padding: 'x'.repeat(4096) }),
 		})
 
-		// Nothing is stored about a domain that has never published, so the source is asked for first.
-		await edge!.sql`insert into source (kind, name) values ('domain', 'acme.example')`
 		expect(await edge!.crawl('acme.example')).toMatchObject({ kind: 'done', outcome: 'fetch-failed' })
 		const after = await status('acme.example')
 		expect(after.last_crawl?.outcome).toBe('transport-failure')
 		expect(after.lapsed).toBe(false)
 	})
 
+	test('the same failure at a host the source has never been verified at is a definite negative', async () => {
+		await verifiedAcme()
+		edge!.services.caps.documentBytes = 256
+		// The domain now delegates to a host it has never been verified at.
+		edge!.net.setTxt('_prodid.acme.example', ['v=prodid0; host=victim.example'])
+		edge!.net.serve('https://victim.example/.well-known/prodid.json', {
+			status: 200,
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({ $type: 'org.prodid.feed', padding: 'x'.repeat(4096) }),
+		})
+
+		expect(await edge!.crawl('acme.example')).toMatchObject({ kind: 'done', outcome: 'rejected' })
+		const after = await status('acme.example')
+		expect(after.last_crawl?.outcome).toBe('definite-negative')
+		expect(after.last_crawl?.http_status).toBeUndefined()
+		expect(after.lapsed).toBe(true)
+	})
+
 	test('a body that drips forever is stopped by the deadline', async () => {
+		await verifiedAcme()
 		edge!.services.caps.documentMs = 120
 		edge!.net.serve('https://acme.example/.well-known/prodid.json', {
 			status: 200,
@@ -159,7 +203,6 @@ describe.skipIf(!reachable)('caps', () => {
 			body: dripBody(40),
 		})
 
-		await edge!.sql`insert into source (kind, name) values ('domain', 'acme.example')`
 		const started = Date.now()
 		expect(await edge!.crawl('acme.example')).toMatchObject({ kind: 'done', outcome: 'fetch-failed' })
 		expect(Date.now() - started).toBeLessThan(5_000)
@@ -210,16 +253,23 @@ describe.skipIf(!reachable)('lapse', () => {
 	})
 
 	test('a healthy document in front of a feed that always fails never reports success and lapses on day seven', async () => {
+		// The source is verified at this host first, so its feed failures get the benefit of the doubt.
 		edge!.net.document('acme.example', document({ feeds: ['https://acme.example/items.ndjson'] }))
-		edge!.net.serve('https://acme.example/items.ndjson', { status: 500 })
+		edge!.net.feed('https://acme.example/items.ndjson', [JACKET.navy])
+		expect(await edge!.crawl('acme.example')).toMatchObject({ kind: 'done', outcome: 'changed' })
 
+		edge!.net.serve('https://acme.example/items.ndjson', { status: 500 })
+		edge!.clock.advance(TEN_MINUTES)
 		expect(await edge!.crawl('acme.example')).toMatchObject({ kind: 'done', outcome: 'fetch-failed' })
 		const first = await status('acme.example')
 		expect(first.last_crawl?.outcome).toBe('transport-failure')
 		expect(first.last_crawl?.feeds_failed).toBe(1)
 		expect(first.lapsed).toBe(false)
+		// The feed that could not be read withdraws nothing.
+		expect((await entityClaims(GTINS.navy)).length).toBeGreaterThan(0)
 
-		for (let day = 1; day <= 6; day += 1) {
+		// The seven days run from the first failure, which already happened above.
+		for (let day = 0; day <= 5; day += 1) {
 			edge!.clock.advance(DAY)
 			await edge!.crawl('acme.example')
 			expect((await status('acme.example')).lapsed).toBe(false)
@@ -229,6 +279,17 @@ describe.skipIf(!reachable)('lapse', () => {
 		const after = await status('acme.example')
 		expect(after.lapsed).toBe(true)
 		expect(after.last_crawl?.outcome).toBe('transport-failure')
+	})
+
+	test('a feed that fails on a source never verified anywhere is a definite negative at once', async () => {
+		edge!.net.document('acme.example', document({ feeds: ['https://acme.example/items.ndjson'] }))
+		edge!.net.serve('https://acme.example/items.ndjson', { status: 500 })
+
+		expect(await edge!.crawl('acme.example')).toMatchObject({ kind: 'done', outcome: 'rejected' })
+		const after = await status('acme.example')
+		expect(after.last_crawl?.outcome).toBe('definite-negative')
+		expect(after.last_crawl?.feeds_failed).toBe(1)
+		expect(after.lapsed).toBe(true)
 	})
 
 	test('a definite negative lapses at once, and a later success clears it', async () => {

@@ -212,11 +212,7 @@ export async function readSourceStatus(sql: Sql, name: string): Promise<SourceRe
 	if (row.license !== null) status.license = row.license
 
 	if (row.crawl_at !== null && row.crawl_outcome !== null) {
-		// `feeds_failed` is in the spec's status but not yet in core's `CrawlStatus`.
-		const crawl: CrawlStatus & { feeds_failed?: number } = {
-			at: row.crawl_at.toISOString(),
-			outcome: classifyOutcome(row.crawl_outcome),
-		}
+		const crawl: CrawlStatus = { at: row.crawl_at.toISOString(), outcome: classifyOutcome(row.crawl_outcome) }
 		if (row.crawl_via !== null) crawl.via = row.crawl_via
 		if (hostOf(row.crawl_document_url) === row.verified_host) {
 			if (row.crawl_document_url !== null) crawl.document_url = row.crawl_document_url

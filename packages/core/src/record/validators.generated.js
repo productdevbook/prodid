@@ -3,8 +3,8 @@ import dep0 from 'ajv/dist/runtime/ucs2length'
 import dep1 from 'ajv/dist/runtime/equal'
 import * as dep2 from 'ajv-formats/dist/formats'
 export const item = validate20;
-const schema31 = {"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://prodid.org/schemas/v0/org.prodid.item.json","title":"org.prodid.item","description":"One trade item as published by a source. The index derives variants and families from `group` and `variant`.","type":"object","required":["$type","key","brand","name","identifiers"],"additionalProperties":false,"properties":{"$type":{"const":"org.prodid.item"},"key":{"description":"Stable record key, unique within the feed. Reusing a key updates the record.","type":"string","pattern":"^[A-Za-z0-9._:~-]{1,512}$"},"brand":{"type":"string","minLength":1,"maxLength":256},"name":{"type":"string","minLength":1,"maxLength":1024},"lang":{"description":"BCP 47 tag for the human-readable text in this record.","type":"string","pattern":"^[A-Za-z]{2,8}(-[A-Za-z0-9]{1,8})*$"},"group":{"description":"Publisher's own grouping key. Items sharing a group are variants of one family.","type":"string","minLength":1,"maxLength":512},"variant":{"description":"Axes that distinguish this item within its group, such as color or size.","type":"object","propertyNames":{"pattern":"^[a-z][A-Za-z0-9]*$"},"additionalProperties":{"type":"string","minLength":1,"maxLength":256}},"identifiers":{"type":"array","minItems":1,"uniqueItems":true,"items":{"$ref":"#/$defs/identifier"}},"category":{"description":"GS1 GPC brick code.","type":"string","pattern":"^gpc:[0-9]{8}$"},"markets":{"description":"ISO 3166-1 alpha-2 codes of the markets this item is sold in.","type":"array","uniqueItems":true,"items":{"type":"string","pattern":"^[A-Z]{2}$"}},"properties":{"type":"object","propertyNames":{"pattern":"^[a-z][A-Za-z0-9]*$"},"additionalProperties":{"$ref":"#/$defs/propertyValue"}},"media":{"type":"array","items":{"$ref":"#/$defs/media"}}},"$defs":{"identifier":{"type":"object","required":["scheme","value"],"additionalProperties":false,"properties":{"scheme":{"type":"string","pattern":"^[a-z][a-z0-9-]{0,31}$"},"value":{"type":"string","minLength":1,"maxLength":256}},"if":{"properties":{"scheme":{"const":"gtin"}}},"then":{"properties":{"value":{"type":"string","pattern":"^([0-9]{8}|[0-9]{12,14})$"}}}},"propertyValue":{"oneOf":[{"type":"string","maxLength":4096},{"type":"number"},{"type":"boolean"},{"type":"array","items":{"type":"string","maxLength":4096}},{"type":"object","required":["value","unit"],"additionalProperties":false,"properties":{"value":{"type":"number"},"unit":{"type":"string","minLength":1,"maxLength":32}}}]},"media":{"type":"object","required":["url","license"],"additionalProperties":false,"properties":{"url":{"type":"string","format":"uri","pattern":"^https://"},"license":{"description":"SPDX license identifier. Media without a license is not ingested.","type":"string","minLength":1,"maxLength":64},"kind":{"enum":["image","document"]}}}}};
-const schema32 = {"type":"object","required":["scheme","value"],"additionalProperties":false,"properties":{"scheme":{"type":"string","pattern":"^[a-z][a-z0-9-]{0,31}$"},"value":{"type":"string","minLength":1,"maxLength":256}},"if":{"properties":{"scheme":{"const":"gtin"}}},"then":{"properties":{"value":{"type":"string","pattern":"^([0-9]{8}|[0-9]{12,14})$"}}}};
+const schema31 = {"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://prodid.org/schemas/v0/org.prodid.item.json","title":"org.prodid.item","description":"One trade item as published by a source. The index derives variants and families from `group` and `variant`.","type":"object","required":["$type","key","brand","name","identifiers"],"additionalProperties":false,"properties":{"$type":{"const":"org.prodid.item"},"key":{"description":"Stable record key, unique within the feed. Reusing a key updates the record.","type":"string","pattern":"^[A-Za-z0-9._:~-]{1,512}$"},"brand":{"type":"string","minLength":1,"maxLength":256},"name":{"type":"string","minLength":1,"maxLength":1024},"lang":{"description":"BCP 47 tag for the human-readable text in this record.","type":"string","pattern":"^[A-Za-z]{2,8}(-[A-Za-z0-9]{1,8})*$"},"group":{"description":"Publisher's own grouping key. Items sharing a group are variants of one family.","type":"string","minLength":1,"maxLength":512},"variant":{"description":"Axes that distinguish this item within its group, such as color or size.","type":"object","propertyNames":{"pattern":"^[a-z][A-Za-z0-9]*$"},"additionalProperties":{"type":"string","minLength":1,"maxLength":256}},"identifiers":{"type":"array","minItems":1,"uniqueItems":true,"items":{"$ref":"#/$defs/identifier"}},"category":{"description":"GS1 GPC brick code.","type":"string","pattern":"^gpc:[0-9]{8}$"},"markets":{"description":"ISO 3166-1 alpha-2 codes of the markets this item is sold in.","type":"array","uniqueItems":true,"items":{"type":"string","pattern":"^[A-Z]{2}$"}},"properties":{"type":"object","propertyNames":{"pattern":"^[a-z][A-Za-z0-9]*$"},"additionalProperties":{"$ref":"#/$defs/propertyValue"}},"media":{"type":"array","items":{"$ref":"#/$defs/media"}}},"$defs":{"identifier":{"type":"object","required":["scheme","value"],"additionalProperties":false,"properties":{"scheme":{"type":"string","pattern":"^[a-z][a-z0-9-]{0,31}$"},"value":{"description":"No leading or trailing whitespace, and at least one character that is not whitespace: a value that normalizes to nothing identifies nothing.","type":"string","minLength":1,"maxLength":256,"pattern":"^\\S([\\s\\S]*\\S)?$"}},"if":{"properties":{"scheme":{"const":"gtin"}}},"then":{"properties":{"value":{"type":"string","pattern":"^([0-9]{8}|[0-9]{12,14})$"}}}},"propertyValue":{"oneOf":[{"type":"string","maxLength":4096},{"type":"number"},{"type":"boolean"},{"type":"array","items":{"type":"string","maxLength":4096}},{"type":"object","required":["value","unit"],"additionalProperties":false,"properties":{"value":{"type":"number"},"unit":{"type":"string","minLength":1,"maxLength":32}}}]},"media":{"type":"object","required":["url","license"],"additionalProperties":false,"properties":{"url":{"type":"string","format":"uri","pattern":"^https://"},"license":{"description":"SPDX license identifier. Media without a license is not ingested.","type":"string","minLength":1,"maxLength":64},"kind":{"enum":["image","document"]}}}}};
+const schema32 = {"type":"object","required":["scheme","value"],"additionalProperties":false,"properties":{"scheme":{"type":"string","pattern":"^[a-z][a-z0-9-]{0,31}$"},"value":{"description":"No leading or trailing whitespace, and at least one character that is not whitespace: a value that normalizes to nothing identifies nothing.","type":"string","minLength":1,"maxLength":256,"pattern":"^\\S([\\s\\S]*\\S)?$"}},"if":{"properties":{"scheme":{"const":"gtin"}}},"then":{"properties":{"value":{"type":"string","pattern":"^([0-9]{8}|[0-9]{12,14})$"}}}};
 const schema33 = {"oneOf":[{"type":"string","maxLength":4096},{"type":"number"},{"type":"boolean"},{"type":"array","items":{"type":"string","maxLength":4096}},{"type":"object","required":["value","unit"],"additionalProperties":false,"properties":{"value":{"type":"number"},"unit":{"type":"string","minLength":1,"maxLength":32}}}]};
 const schema34 = {"type":"object","required":["url","license"],"additionalProperties":false,"properties":{"url":{"type":"string","format":"uri","pattern":"^https://"},"license":{"description":"SPDX license identifier. Media without a license is not ingested.","type":"string","minLength":1,"maxLength":64},"kind":{"enum":["image","document"]}}};
 const func1 = Object.prototype.hasOwnProperty;
@@ -15,9 +15,10 @@ const pattern5 = new RegExp("^[A-Za-z]{2,8}(-[A-Za-z0-9]{1,8})*$", "u");
 const pattern6 = new RegExp("^[a-z][A-Za-z0-9]*$", "u");
 const pattern7 = new RegExp("^([0-9]{8}|[0-9]{12,14})$", "u");
 const pattern8 = new RegExp("^[a-z][a-z0-9-]{0,31}$", "u");
-const pattern9 = new RegExp("^gpc:[0-9]{8}$", "u");
-const pattern10 = new RegExp("^[A-Z]{2}$", "u");
-const pattern12 = new RegExp("^https://", "u");
+const pattern9 = new RegExp("^\\S([\\s\\S]*\\S)?$", "u");
+const pattern10 = new RegExp("^gpc:[0-9]{8}$", "u");
+const pattern11 = new RegExp("^[A-Z]{2}$", "u");
+const pattern13 = new RegExp("^https://", "u");
 const formats0 = dep2.fullFormats.uri;
 
 function validate20(data, {instancePath="", parentData, parentDataProperty, rootData=data, dynamicAnchors={}}={}){
@@ -508,9 +509,8 @@ vErrors.push(err37);
 }
 errors++;
 }
-}
-else {
-const err38 = {instancePath:instancePath+"/identifiers/" + i0+"/value",schemaPath:"#/$defs/identifier/properties/value/type",keyword:"type",params:{type: "string"},message:"must be string"};
+if(!pattern9.test(data13)){
+const err38 = {instancePath:instancePath+"/identifiers/" + i0+"/value",schemaPath:"#/$defs/identifier/properties/value/pattern",keyword:"pattern",params:{pattern: "^\\S([\\s\\S]*\\S)?$"},message:"must match pattern \""+"^\\S([\\s\\S]*\\S)?$"+"\""};
 if(vErrors === null){
 vErrors = [err38];
 }
@@ -520,14 +520,25 @@ vErrors.push(err38);
 errors++;
 }
 }
-}
 else {
-const err39 = {instancePath:instancePath+"/identifiers/" + i0,schemaPath:"#/$defs/identifier/type",keyword:"type",params:{type: "object"},message:"must be object"};
+const err39 = {instancePath:instancePath+"/identifiers/" + i0+"/value",schemaPath:"#/$defs/identifier/properties/value/type",keyword:"type",params:{type: "string"},message:"must be string"};
 if(vErrors === null){
 vErrors = [err39];
 }
 else {
 vErrors.push(err39);
+}
+errors++;
+}
+}
+}
+else {
+const err40 = {instancePath:instancePath+"/identifiers/" + i0,schemaPath:"#/$defs/identifier/type",keyword:"type",params:{type: "object"},message:"must be object"};
+if(vErrors === null){
+vErrors = [err40];
+}
+else {
+vErrors.push(err40);
 }
 errors++;
 }
@@ -539,12 +550,12 @@ outer0:
 for(;i1--;){
 for(j0 = i1; j0--;){
 if(func0(data8[i1], data8[j0])){
-const err40 = {instancePath:instancePath+"/identifiers",schemaPath:"#/properties/identifiers/uniqueItems",keyword:"uniqueItems",params:{i: i1, j: j0},message:"must NOT have duplicate items (items ## "+j0+" and "+i1+" are identical)"};
+const err41 = {instancePath:instancePath+"/identifiers",schemaPath:"#/properties/identifiers/uniqueItems",keyword:"uniqueItems",params:{i: i1, j: j0},message:"must NOT have duplicate items (items ## "+j0+" and "+i1+" are identical)"};
 if(vErrors === null){
-vErrors = [err40];
+vErrors = [err41];
 }
 else {
-vErrors.push(err40);
+vErrors.push(err41);
 }
 errors++;
 break outer0;
@@ -554,21 +565,7 @@ break outer0;
 }
 }
 else {
-const err41 = {instancePath:instancePath+"/identifiers",schemaPath:"#/properties/identifiers/type",keyword:"type",params:{type: "array"},message:"must be array"};
-if(vErrors === null){
-vErrors = [err41];
-}
-else {
-vErrors.push(err41);
-}
-errors++;
-}
-}
-if(data.category !== undefined){
-let data14 = data.category;
-if(typeof data14 === "string"){
-if(!pattern9.test(data14)){
-const err42 = {instancePath:instancePath+"/category",schemaPath:"#/properties/category/pattern",keyword:"pattern",params:{pattern: "^gpc:[0-9]{8}$"},message:"must match pattern \""+"^gpc:[0-9]{8}$"+"\""};
+const err42 = {instancePath:instancePath+"/identifiers",schemaPath:"#/properties/identifiers/type",keyword:"type",params:{type: "array"},message:"must be array"};
 if(vErrors === null){
 vErrors = [err42];
 }
@@ -578,13 +575,27 @@ vErrors.push(err42);
 errors++;
 }
 }
-else {
-const err43 = {instancePath:instancePath+"/category",schemaPath:"#/properties/category/type",keyword:"type",params:{type: "string"},message:"must be string"};
+if(data.category !== undefined){
+let data14 = data.category;
+if(typeof data14 === "string"){
+if(!pattern10.test(data14)){
+const err43 = {instancePath:instancePath+"/category",schemaPath:"#/properties/category/pattern",keyword:"pattern",params:{pattern: "^gpc:[0-9]{8}$"},message:"must match pattern \""+"^gpc:[0-9]{8}$"+"\""};
 if(vErrors === null){
 vErrors = [err43];
 }
 else {
 vErrors.push(err43);
+}
+errors++;
+}
+}
+else {
+const err44 = {instancePath:instancePath+"/category",schemaPath:"#/properties/category/type",keyword:"type",params:{type: "string"},message:"must be string"};
+if(vErrors === null){
+vErrors = [err44];
+}
+else {
+vErrors.push(err44);
 }
 errors++;
 }
@@ -596,24 +607,24 @@ const len1 = data15.length;
 for(let i2=0; i2<len1; i2++){
 let data16 = data15[i2];
 if(typeof data16 === "string"){
-if(!pattern10.test(data16)){
-const err44 = {instancePath:instancePath+"/markets/" + i2,schemaPath:"#/properties/markets/items/pattern",keyword:"pattern",params:{pattern: "^[A-Z]{2}$"},message:"must match pattern \""+"^[A-Z]{2}$"+"\""};
-if(vErrors === null){
-vErrors = [err44];
-}
-else {
-vErrors.push(err44);
-}
-errors++;
-}
-}
-else {
-const err45 = {instancePath:instancePath+"/markets/" + i2,schemaPath:"#/properties/markets/items/type",keyword:"type",params:{type: "string"},message:"must be string"};
+if(!pattern11.test(data16)){
+const err45 = {instancePath:instancePath+"/markets/" + i2,schemaPath:"#/properties/markets/items/pattern",keyword:"pattern",params:{pattern: "^[A-Z]{2}$"},message:"must match pattern \""+"^[A-Z]{2}$"+"\""};
 if(vErrors === null){
 vErrors = [err45];
 }
 else {
 vErrors.push(err45);
+}
+errors++;
+}
+}
+else {
+const err46 = {instancePath:instancePath+"/markets/" + i2,schemaPath:"#/properties/markets/items/type",keyword:"type",params:{type: "string"},message:"must be string"};
+if(vErrors === null){
+vErrors = [err46];
+}
+else {
+vErrors.push(err46);
 }
 errors++;
 }
@@ -629,12 +640,12 @@ continue;
 }
 if(typeof indices0[item0] == "number"){
 j1 = indices0[item0];
-const err46 = {instancePath:instancePath+"/markets",schemaPath:"#/properties/markets/uniqueItems",keyword:"uniqueItems",params:{i: i3, j: j1},message:"must NOT have duplicate items (items ## "+j1+" and "+i3+" are identical)"};
+const err47 = {instancePath:instancePath+"/markets",schemaPath:"#/properties/markets/uniqueItems",keyword:"uniqueItems",params:{i: i3, j: j1},message:"must NOT have duplicate items (items ## "+j1+" and "+i3+" are identical)"};
 if(vErrors === null){
-vErrors = [err46];
+vErrors = [err47];
 }
 else {
-vErrors.push(err46);
+vErrors.push(err47);
 }
 errors++;
 break;
@@ -644,12 +655,12 @@ indices0[item0] = i3;
 }
 }
 else {
-const err47 = {instancePath:instancePath+"/markets",schemaPath:"#/properties/markets/type",keyword:"type",params:{type: "array"},message:"must be array"};
+const err48 = {instancePath:instancePath+"/markets",schemaPath:"#/properties/markets/type",keyword:"type",params:{type: "array"},message:"must be array"};
 if(vErrors === null){
-vErrors = [err47];
+vErrors = [err48];
 }
 else {
-vErrors.push(err47);
+vErrors.push(err48);
 }
 errors++;
 }
@@ -661,24 +672,24 @@ for(const key4 in data17){
 const _errs43 = errors;
 if(typeof key4 === "string"){
 if(!pattern6.test(key4)){
-const err48 = {instancePath:instancePath+"/properties",schemaPath:"#/properties/properties/propertyNames/pattern",keyword:"pattern",params:{pattern: "^[a-z][A-Za-z0-9]*$"},message:"must match pattern \""+"^[a-z][A-Za-z0-9]*$"+"\"",propertyName:key4};
+const err49 = {instancePath:instancePath+"/properties",schemaPath:"#/properties/properties/propertyNames/pattern",keyword:"pattern",params:{pattern: "^[a-z][A-Za-z0-9]*$"},message:"must match pattern \""+"^[a-z][A-Za-z0-9]*$"+"\"",propertyName:key4};
 if(vErrors === null){
-vErrors = [err48];
+vErrors = [err49];
 }
 else {
-vErrors.push(err48);
+vErrors.push(err49);
 }
 errors++;
 }
 }
 var valid14 = _errs43 === errors;
 if(!valid14){
-const err49 = {instancePath:instancePath+"/properties",schemaPath:"#/properties/properties/propertyNames",keyword:"propertyNames",params:{propertyName: key4},message:"property name must be valid"};
+const err50 = {instancePath:instancePath+"/properties",schemaPath:"#/properties/properties/propertyNames",keyword:"propertyNames",params:{propertyName: key4},message:"property name must be valid"};
 if(vErrors === null){
-vErrors = [err49];
+vErrors = [err50];
 }
 else {
-vErrors.push(err49);
+vErrors.push(err50);
 }
 errors++;
 }
@@ -691,23 +702,23 @@ let passing0 = null;
 const _errs48 = errors;
 if(typeof data18 === "string"){
 if(func2(data18) > 4096){
-const err50 = {instancePath:instancePath+"/properties/" + key5.replace(/~/g, "~0").replace(/\//g, "~1"),schemaPath:"#/$defs/propertyValue/oneOf/0/maxLength",keyword:"maxLength",params:{limit: 4096},message:"must NOT have more than 4096 characters"};
-if(vErrors === null){
-vErrors = [err50];
-}
-else {
-vErrors.push(err50);
-}
-errors++;
-}
-}
-else {
-const err51 = {instancePath:instancePath+"/properties/" + key5.replace(/~/g, "~0").replace(/\//g, "~1"),schemaPath:"#/$defs/propertyValue/oneOf/0/type",keyword:"type",params:{type: "string"},message:"must be string"};
+const err51 = {instancePath:instancePath+"/properties/" + key5.replace(/~/g, "~0").replace(/\//g, "~1"),schemaPath:"#/$defs/propertyValue/oneOf/0/maxLength",keyword:"maxLength",params:{limit: 4096},message:"must NOT have more than 4096 characters"};
 if(vErrors === null){
 vErrors = [err51];
 }
 else {
 vErrors.push(err51);
+}
+errors++;
+}
+}
+else {
+const err52 = {instancePath:instancePath+"/properties/" + key5.replace(/~/g, "~0").replace(/\//g, "~1"),schemaPath:"#/$defs/propertyValue/oneOf/0/type",keyword:"type",params:{type: "string"},message:"must be string"};
+if(vErrors === null){
+vErrors = [err52];
+}
+else {
+vErrors.push(err52);
 }
 errors++;
 }
@@ -718,12 +729,12 @@ passing0 = 0;
 }
 const _errs50 = errors;
 if(!((typeof data18 == "number") && (isFinite(data18)))){
-const err52 = {instancePath:instancePath+"/properties/" + key5.replace(/~/g, "~0").replace(/\//g, "~1"),schemaPath:"#/$defs/propertyValue/oneOf/1/type",keyword:"type",params:{type: "number"},message:"must be number"};
+const err53 = {instancePath:instancePath+"/properties/" + key5.replace(/~/g, "~0").replace(/\//g, "~1"),schemaPath:"#/$defs/propertyValue/oneOf/1/type",keyword:"type",params:{type: "number"},message:"must be number"};
 if(vErrors === null){
-vErrors = [err52];
+vErrors = [err53];
 }
 else {
-vErrors.push(err52);
+vErrors.push(err53);
 }
 errors++;
 }
@@ -739,12 +750,12 @@ passing0 = 1;
 }
 const _errs52 = errors;
 if(typeof data18 !== "boolean"){
-const err53 = {instancePath:instancePath+"/properties/" + key5.replace(/~/g, "~0").replace(/\//g, "~1"),schemaPath:"#/$defs/propertyValue/oneOf/2/type",keyword:"type",params:{type: "boolean"},message:"must be boolean"};
+const err54 = {instancePath:instancePath+"/properties/" + key5.replace(/~/g, "~0").replace(/\//g, "~1"),schemaPath:"#/$defs/propertyValue/oneOf/2/type",keyword:"type",params:{type: "boolean"},message:"must be boolean"};
 if(vErrors === null){
-vErrors = [err53];
+vErrors = [err54];
 }
 else {
-vErrors.push(err53);
+vErrors.push(err54);
 }
 errors++;
 }
@@ -765,18 +776,7 @@ for(let i4=0; i4<len2; i4++){
 let data19 = data18[i4];
 if(typeof data19 === "string"){
 if(func2(data19) > 4096){
-const err54 = {instancePath:instancePath+"/properties/" + key5.replace(/~/g, "~0").replace(/\//g, "~1")+"/" + i4,schemaPath:"#/$defs/propertyValue/oneOf/3/items/maxLength",keyword:"maxLength",params:{limit: 4096},message:"must NOT have more than 4096 characters"};
-if(vErrors === null){
-vErrors = [err54];
-}
-else {
-vErrors.push(err54);
-}
-errors++;
-}
-}
-else {
-const err55 = {instancePath:instancePath+"/properties/" + key5.replace(/~/g, "~0").replace(/\//g, "~1")+"/" + i4,schemaPath:"#/$defs/propertyValue/oneOf/3/items/type",keyword:"type",params:{type: "string"},message:"must be string"};
+const err55 = {instancePath:instancePath+"/properties/" + key5.replace(/~/g, "~0").replace(/\//g, "~1")+"/" + i4,schemaPath:"#/$defs/propertyValue/oneOf/3/items/maxLength",keyword:"maxLength",params:{limit: 4096},message:"must NOT have more than 4096 characters"};
 if(vErrors === null){
 vErrors = [err55];
 }
@@ -786,14 +786,25 @@ vErrors.push(err55);
 errors++;
 }
 }
-}
 else {
-const err56 = {instancePath:instancePath+"/properties/" + key5.replace(/~/g, "~0").replace(/\//g, "~1"),schemaPath:"#/$defs/propertyValue/oneOf/3/type",keyword:"type",params:{type: "array"},message:"must be array"};
+const err56 = {instancePath:instancePath+"/properties/" + key5.replace(/~/g, "~0").replace(/\//g, "~1")+"/" + i4,schemaPath:"#/$defs/propertyValue/oneOf/3/items/type",keyword:"type",params:{type: "string"},message:"must be string"};
 if(vErrors === null){
 vErrors = [err56];
 }
 else {
 vErrors.push(err56);
+}
+errors++;
+}
+}
+}
+else {
+const err57 = {instancePath:instancePath+"/properties/" + key5.replace(/~/g, "~0").replace(/\//g, "~1"),schemaPath:"#/$defs/propertyValue/oneOf/3/type",keyword:"type",params:{type: "array"},message:"must be array"};
+if(vErrors === null){
+vErrors = [err57];
+}
+else {
+vErrors.push(err57);
 }
 errors++;
 }
@@ -810,17 +821,7 @@ passing0 = 3;
 const _errs58 = errors;
 if(data18 && typeof data18 == "object" && !Array.isArray(data18)){
 if(data18.value === undefined){
-const err57 = {instancePath:instancePath+"/properties/" + key5.replace(/~/g, "~0").replace(/\//g, "~1"),schemaPath:"#/$defs/propertyValue/oneOf/4/required",keyword:"required",params:{missingProperty: "value"},message:"must have required property '"+"value"+"'"};
-if(vErrors === null){
-vErrors = [err57];
-}
-else {
-vErrors.push(err57);
-}
-errors++;
-}
-if(data18.unit === undefined){
-const err58 = {instancePath:instancePath+"/properties/" + key5.replace(/~/g, "~0").replace(/\//g, "~1"),schemaPath:"#/$defs/propertyValue/oneOf/4/required",keyword:"required",params:{missingProperty: "unit"},message:"must have required property '"+"unit"+"'"};
+const err58 = {instancePath:instancePath+"/properties/" + key5.replace(/~/g, "~0").replace(/\//g, "~1"),schemaPath:"#/$defs/propertyValue/oneOf/4/required",keyword:"required",params:{missingProperty: "value"},message:"must have required property '"+"value"+"'"};
 if(vErrors === null){
 vErrors = [err58];
 }
@@ -829,9 +830,8 @@ vErrors.push(err58);
 }
 errors++;
 }
-for(const key6 in data18){
-if(!((key6 === "value") || (key6 === "unit"))){
-const err59 = {instancePath:instancePath+"/properties/" + key5.replace(/~/g, "~0").replace(/\//g, "~1"),schemaPath:"#/$defs/propertyValue/oneOf/4/additionalProperties",keyword:"additionalProperties",params:{additionalProperty: key6},message:"must NOT have additional properties"};
+if(data18.unit === undefined){
+const err59 = {instancePath:instancePath+"/properties/" + key5.replace(/~/g, "~0").replace(/\//g, "~1"),schemaPath:"#/$defs/propertyValue/oneOf/4/required",keyword:"required",params:{missingProperty: "unit"},message:"must have required property '"+"unit"+"'"};
 if(vErrors === null){
 vErrors = [err59];
 }
@@ -840,11 +840,9 @@ vErrors.push(err59);
 }
 errors++;
 }
-}
-if(data18.value !== undefined){
-let data20 = data18.value;
-if(!((typeof data20 == "number") && (isFinite(data20)))){
-const err60 = {instancePath:instancePath+"/properties/" + key5.replace(/~/g, "~0").replace(/\//g, "~1")+"/value",schemaPath:"#/$defs/propertyValue/oneOf/4/properties/value/type",keyword:"type",params:{type: "number"},message:"must be number"};
+for(const key6 in data18){
+if(!((key6 === "value") || (key6 === "unit"))){
+const err60 = {instancePath:instancePath+"/properties/" + key5.replace(/~/g, "~0").replace(/\//g, "~1"),schemaPath:"#/$defs/propertyValue/oneOf/4/additionalProperties",keyword:"additionalProperties",params:{additionalProperty: key6},message:"must NOT have additional properties"};
 if(vErrors === null){
 vErrors = [err60];
 }
@@ -854,11 +852,10 @@ vErrors.push(err60);
 errors++;
 }
 }
-if(data18.unit !== undefined){
-let data21 = data18.unit;
-if(typeof data21 === "string"){
-if(func2(data21) > 32){
-const err61 = {instancePath:instancePath+"/properties/" + key5.replace(/~/g, "~0").replace(/\//g, "~1")+"/unit",schemaPath:"#/$defs/propertyValue/oneOf/4/properties/unit/maxLength",keyword:"maxLength",params:{limit: 32},message:"must NOT have more than 32 characters"};
+if(data18.value !== undefined){
+let data20 = data18.value;
+if(!((typeof data20 == "number") && (isFinite(data20)))){
+const err61 = {instancePath:instancePath+"/properties/" + key5.replace(/~/g, "~0").replace(/\//g, "~1")+"/value",schemaPath:"#/$defs/propertyValue/oneOf/4/properties/value/type",keyword:"type",params:{type: "number"},message:"must be number"};
 if(vErrors === null){
 vErrors = [err61];
 }
@@ -867,8 +864,12 @@ vErrors.push(err61);
 }
 errors++;
 }
-if(func2(data21) < 1){
-const err62 = {instancePath:instancePath+"/properties/" + key5.replace(/~/g, "~0").replace(/\//g, "~1")+"/unit",schemaPath:"#/$defs/propertyValue/oneOf/4/properties/unit/minLength",keyword:"minLength",params:{limit: 1},message:"must NOT have fewer than 1 characters"};
+}
+if(data18.unit !== undefined){
+let data21 = data18.unit;
+if(typeof data21 === "string"){
+if(func2(data21) > 32){
+const err62 = {instancePath:instancePath+"/properties/" + key5.replace(/~/g, "~0").replace(/\//g, "~1")+"/unit",schemaPath:"#/$defs/propertyValue/oneOf/4/properties/unit/maxLength",keyword:"maxLength",params:{limit: 32},message:"must NOT have more than 32 characters"};
 if(vErrors === null){
 vErrors = [err62];
 }
@@ -877,9 +878,8 @@ vErrors.push(err62);
 }
 errors++;
 }
-}
-else {
-const err63 = {instancePath:instancePath+"/properties/" + key5.replace(/~/g, "~0").replace(/\//g, "~1")+"/unit",schemaPath:"#/$defs/propertyValue/oneOf/4/properties/unit/type",keyword:"type",params:{type: "string"},message:"must be string"};
+if(func2(data21) < 1){
+const err63 = {instancePath:instancePath+"/properties/" + key5.replace(/~/g, "~0").replace(/\//g, "~1")+"/unit",schemaPath:"#/$defs/propertyValue/oneOf/4/properties/unit/minLength",keyword:"minLength",params:{limit: 1},message:"must NOT have fewer than 1 characters"};
 if(vErrors === null){
 vErrors = [err63];
 }
@@ -889,14 +889,25 @@ vErrors.push(err63);
 errors++;
 }
 }
-}
 else {
-const err64 = {instancePath:instancePath+"/properties/" + key5.replace(/~/g, "~0").replace(/\//g, "~1"),schemaPath:"#/$defs/propertyValue/oneOf/4/type",keyword:"type",params:{type: "object"},message:"must be object"};
+const err64 = {instancePath:instancePath+"/properties/" + key5.replace(/~/g, "~0").replace(/\//g, "~1")+"/unit",schemaPath:"#/$defs/propertyValue/oneOf/4/properties/unit/type",keyword:"type",params:{type: "string"},message:"must be string"};
 if(vErrors === null){
 vErrors = [err64];
 }
 else {
 vErrors.push(err64);
+}
+errors++;
+}
+}
+}
+else {
+const err65 = {instancePath:instancePath+"/properties/" + key5.replace(/~/g, "~0").replace(/\//g, "~1"),schemaPath:"#/$defs/propertyValue/oneOf/4/type",keyword:"type",params:{type: "object"},message:"must be object"};
+if(vErrors === null){
+vErrors = [err65];
+}
+else {
+vErrors.push(err65);
 }
 errors++;
 }
@@ -915,12 +926,12 @@ passing0 = 4;
 }
 }
 if(!valid17){
-const err65 = {instancePath:instancePath+"/properties/" + key5.replace(/~/g, "~0").replace(/\//g, "~1"),schemaPath:"#/$defs/propertyValue/oneOf",keyword:"oneOf",params:{passingSchemas: passing0},message:"must match exactly one schema in oneOf"};
+const err66 = {instancePath:instancePath+"/properties/" + key5.replace(/~/g, "~0").replace(/\//g, "~1"),schemaPath:"#/$defs/propertyValue/oneOf",keyword:"oneOf",params:{passingSchemas: passing0},message:"must match exactly one schema in oneOf"};
 if(vErrors === null){
-vErrors = [err65];
+vErrors = [err66];
 }
 else {
-vErrors.push(err65);
+vErrors.push(err66);
 }
 errors++;
 }
@@ -938,12 +949,12 @@ vErrors = null;
 }
 }
 else {
-const err66 = {instancePath:instancePath+"/properties",schemaPath:"#/properties/properties/type",keyword:"type",params:{type: "object"},message:"must be object"};
+const err67 = {instancePath:instancePath+"/properties",schemaPath:"#/properties/properties/type",keyword:"type",params:{type: "object"},message:"must be object"};
 if(vErrors === null){
-vErrors = [err66];
+vErrors = [err67];
 }
 else {
-vErrors.push(err66);
+vErrors.push(err67);
 }
 errors++;
 }
@@ -956,17 +967,7 @@ for(let i5=0; i5<len3; i5++){
 let data23 = data22[i5];
 if(data23 && typeof data23 == "object" && !Array.isArray(data23)){
 if(data23.url === undefined){
-const err67 = {instancePath:instancePath+"/media/" + i5,schemaPath:"#/$defs/media/required",keyword:"required",params:{missingProperty: "url"},message:"must have required property '"+"url"+"'"};
-if(vErrors === null){
-vErrors = [err67];
-}
-else {
-vErrors.push(err67);
-}
-errors++;
-}
-if(data23.license === undefined){
-const err68 = {instancePath:instancePath+"/media/" + i5,schemaPath:"#/$defs/media/required",keyword:"required",params:{missingProperty: "license"},message:"must have required property '"+"license"+"'"};
+const err68 = {instancePath:instancePath+"/media/" + i5,schemaPath:"#/$defs/media/required",keyword:"required",params:{missingProperty: "url"},message:"must have required property '"+"url"+"'"};
 if(vErrors === null){
 vErrors = [err68];
 }
@@ -975,9 +976,8 @@ vErrors.push(err68);
 }
 errors++;
 }
-for(const key7 in data23){
-if(!(((key7 === "url") || (key7 === "license")) || (key7 === "kind"))){
-const err69 = {instancePath:instancePath+"/media/" + i5,schemaPath:"#/$defs/media/additionalProperties",keyword:"additionalProperties",params:{additionalProperty: key7},message:"must NOT have additional properties"};
+if(data23.license === undefined){
+const err69 = {instancePath:instancePath+"/media/" + i5,schemaPath:"#/$defs/media/required",keyword:"required",params:{missingProperty: "license"},message:"must have required property '"+"license"+"'"};
 if(vErrors === null){
 vErrors = [err69];
 }
@@ -986,12 +986,9 @@ vErrors.push(err69);
 }
 errors++;
 }
-}
-if(data23.url !== undefined){
-let data24 = data23.url;
-if(typeof data24 === "string"){
-if(!pattern12.test(data24)){
-const err70 = {instancePath:instancePath+"/media/" + i5+"/url",schemaPath:"#/$defs/media/properties/url/pattern",keyword:"pattern",params:{pattern: "^https://"},message:"must match pattern \""+"^https://"+"\""};
+for(const key7 in data23){
+if(!(((key7 === "url") || (key7 === "license")) || (key7 === "kind"))){
+const err70 = {instancePath:instancePath+"/media/" + i5,schemaPath:"#/$defs/media/additionalProperties",keyword:"additionalProperties",params:{additionalProperty: key7},message:"must NOT have additional properties"};
 if(vErrors === null){
 vErrors = [err70];
 }
@@ -1000,8 +997,12 @@ vErrors.push(err70);
 }
 errors++;
 }
-if(!(formats0(data24))){
-const err71 = {instancePath:instancePath+"/media/" + i5+"/url",schemaPath:"#/$defs/media/properties/url/format",keyword:"format",params:{format: "uri"},message:"must match format \""+"uri"+"\""};
+}
+if(data23.url !== undefined){
+let data24 = data23.url;
+if(typeof data24 === "string"){
+if(!pattern13.test(data24)){
+const err71 = {instancePath:instancePath+"/media/" + i5+"/url",schemaPath:"#/$defs/media/properties/url/pattern",keyword:"pattern",params:{pattern: "^https://"},message:"must match pattern \""+"^https://"+"\""};
 if(vErrors === null){
 vErrors = [err71];
 }
@@ -1010,9 +1011,8 @@ vErrors.push(err71);
 }
 errors++;
 }
-}
-else {
-const err72 = {instancePath:instancePath+"/media/" + i5+"/url",schemaPath:"#/$defs/media/properties/url/type",keyword:"type",params:{type: "string"},message:"must be string"};
+if(!(formats0(data24))){
+const err72 = {instancePath:instancePath+"/media/" + i5+"/url",schemaPath:"#/$defs/media/properties/url/format",keyword:"format",params:{format: "uri"},message:"must match format \""+"uri"+"\""};
 if(vErrors === null){
 vErrors = [err72];
 }
@@ -1022,11 +1022,8 @@ vErrors.push(err72);
 errors++;
 }
 }
-if(data23.license !== undefined){
-let data25 = data23.license;
-if(typeof data25 === "string"){
-if(func2(data25) > 64){
-const err73 = {instancePath:instancePath+"/media/" + i5+"/license",schemaPath:"#/$defs/media/properties/license/maxLength",keyword:"maxLength",params:{limit: 64},message:"must NOT have more than 64 characters"};
+else {
+const err73 = {instancePath:instancePath+"/media/" + i5+"/url",schemaPath:"#/$defs/media/properties/url/type",keyword:"type",params:{type: "string"},message:"must be string"};
 if(vErrors === null){
 vErrors = [err73];
 }
@@ -1035,8 +1032,12 @@ vErrors.push(err73);
 }
 errors++;
 }
-if(func2(data25) < 1){
-const err74 = {instancePath:instancePath+"/media/" + i5+"/license",schemaPath:"#/$defs/media/properties/license/minLength",keyword:"minLength",params:{limit: 1},message:"must NOT have fewer than 1 characters"};
+}
+if(data23.license !== undefined){
+let data25 = data23.license;
+if(typeof data25 === "string"){
+if(func2(data25) > 64){
+const err74 = {instancePath:instancePath+"/media/" + i5+"/license",schemaPath:"#/$defs/media/properties/license/maxLength",keyword:"maxLength",params:{limit: 64},message:"must NOT have more than 64 characters"};
 if(vErrors === null){
 vErrors = [err74];
 }
@@ -1045,9 +1046,8 @@ vErrors.push(err74);
 }
 errors++;
 }
-}
-else {
-const err75 = {instancePath:instancePath+"/media/" + i5+"/license",schemaPath:"#/$defs/media/properties/license/type",keyword:"type",params:{type: "string"},message:"must be string"};
+if(func2(data25) < 1){
+const err75 = {instancePath:instancePath+"/media/" + i5+"/license",schemaPath:"#/$defs/media/properties/license/minLength",keyword:"minLength",params:{limit: 1},message:"must NOT have fewer than 1 characters"};
 if(vErrors === null){
 vErrors = [err75];
 }
@@ -1057,10 +1057,8 @@ vErrors.push(err75);
 errors++;
 }
 }
-if(data23.kind !== undefined){
-let data26 = data23.kind;
-if(!((data26 === "image") || (data26 === "document"))){
-const err76 = {instancePath:instancePath+"/media/" + i5+"/kind",schemaPath:"#/$defs/media/properties/kind/enum",keyword:"enum",params:{allowedValues: schema34.properties.kind.enum},message:"must be equal to one of the allowed values"};
+else {
+const err76 = {instancePath:instancePath+"/media/" + i5+"/license",schemaPath:"#/$defs/media/properties/license/type",keyword:"type",params:{type: "string"},message:"must be string"};
 if(vErrors === null){
 vErrors = [err76];
 }
@@ -1070,9 +1068,10 @@ vErrors.push(err76);
 errors++;
 }
 }
-}
-else {
-const err77 = {instancePath:instancePath+"/media/" + i5,schemaPath:"#/$defs/media/type",keyword:"type",params:{type: "object"},message:"must be object"};
+if(data23.kind !== undefined){
+let data26 = data23.kind;
+if(!((data26 === "image") || (data26 === "document"))){
+const err77 = {instancePath:instancePath+"/media/" + i5+"/kind",schemaPath:"#/$defs/media/properties/kind/enum",keyword:"enum",params:{allowedValues: schema34.properties.kind.enum},message:"must be equal to one of the allowed values"};
 if(vErrors === null){
 vErrors = [err77];
 }
@@ -1084,7 +1083,7 @@ errors++;
 }
 }
 else {
-const err78 = {instancePath:instancePath+"/media",schemaPath:"#/properties/media/type",keyword:"type",params:{type: "array"},message:"must be array"};
+const err78 = {instancePath:instancePath+"/media/" + i5,schemaPath:"#/$defs/media/type",keyword:"type",params:{type: "object"},message:"must be object"};
 if(vErrors === null){
 vErrors = [err78];
 }
@@ -1096,12 +1095,24 @@ errors++;
 }
 }
 else {
-const err79 = {instancePath,schemaPath:"#/type",keyword:"type",params:{type: "object"},message:"must be object"};
+const err79 = {instancePath:instancePath+"/media",schemaPath:"#/properties/media/type",keyword:"type",params:{type: "array"},message:"must be array"};
 if(vErrors === null){
 vErrors = [err79];
 }
 else {
 vErrors.push(err79);
+}
+errors++;
+}
+}
+}
+else {
+const err80 = {instancePath,schemaPath:"#/type",keyword:"type",params:{type: "object"},message:"must be object"};
+if(vErrors === null){
+vErrors = [err80];
+}
+else {
+vErrors.push(err80);
 }
 errors++;
 }
@@ -1112,7 +1123,7 @@ validate20.evaluated = {"props":true,"dynamicProps":false,"dynamicItems":false};
 
 export const feed = validate21;
 const schema35 = {"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://prodid.org/schemas/v0/org.prodid.feed.json","title":"org.prodid.feed","description":"Discovery document served at /.well-known/prodid.json. The source identity is the domain it speaks for, which is the domain serving it unless the document was reached through a _prodid DNS TXT record.","type":"object","required":["$type","version","publisher","license","feeds"],"additionalProperties":false,"properties":{"$type":{"const":"org.prodid.feed"},"version":{"const":0},"domain":{"description":"The domain this document speaks for. Required, and equal to the delegating domain, whenever the document is reached through a _prodid TXT record naming a host other than the domain itself; a delegated document without it is rejected. It may be absent only when the domain serves the document itself. A document naming a domain that does not delegate to this host speaks for nobody and is ignored. Lowercase hostname: labels and dots, at least two labels, no scheme, no port, no path, never an IP literal.","type":"string","maxLength":253,"pattern":"^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]([a-z0-9-]{0,61}[a-z0-9])?$"},"publisher":{"type":"object","required":["name"],"additionalProperties":false,"properties":{"name":{"type":"string","minLength":1,"maxLength":256},"contact":{"type":"string","format":"email"}}},"license":{"description":"SPDX license identifier covering the facts in the feeds.","type":"string","minLength":1,"maxLength":64},"feeds":{"description":"NDJSON files, one org.prodid.item record per line. Every feed must be served from the same host as the discovery document; a document listing a feed on any other host, or more than 100 of them, is rejected whole.","type":"array","minItems":1,"maxItems":100,"uniqueItems":true,"items":{"type":"string","format":"uri","pattern":"^https://"}}}};
-const pattern13 = new RegExp("^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]([a-z0-9-]{0,61}[a-z0-9])?$", "u");
+const pattern14 = new RegExp("^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]([a-z0-9-]{0,61}[a-z0-9])?$", "u");
 const formats2 = /^[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/i;
 
 function validate21(data, {instancePath="", parentData, parentDataProperty, rootData=data, dynamicAnchors={}}={}){
@@ -1226,7 +1237,7 @@ vErrors.push(err8);
 }
 errors++;
 }
-if(!pattern13.test(data2)){
+if(!pattern14.test(data2)){
 const err9 = {instancePath:instancePath+"/domain",schemaPath:"#/properties/domain/pattern",keyword:"pattern",params:{pattern: "^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]([a-z0-9-]{0,61}[a-z0-9])?$"},message:"must match pattern \""+"^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]([a-z0-9-]{0,61}[a-z0-9])?$"+"\""};
 if(vErrors === null){
 vErrors = [err9];
@@ -1407,7 +1418,7 @@ const len0 = data7.length;
 for(let i0=0; i0<len0; i0++){
 let data8 = data7[i0];
 if(typeof data8 === "string"){
-if(!pattern12.test(data8)){
+if(!pattern13.test(data8)){
 const err24 = {instancePath:instancePath+"/feeds/" + i0,schemaPath:"#/properties/feeds/items/pattern",keyword:"pattern",params:{pattern: "^https://"},message:"must match pattern \""+"^https://"+"\""};
 if(vErrors === null){
 vErrors = [err24];
@@ -1492,13 +1503,13 @@ return errors === 0;
 validate21.evaluated = {"props":true,"dynamicProps":false,"dynamicItems":false};
 
 export const entity = validate22;
-const schema36 = {"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://prodid.org/schemas/v0/org.prodid.entity.json","title":"org.prodid.entity","description":"What the resolver answers for one entity. Every value a reader sees sits inside a claim that names the source that made it and when it was first seen; there are no bare fields.","type":"object","required":["$type","opid","kind","identifiers","claims"],"additionalProperties":false,"properties":{"$type":{"const":"org.prodid.entity"},"opid":{"$ref":"#/$defs/opid"},"kind":{"enum":["family","variant","item"]},"parents":{"description":"The entity's ancestors as opids: an item has a variant and a family, a variant has a family, a family has neither.","type":"object","additionalProperties":false,"properties":{"family":{"$ref":"#/$defs/opid"},"variant":{"$ref":"#/$defs/opid"}}},"children":{"description":"The opids one level down: a family's variants, a variant's items. Absent or empty for an item.","type":"array","uniqueItems":true,"items":{"$ref":"#/$defs/opid"}},"merged_from":{"description":"Opids merged into this one. Each of them resolves here with 308.","type":"array","uniqueItems":true,"items":{"$ref":"#/$defs/opid"}},"identifiers":{"type":"array","uniqueItems":true,"items":{"$ref":"#/$defs/identifier"}},"claims":{"description":"Active claims about this entity. With ?history=1 the withdrawn ones are included, each carrying withdrawn_at.","type":"array","items":{"$ref":"#/$defs/claim"}}},"allOf":[{"if":{"required":["kind"],"properties":{"kind":{"const":"item"}}},"then":{"required":["parents"],"properties":{"parents":{"type":"object","required":["family","variant"],"properties":{"family":{"$ref":"#/$defs/opid"},"variant":{"$ref":"#/$defs/opid"}}},"children":false}}},{"if":{"required":["kind"],"properties":{"kind":{"const":"variant"}}},"then":{"required":["parents"],"properties":{"parents":{"type":"object","required":["family"],"properties":{"family":{"$ref":"#/$defs/opid"},"variant":false}}}}},{"if":{"required":["kind"],"properties":{"kind":{"const":"family"}}},"then":{"properties":{"parents":false}}}],"$defs":{"opid":{"description":"Opaque index identifier, never parsed by a reader.","type":"string","pattern":"^[0-9a-hjkmnp-tv-z]{16}$"},"identifier":{"type":"object","required":["scheme","value"],"additionalProperties":false,"allOf":[{"if":{"required":["scheme"],"properties":{"scheme":{"enum":["mpn","sku","rcn"]}}},"then":{"required":["scope"],"properties":{"scope":{"$ref":"#/$defs/scope"}}},"else":{"properties":{"scope":false}}},{"if":{"required":["scheme"],"properties":{"scheme":{"enum":["gtin","rcn"]}}},"then":{"properties":{"value":{"$ref":"#/$defs/gtinValue"}}}}],"properties":{"scheme":{"type":"string","pattern":"^[a-z][a-z0-9-]{0,31}$"},"value":{"description":"Normalized: a GTIN or a restricted circulation number is the 14-digit form, left-padded with zeros.","type":"string","minLength":1,"maxLength":256},"scope":{"description":"What the value is unique within. Required for mpn, sku and rcn, and present for nothing else: the normalized brand for mpn, the source's name for sku and rcn. Without it a restricted number would read as a global one.","$ref":"#/$defs/scope"}}},"scope":{"type":"string","minLength":1,"maxLength":256},"gtinValue":{"description":"The normalized 14-digit form. All zeros is a placeholder, not an identifier.","type":"string","pattern":"^[0-9]{14}$","not":{"const":"00000000000000"}},"claim":{"type":"object","required":["property","value","source","seen_at"],"additionalProperties":false,"allOf":[{"if":{"required":["property"],"properties":{"property":{"enum":["category","markets","media"]}}},"then":{"properties":{"lang":false}}},{"if":{"required":["lang"],"properties":{"lang":true}},"then":{"properties":{"value":{"$ref":"#/$defs/text"}}}},{"if":{"required":["property"],"properties":{"property":{"const":"media"}}},"then":{"properties":{"value":{"$ref":"#/$defs/mediaValue"}}}},{"if":{"required":["property"],"properties":{"property":{"const":"markets"}}},"then":{"properties":{"value":{"type":"string","pattern":"^[A-Z]{2}$"}}}}],"properties":{"property":{"description":"A built-in property, or a publisher key under variant. or properties. — the namespace that keeps a publisher's own `name` from colliding with the built-in one.","type":"string","pattern":"^(brand|name|category|markets|media|(variant|properties)\\.[a-z][A-Za-z0-9]*)$"},"value":true,"lang":{"description":"BCP 47 tag. Carried only by claims whose value is text the publisher wrote: brand, name, variant.*, and those properties.* whose value is a string or a list of strings.","type":"string","pattern":"^[A-Za-z]{2,8}(-[A-Za-z0-9]{1,8})*$"},"source":{"$ref":"#/$defs/source"},"seen_at":{"description":"When this source first asserted this value. It does not change while the claim keeps being asserted.","type":"string","format":"date-time"},"withdrawn_at":{"description":"When the source stopped asserting it. Present only on withdrawn claims, which are returned only with ?history=1.","type":"string","format":"date-time"}}},"text":{"description":"What a lang tag can apply to: a string, or a list of strings.","oneOf":[{"type":"string"},{"type":"array","items":{"type":"string"}}]},"mediaValue":{"description":"The value of a media claim. The index stores the file under its digest; a reader fetches media_url, and url says where the source published it.","type":"object","required":["sha256","url","media_url","license"],"additionalProperties":false,"properties":{"sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"},"url":{"description":"Where the source published the file.","type":"string","format":"uri","pattern":"^https://"},"media_url":{"description":"Where the index serves the stored copy.","type":"string","pattern":"^https://media\\.prodid\\.org/sha256/[0-9a-f]{64}$"},"license":{"type":"string","minLength":1,"maxLength":64},"kind":{"enum":["image","document"]}}},"source":{"description":"Who said it. The full status of a source is at /source/{name}.","type":"object","required":["name","trust","lapsed"],"additionalProperties":false,"properties":{"name":{"type":"string","minLength":1,"maxLength":253},"trust":{"enum":["authoritative","verified","unverified"]},"lapsed":{"description":"True while the source's discovery is failing. Its claims stay readable and stay marked.","type":"boolean"}}}}};
+const schema36 = {"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://prodid.org/schemas/v0/org.prodid.entity.json","title":"org.prodid.entity","description":"What the resolver answers for one entity. Every value a reader sees sits inside a claim that names the source that made it and when it was first seen; there are no bare fields.","type":"object","required":["$type","opid","kind","identifiers","claims"],"additionalProperties":false,"properties":{"$type":{"const":"org.prodid.entity"},"opid":{"$ref":"#/$defs/opid"},"kind":{"enum":["family","variant","item"]},"parents":{"description":"The entity's ancestors as opids: an item has a variant and a family, a variant has a family, a family has neither.","type":"object","additionalProperties":false,"properties":{"family":{"$ref":"#/$defs/opid"},"variant":{"$ref":"#/$defs/opid"}}},"children":{"description":"The opids one level down: a family's variants, a variant's items. Absent or empty for an item.","type":"array","uniqueItems":true,"items":{"$ref":"#/$defs/opid"}},"merged_from":{"description":"Opids merged into this one. Each of them resolves here with 308.","type":"array","uniqueItems":true,"items":{"$ref":"#/$defs/opid"}},"identifiers":{"type":"array","uniqueItems":true,"items":{"$ref":"#/$defs/identifier"}},"claims":{"description":"Active claims about this entity. With ?history=1 the withdrawn ones are included, each carrying withdrawn_at.","type":"array","items":{"$ref":"#/$defs/claim"}}},"allOf":[{"if":{"required":["kind"],"properties":{"kind":{"const":"item"}}},"then":{"required":["parents"],"properties":{"parents":{"type":"object","required":["family","variant"],"properties":{"family":{"$ref":"#/$defs/opid"},"variant":{"$ref":"#/$defs/opid"}}},"children":false}}},{"if":{"required":["kind"],"properties":{"kind":{"const":"variant"}}},"then":{"required":["parents"],"properties":{"parents":{"type":"object","required":["family"],"properties":{"family":{"$ref":"#/$defs/opid"},"variant":false}}}}},{"if":{"required":["kind"],"properties":{"kind":{"const":"family"}}},"then":{"properties":{"parents":false}}}],"$defs":{"opid":{"description":"Opaque index identifier, never parsed by a reader.","type":"string","pattern":"^[0-9a-hjkmnp-tv-z]{16}$"},"identifier":{"type":"object","required":["scheme","value"],"additionalProperties":false,"allOf":[{"if":{"required":["scheme"],"properties":{"scheme":{"enum":["mpn","sku","rcn"]}}},"then":{"required":["scope"],"properties":{"scope":{"$ref":"#/$defs/scope"}}},"else":{"properties":{"scope":false}}},{"if":{"required":["scheme"],"properties":{"scheme":{"enum":["gtin","rcn"]}}},"then":{"properties":{"value":{"$ref":"#/$defs/gtinValue"}}}}],"properties":{"scheme":{"type":"string","pattern":"^[a-z][a-z0-9-]{0,31}$"},"value":{"description":"Normalized: a GTIN or a restricted circulation number is the 14-digit form, left-padded with zeros. Never blank or untrimmed.","type":"string","minLength":1,"maxLength":256,"pattern":"^\\S([\\s\\S]*\\S)?$"},"scope":{"description":"What the value is unique within. Required for mpn, sku and rcn, and present for nothing else: the normalized brand for mpn, the source's name for sku and rcn. Without it a restricted number would read as a global one.","$ref":"#/$defs/scope"}}},"scope":{"type":"string","minLength":1,"maxLength":256,"pattern":"^\\S([\\s\\S]*\\S)?$"},"gtinValue":{"description":"The normalized 14-digit form. All zeros is a placeholder, not an identifier.","type":"string","pattern":"^[0-9]{14}$","not":{"const":"00000000000000"}},"claim":{"type":"object","required":["property","value","source","seen_at"],"additionalProperties":false,"allOf":[{"if":{"required":["property"],"properties":{"property":{"enum":["category","markets","media"]}}},"then":{"properties":{"lang":false}}},{"if":{"required":["lang"],"properties":{"lang":true}},"then":{"properties":{"value":{"$ref":"#/$defs/text"}}}},{"if":{"required":["property"],"properties":{"property":{"const":"media"}}},"then":{"properties":{"value":{"$ref":"#/$defs/mediaValue"}}}},{"if":{"required":["property"],"properties":{"property":{"const":"markets"}}},"then":{"properties":{"value":{"type":"string","pattern":"^[A-Z]{2}$"}}}}],"properties":{"property":{"description":"A built-in property, or a publisher key under variant. or properties. — the namespace that keeps a publisher's own `name` from colliding with the built-in one.","type":"string","pattern":"^(brand|name|category|markets|media|(variant|properties)\\.[a-z][A-Za-z0-9]*)$"},"value":true,"lang":{"description":"BCP 47 tag. Carried only by claims whose value is text the publisher wrote: brand, name, variant.*, and those properties.* whose value is a string or a list of strings.","type":"string","pattern":"^[A-Za-z]{2,8}(-[A-Za-z0-9]{1,8})*$"},"source":{"$ref":"#/$defs/source"},"seen_at":{"description":"When this source began asserting this value, and has not stopped since. It does not change while the claim keeps being asserted, and it is not when the fact was first published anywhere: a claim re-asserted after a withdrawal carries the later date.","type":"string","format":"date-time"},"withdrawn_at":{"description":"When the source stopped asserting it. Present only on withdrawn claims, which are returned only with ?history=1.","type":"string","format":"date-time"}}},"text":{"description":"What a lang tag can apply to: a string, or a list of strings.","oneOf":[{"type":"string"},{"type":"array","items":{"type":"string"}}]},"mediaValue":{"description":"The value of a media claim. The index stores the file under its digest; a reader fetches media_url, and url says where the source published it.","type":"object","required":["sha256","url","media_url","license"],"additionalProperties":false,"properties":{"sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"},"url":{"description":"Where the source published the file.","type":"string","format":"uri","pattern":"^https://"},"media_url":{"description":"Where the index serves the stored copy.","type":"string","pattern":"^https://media\\.prodid\\.org/sha256/[0-9a-f]{64}$"},"license":{"type":"string","minLength":1,"maxLength":64},"kind":{"enum":["image","document"]}}},"source":{"description":"Who said it. The full status of a source is at /source/{name}.","type":"object","required":["name","trust","lapsed"],"additionalProperties":false,"properties":{"name":{"type":"string","minLength":1,"maxLength":253},"trust":{"enum":["authoritative","verified","unverified"]},"lapsed":{"description":"True while the source's discovery is failing. Its claims stay readable and stay marked.","type":"boolean"}}}}};
 const schema37 = {"description":"Opaque index identifier, never parsed by a reader.","type":"string","pattern":"^[0-9a-hjkmnp-tv-z]{16}$"};
-const pattern15 = new RegExp("^[0-9a-hjkmnp-tv-z]{16}$", "u");
-const schema45 = {"type":"object","required":["scheme","value"],"additionalProperties":false,"allOf":[{"if":{"required":["scheme"],"properties":{"scheme":{"enum":["mpn","sku","rcn"]}}},"then":{"required":["scope"],"properties":{"scope":{"$ref":"#/$defs/scope"}}},"else":{"properties":{"scope":false}}},{"if":{"required":["scheme"],"properties":{"scheme":{"enum":["gtin","rcn"]}}},"then":{"properties":{"value":{"$ref":"#/$defs/gtinValue"}}}}],"properties":{"scheme":{"type":"string","pattern":"^[a-z][a-z0-9-]{0,31}$"},"value":{"description":"Normalized: a GTIN or a restricted circulation number is the 14-digit form, left-padded with zeros.","type":"string","minLength":1,"maxLength":256},"scope":{"description":"What the value is unique within. Required for mpn, sku and rcn, and present for nothing else: the normalized brand for mpn, the source's name for sku and rcn. Without it a restricted number would read as a global one.","$ref":"#/$defs/scope"}}};
-const schema46 = {"type":"string","minLength":1,"maxLength":256};
+const pattern16 = new RegExp("^[0-9a-hjkmnp-tv-z]{16}$", "u");
+const schema45 = {"type":"object","required":["scheme","value"],"additionalProperties":false,"allOf":[{"if":{"required":["scheme"],"properties":{"scheme":{"enum":["mpn","sku","rcn"]}}},"then":{"required":["scope"],"properties":{"scope":{"$ref":"#/$defs/scope"}}},"else":{"properties":{"scope":false}}},{"if":{"required":["scheme"],"properties":{"scheme":{"enum":["gtin","rcn"]}}},"then":{"properties":{"value":{"$ref":"#/$defs/gtinValue"}}}}],"properties":{"scheme":{"type":"string","pattern":"^[a-z][a-z0-9-]{0,31}$"},"value":{"description":"Normalized: a GTIN or a restricted circulation number is the 14-digit form, left-padded with zeros. Never blank or untrimmed.","type":"string","minLength":1,"maxLength":256,"pattern":"^\\S([\\s\\S]*\\S)?$"},"scope":{"description":"What the value is unique within. Required for mpn, sku and rcn, and present for nothing else: the normalized brand for mpn, the source's name for sku and rcn. Without it a restricted number would read as a global one.","$ref":"#/$defs/scope"}}};
+const schema46 = {"type":"string","minLength":1,"maxLength":256,"pattern":"^\\S([\\s\\S]*\\S)?$"};
 const schema47 = {"description":"The normalized 14-digit form. All zeros is a placeholder, not an identifier.","type":"string","pattern":"^[0-9]{14}$","not":{"const":"00000000000000"}};
-const pattern23 = new RegExp("^[0-9]{14}$", "u");
+const pattern25 = new RegExp("^[0-9]{14}$", "u");
 
 function validate23(data, {instancePath="", parentData, parentDataProperty, rootData=data, dynamicAnchors={}}={}){
 let vErrors = null;
@@ -1588,14 +1599,24 @@ vErrors.push(err4);
 }
 errors++;
 }
-}
-else {
-const err5 = {instancePath:instancePath+"/scope",schemaPath:"#/$defs/scope/type",keyword:"type",params:{type: "string"},message:"must be string"};
+if(!pattern9.test(data1)){
+const err5 = {instancePath:instancePath+"/scope",schemaPath:"#/$defs/scope/pattern",keyword:"pattern",params:{pattern: "^\\S([\\s\\S]*\\S)?$"},message:"must match pattern \""+"^\\S([\\s\\S]*\\S)?$"+"\""};
 if(vErrors === null){
 vErrors = [err5];
 }
 else {
 vErrors.push(err5);
+}
+errors++;
+}
+}
+else {
+const err6 = {instancePath:instancePath+"/scope",schemaPath:"#/$defs/scope/type",keyword:"type",params:{type: "string"},message:"must be string"};
+if(vErrors === null){
+vErrors = [err6];
+}
+else {
+vErrors.push(err6);
 }
 errors++;
 }
@@ -1614,12 +1635,12 @@ else {
 const _errs9 = errors;
 if(data && typeof data == "object" && !Array.isArray(data)){
 if(data.scope !== undefined){
-const err6 = {instancePath:instancePath+"/scope",schemaPath:"#/allOf/0/else/properties/scope/false schema",keyword:"false schema",params:{},message:"boolean schema is false"};
+const err7 = {instancePath:instancePath+"/scope",schemaPath:"#/allOf/0/else/properties/scope/false schema",keyword:"false schema",params:{},message:"boolean schema is false"};
 if(vErrors === null){
-vErrors = [err6];
+vErrors = [err7];
 }
 else {
-vErrors.push(err6);
+vErrors.push(err7);
 }
 errors++;
 }
@@ -1635,12 +1656,12 @@ props0.scope = true;
 ifClause0 = "else";
 }
 if(!valid1){
-const err7 = {instancePath,schemaPath:"#/allOf/0/if",keyword:"if",params:{failingKeyword: ifClause0},message:"must match \""+ifClause0+"\" schema"};
+const err8 = {instancePath,schemaPath:"#/allOf/0/if",keyword:"if",params:{failingKeyword: ifClause0},message:"must match \""+ifClause0+"\" schema"};
 if(vErrors === null){
-vErrors = [err7];
+vErrors = [err8];
 }
 else {
-vErrors.push(err7);
+vErrors.push(err8);
 }
 errors++;
 }
@@ -1650,12 +1671,12 @@ const _errs12 = errors;
 if(data && typeof data == "object" && !Array.isArray(data)){
 let missing1;
 if((data.scheme === undefined) && (missing1 = "scheme")){
-const err8 = {};
+const err9 = {};
 if(vErrors === null){
-vErrors = [err8];
+vErrors = [err9];
 }
 else {
-vErrors.push(err8);
+vErrors.push(err9);
 }
 errors++;
 }
@@ -1663,12 +1684,12 @@ else {
 if(data.scheme !== undefined){
 let data3 = data.scheme;
 if(!((data3 === "gtin") || (data3 === "rcn"))){
-const err9 = {};
+const err10 = {};
 if(vErrors === null){
-vErrors = [err9];
+vErrors = [err10];
 }
 else {
-vErrors.push(err9);
+vErrors.push(err10);
 }
 errors++;
 }
@@ -1693,23 +1714,23 @@ let data4 = data.value;
 const _errs18 = errors;
 const _errs19 = errors;
 if("00000000000000" !== data4){
-const err10 = {};
-if(vErrors === null){
-vErrors = [err10];
-}
-else {
-vErrors.push(err10);
-}
-errors++;
-}
-var valid10 = _errs19 === errors;
-if(valid10){
-const err11 = {instancePath:instancePath+"/value",schemaPath:"#/$defs/gtinValue/not",keyword:"not",params:{},message:"must NOT be valid"};
+const err11 = {};
 if(vErrors === null){
 vErrors = [err11];
 }
 else {
 vErrors.push(err11);
+}
+errors++;
+}
+var valid10 = _errs19 === errors;
+if(valid10){
+const err12 = {instancePath:instancePath+"/value",schemaPath:"#/$defs/gtinValue/not",keyword:"not",params:{},message:"must NOT be valid"};
+if(vErrors === null){
+vErrors = [err12];
+}
+else {
+vErrors.push(err12);
 }
 errors++;
 }
@@ -1725,24 +1746,24 @@ vErrors = null;
 }
 }
 if(typeof data4 === "string"){
-if(!pattern23.test(data4)){
-const err12 = {instancePath:instancePath+"/value",schemaPath:"#/$defs/gtinValue/pattern",keyword:"pattern",params:{pattern: "^[0-9]{14}$"},message:"must match pattern \""+"^[0-9]{14}$"+"\""};
-if(vErrors === null){
-vErrors = [err12];
-}
-else {
-vErrors.push(err12);
-}
-errors++;
-}
-}
-else {
-const err13 = {instancePath:instancePath+"/value",schemaPath:"#/$defs/gtinValue/type",keyword:"type",params:{type: "string"},message:"must be string"};
+if(!pattern25.test(data4)){
+const err13 = {instancePath:instancePath+"/value",schemaPath:"#/$defs/gtinValue/pattern",keyword:"pattern",params:{pattern: "^[0-9]{14}$"},message:"must match pattern \""+"^[0-9]{14}$"+"\""};
 if(vErrors === null){
 vErrors = [err13];
 }
 else {
 vErrors.push(err13);
+}
+errors++;
+}
+}
+else {
+const err14 = {instancePath:instancePath+"/value",schemaPath:"#/$defs/gtinValue/type",keyword:"type",params:{type: "string"},message:"must be string"};
+if(vErrors === null){
+vErrors = [err14];
+}
+else {
+vErrors.push(err14);
 }
 errors++;
 }
@@ -1757,12 +1778,12 @@ props1.scheme = true;
 }
 }
 if(!valid6){
-const err14 = {instancePath,schemaPath:"#/allOf/1/if",keyword:"if",params:{failingKeyword: "then"},message:"must match \"then\" schema"};
+const err15 = {instancePath,schemaPath:"#/allOf/1/if",keyword:"if",params:{failingKeyword: "then"},message:"must match \"then\" schema"};
 if(vErrors === null){
-vErrors = [err14];
+vErrors = [err15];
 }
 else {
-vErrors.push(err14);
+vErrors.push(err15);
 }
 errors++;
 }
@@ -1777,17 +1798,7 @@ Object.assign(props0, props1);
 }
 if(data && typeof data == "object" && !Array.isArray(data)){
 if(data.scheme === undefined){
-const err15 = {instancePath,schemaPath:"#/required",keyword:"required",params:{missingProperty: "scheme"},message:"must have required property '"+"scheme"+"'"};
-if(vErrors === null){
-vErrors = [err15];
-}
-else {
-vErrors.push(err15);
-}
-errors++;
-}
-if(data.value === undefined){
-const err16 = {instancePath,schemaPath:"#/required",keyword:"required",params:{missingProperty: "value"},message:"must have required property '"+"value"+"'"};
+const err16 = {instancePath,schemaPath:"#/required",keyword:"required",params:{missingProperty: "scheme"},message:"must have required property '"+"scheme"+"'"};
 if(vErrors === null){
 vErrors = [err16];
 }
@@ -1796,9 +1807,8 @@ vErrors.push(err16);
 }
 errors++;
 }
-for(const key0 in data){
-if(!(((key0 === "scheme") || (key0 === "value")) || (key0 === "scope"))){
-const err17 = {instancePath,schemaPath:"#/additionalProperties",keyword:"additionalProperties",params:{additionalProperty: key0},message:"must NOT have additional properties"};
+if(data.value === undefined){
+const err17 = {instancePath,schemaPath:"#/required",keyword:"required",params:{missingProperty: "value"},message:"must have required property '"+"value"+"'"};
 if(vErrors === null){
 vErrors = [err17];
 }
@@ -1807,12 +1817,9 @@ vErrors.push(err17);
 }
 errors++;
 }
-}
-if(data.scheme !== undefined){
-let data5 = data.scheme;
-if(typeof data5 === "string"){
-if(!pattern8.test(data5)){
-const err18 = {instancePath:instancePath+"/scheme",schemaPath:"#/properties/scheme/pattern",keyword:"pattern",params:{pattern: "^[a-z][a-z0-9-]{0,31}$"},message:"must match pattern \""+"^[a-z][a-z0-9-]{0,31}$"+"\""};
+for(const key0 in data){
+if(!(((key0 === "scheme") || (key0 === "value")) || (key0 === "scope"))){
+const err18 = {instancePath,schemaPath:"#/additionalProperties",keyword:"additionalProperties",params:{additionalProperty: key0},message:"must NOT have additional properties"};
 if(vErrors === null){
 vErrors = [err18];
 }
@@ -1822,8 +1829,11 @@ vErrors.push(err18);
 errors++;
 }
 }
-else {
-const err19 = {instancePath:instancePath+"/scheme",schemaPath:"#/properties/scheme/type",keyword:"type",params:{type: "string"},message:"must be string"};
+if(data.scheme !== undefined){
+let data5 = data.scheme;
+if(typeof data5 === "string"){
+if(!pattern8.test(data5)){
+const err19 = {instancePath:instancePath+"/scheme",schemaPath:"#/properties/scheme/pattern",keyword:"pattern",params:{pattern: "^[a-z][a-z0-9-]{0,31}$"},message:"must match pattern \""+"^[a-z][a-z0-9-]{0,31}$"+"\""};
 if(vErrors === null){
 vErrors = [err19];
 }
@@ -1833,11 +1843,8 @@ vErrors.push(err19);
 errors++;
 }
 }
-if(data.value !== undefined){
-let data6 = data.value;
-if(typeof data6 === "string"){
-if(func2(data6) > 256){
-const err20 = {instancePath:instancePath+"/value",schemaPath:"#/properties/value/maxLength",keyword:"maxLength",params:{limit: 256},message:"must NOT have more than 256 characters"};
+else {
+const err20 = {instancePath:instancePath+"/scheme",schemaPath:"#/properties/scheme/type",keyword:"type",params:{type: "string"},message:"must be string"};
 if(vErrors === null){
 vErrors = [err20];
 }
@@ -1846,8 +1853,12 @@ vErrors.push(err20);
 }
 errors++;
 }
-if(func2(data6) < 1){
-const err21 = {instancePath:instancePath+"/value",schemaPath:"#/properties/value/minLength",keyword:"minLength",params:{limit: 1},message:"must NOT have fewer than 1 characters"};
+}
+if(data.value !== undefined){
+let data6 = data.value;
+if(typeof data6 === "string"){
+if(func2(data6) > 256){
+const err21 = {instancePath:instancePath+"/value",schemaPath:"#/properties/value/maxLength",keyword:"maxLength",params:{limit: 256},message:"must NOT have more than 256 characters"};
 if(vErrors === null){
 vErrors = [err21];
 }
@@ -1856,9 +1867,8 @@ vErrors.push(err21);
 }
 errors++;
 }
-}
-else {
-const err22 = {instancePath:instancePath+"/value",schemaPath:"#/properties/value/type",keyword:"type",params:{type: "string"},message:"must be string"};
+if(func2(data6) < 1){
+const err22 = {instancePath:instancePath+"/value",schemaPath:"#/properties/value/minLength",keyword:"minLength",params:{limit: 1},message:"must NOT have fewer than 1 characters"};
 if(vErrors === null){
 vErrors = [err22];
 }
@@ -1867,12 +1877,8 @@ vErrors.push(err22);
 }
 errors++;
 }
-}
-if(data.scope !== undefined){
-let data7 = data.scope;
-if(typeof data7 === "string"){
-if(func2(data7) > 256){
-const err23 = {instancePath:instancePath+"/scope",schemaPath:"#/$defs/scope/maxLength",keyword:"maxLength",params:{limit: 256},message:"must NOT have more than 256 characters"};
+if(!pattern9.test(data6)){
+const err23 = {instancePath:instancePath+"/value",schemaPath:"#/properties/value/pattern",keyword:"pattern",params:{pattern: "^\\S([\\s\\S]*\\S)?$"},message:"must match pattern \""+"^\\S([\\s\\S]*\\S)?$"+"\""};
 if(vErrors === null){
 vErrors = [err23];
 }
@@ -1881,8 +1887,9 @@ vErrors.push(err23);
 }
 errors++;
 }
-if(func2(data7) < 1){
-const err24 = {instancePath:instancePath+"/scope",schemaPath:"#/$defs/scope/minLength",keyword:"minLength",params:{limit: 1},message:"must NOT have fewer than 1 characters"};
+}
+else {
+const err24 = {instancePath:instancePath+"/value",schemaPath:"#/properties/value/type",keyword:"type",params:{type: "string"},message:"must be string"};
 if(vErrors === null){
 vErrors = [err24];
 }
@@ -1892,8 +1899,11 @@ vErrors.push(err24);
 errors++;
 }
 }
-else {
-const err25 = {instancePath:instancePath+"/scope",schemaPath:"#/$defs/scope/type",keyword:"type",params:{type: "string"},message:"must be string"};
+if(data.scope !== undefined){
+let data7 = data.scope;
+if(typeof data7 === "string"){
+if(func2(data7) > 256){
+const err25 = {instancePath:instancePath+"/scope",schemaPath:"#/$defs/scope/maxLength",keyword:"maxLength",params:{limit: 256},message:"must NOT have more than 256 characters"};
 if(vErrors === null){
 vErrors = [err25];
 }
@@ -1902,10 +1912,8 @@ vErrors.push(err25);
 }
 errors++;
 }
-}
-}
-else {
-const err26 = {instancePath,schemaPath:"#/type",keyword:"type",params:{type: "object"},message:"must be object"};
+if(func2(data7) < 1){
+const err26 = {instancePath:instancePath+"/scope",schemaPath:"#/$defs/scope/minLength",keyword:"minLength",params:{limit: 1},message:"must NOT have fewer than 1 characters"};
 if(vErrors === null){
 vErrors = [err26];
 }
@@ -1914,18 +1922,51 @@ vErrors.push(err26);
 }
 errors++;
 }
+if(!pattern9.test(data7)){
+const err27 = {instancePath:instancePath+"/scope",schemaPath:"#/$defs/scope/pattern",keyword:"pattern",params:{pattern: "^\\S([\\s\\S]*\\S)?$"},message:"must match pattern \""+"^\\S([\\s\\S]*\\S)?$"+"\""};
+if(vErrors === null){
+vErrors = [err27];
+}
+else {
+vErrors.push(err27);
+}
+errors++;
+}
+}
+else {
+const err28 = {instancePath:instancePath+"/scope",schemaPath:"#/$defs/scope/type",keyword:"type",params:{type: "string"},message:"must be string"};
+if(vErrors === null){
+vErrors = [err28];
+}
+else {
+vErrors.push(err28);
+}
+errors++;
+}
+}
+}
+else {
+const err29 = {instancePath,schemaPath:"#/type",keyword:"type",params:{type: "object"},message:"must be object"};
+if(vErrors === null){
+vErrors = [err29];
+}
+else {
+vErrors.push(err29);
+}
+errors++;
+}
 validate23.errors = vErrors;
 return errors === 0;
 }
 validate23.evaluated = {"props":true,"dynamicProps":false,"dynamicItems":false};
 
-const schema49 = {"type":"object","required":["property","value","source","seen_at"],"additionalProperties":false,"allOf":[{"if":{"required":["property"],"properties":{"property":{"enum":["category","markets","media"]}}},"then":{"properties":{"lang":false}}},{"if":{"required":["lang"],"properties":{"lang":true}},"then":{"properties":{"value":{"$ref":"#/$defs/text"}}}},{"if":{"required":["property"],"properties":{"property":{"const":"media"}}},"then":{"properties":{"value":{"$ref":"#/$defs/mediaValue"}}}},{"if":{"required":["property"],"properties":{"property":{"const":"markets"}}},"then":{"properties":{"value":{"type":"string","pattern":"^[A-Z]{2}$"}}}}],"properties":{"property":{"description":"A built-in property, or a publisher key under variant. or properties. — the namespace that keeps a publisher's own `name` from colliding with the built-in one.","type":"string","pattern":"^(brand|name|category|markets|media|(variant|properties)\\.[a-z][A-Za-z0-9]*)$"},"value":true,"lang":{"description":"BCP 47 tag. Carried only by claims whose value is text the publisher wrote: brand, name, variant.*, and those properties.* whose value is a string or a list of strings.","type":"string","pattern":"^[A-Za-z]{2,8}(-[A-Za-z0-9]{1,8})*$"},"source":{"$ref":"#/$defs/source"},"seen_at":{"description":"When this source first asserted this value. It does not change while the claim keeps being asserted.","type":"string","format":"date-time"},"withdrawn_at":{"description":"When the source stopped asserting it. Present only on withdrawn claims, which are returned only with ?history=1.","type":"string","format":"date-time"}}};
+const schema49 = {"type":"object","required":["property","value","source","seen_at"],"additionalProperties":false,"allOf":[{"if":{"required":["property"],"properties":{"property":{"enum":["category","markets","media"]}}},"then":{"properties":{"lang":false}}},{"if":{"required":["lang"],"properties":{"lang":true}},"then":{"properties":{"value":{"$ref":"#/$defs/text"}}}},{"if":{"required":["property"],"properties":{"property":{"const":"media"}}},"then":{"properties":{"value":{"$ref":"#/$defs/mediaValue"}}}},{"if":{"required":["property"],"properties":{"property":{"const":"markets"}}},"then":{"properties":{"value":{"type":"string","pattern":"^[A-Z]{2}$"}}}}],"properties":{"property":{"description":"A built-in property, or a publisher key under variant. or properties. — the namespace that keeps a publisher's own `name` from colliding with the built-in one.","type":"string","pattern":"^(brand|name|category|markets|media|(variant|properties)\\.[a-z][A-Za-z0-9]*)$"},"value":true,"lang":{"description":"BCP 47 tag. Carried only by claims whose value is text the publisher wrote: brand, name, variant.*, and those properties.* whose value is a string or a list of strings.","type":"string","pattern":"^[A-Za-z]{2,8}(-[A-Za-z0-9]{1,8})*$"},"source":{"$ref":"#/$defs/source"},"seen_at":{"description":"When this source began asserting this value, and has not stopped since. It does not change while the claim keeps being asserted, and it is not when the fact was first published anywhere: a claim re-asserted after a withdrawal carries the later date.","type":"string","format":"date-time"},"withdrawn_at":{"description":"When the source stopped asserting it. Present only on withdrawn claims, which are returned only with ?history=1.","type":"string","format":"date-time"}}};
 const schema50 = {"description":"What a lang tag can apply to: a string, or a list of strings.","oneOf":[{"type":"string"},{"type":"array","items":{"type":"string"}}]};
 const schema51 = {"description":"The value of a media claim. The index stores the file under its digest; a reader fetches media_url, and url says where the source published it.","type":"object","required":["sha256","url","media_url","license"],"additionalProperties":false,"properties":{"sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"},"url":{"description":"Where the source published the file.","type":"string","format":"uri","pattern":"^https://"},"media_url":{"description":"Where the index serves the stored copy.","type":"string","pattern":"^https://media\\.prodid\\.org/sha256/[0-9a-f]{64}$"},"license":{"type":"string","minLength":1,"maxLength":64},"kind":{"enum":["image","document"]}}};
 const schema52 = {"description":"Who said it. The full status of a source is at /source/{name}.","type":"object","required":["name","trust","lapsed"],"additionalProperties":false,"properties":{"name":{"type":"string","minLength":1,"maxLength":253},"trust":{"enum":["authoritative","verified","unverified"]},"lapsed":{"description":"True while the source's discovery is failing. Its claims stay readable and stay marked.","type":"boolean"}}};
-const pattern25 = new RegExp("^[0-9a-f]{64}$", "u");
-const pattern27 = new RegExp("^https://media\\.prodid\\.org/sha256/[0-9a-f]{64}$", "u");
-const pattern29 = new RegExp("^(brand|name|category|markets|media|(variant|properties)\\.[a-z][A-Za-z0-9]*)$", "u");
+const pattern29 = new RegExp("^[0-9a-f]{64}$", "u");
+const pattern31 = new RegExp("^https://media\\.prodid\\.org/sha256/[0-9a-f]{64}$", "u");
+const pattern33 = new RegExp("^(brand|name|category|markets|media|(variant|properties)\\.[a-z][A-Za-z0-9]*)$", "u");
 const formats8 = dep2.fullFormats["date-time"];
 
 function validate25(data, {instancePath="", parentData, parentDataProperty, rootData=data, dynamicAnchors={}}={}){
@@ -2249,7 +2290,7 @@ errors++;
 if(data5.sha256 !== undefined){
 let data6 = data5.sha256;
 if(typeof data6 === "string"){
-if(!pattern25.test(data6)){
+if(!pattern29.test(data6)){
 const err17 = {instancePath:instancePath+"/value/sha256",schemaPath:"#/$defs/mediaValue/properties/sha256/pattern",keyword:"pattern",params:{pattern: "^[0-9a-f]{64}$"},message:"must match pattern \""+"^[0-9a-f]{64}$"+"\""};
 if(vErrors === null){
 vErrors = [err17];
@@ -2274,7 +2315,7 @@ errors++;
 if(data5.url !== undefined){
 let data7 = data5.url;
 if(typeof data7 === "string"){
-if(!pattern12.test(data7)){
+if(!pattern13.test(data7)){
 const err19 = {instancePath:instancePath+"/value/url",schemaPath:"#/$defs/mediaValue/properties/url/pattern",keyword:"pattern",params:{pattern: "^https://"},message:"must match pattern \""+"^https://"+"\""};
 if(vErrors === null){
 vErrors = [err19];
@@ -2309,7 +2350,7 @@ errors++;
 if(data5.media_url !== undefined){
 let data8 = data5.media_url;
 if(typeof data8 === "string"){
-if(!pattern27.test(data8)){
+if(!pattern31.test(data8)){
 const err22 = {instancePath:instancePath+"/value/media_url",schemaPath:"#/$defs/mediaValue/properties/media_url/pattern",keyword:"pattern",params:{pattern: "^https://media\\.prodid\\.org/sha256/[0-9a-f]{64}$"},message:"must match pattern \""+"^https://media\\.prodid\\.org/sha256/[0-9a-f]{64}$"+"\""};
 if(vErrors === null){
 vErrors = [err22];
@@ -2465,7 +2506,7 @@ if(data && typeof data == "object" && !Array.isArray(data)){
 if(data.value !== undefined){
 let data12 = data.value;
 if(typeof data12 === "string"){
-if(!pattern10.test(data12)){
+if(!pattern11.test(data12)){
 const err32 = {instancePath:instancePath+"/value",schemaPath:"#/allOf/3/then/properties/value/pattern",keyword:"pattern",params:{pattern: "^[A-Z]{2}$"},message:"must match pattern \""+"^[A-Z]{2}$"+"\""};
 if(vErrors === null){
 vErrors = [err32];
@@ -2571,7 +2612,7 @@ errors++;
 if(data.property !== undefined){
 let data13 = data.property;
 if(typeof data13 === "string"){
-if(!pattern29.test(data13)){
+if(!pattern33.test(data13)){
 const err40 = {instancePath:instancePath+"/property",schemaPath:"#/properties/property/pattern",keyword:"pattern",params:{pattern: "^(brand|name|category|markets|media|(variant|properties)\\.[a-z][A-Za-z0-9]*)$"},message:"must match pattern \""+"^(brand|name|category|markets|media|(variant|properties)\\.[a-z][A-Za-z0-9]*)$"+"\""};
 if(vErrors === null){
 vErrors = [err40];
@@ -2892,7 +2933,7 @@ errors++;
 if(data1.family !== undefined){
 let data2 = data1.family;
 if(typeof data2 === "string"){
-if(!pattern15.test(data2)){
+if(!pattern16.test(data2)){
 const err5 = {instancePath:instancePath+"/parents/family",schemaPath:"#/$defs/opid/pattern",keyword:"pattern",params:{pattern: "^[0-9a-hjkmnp-tv-z]{16}$"},message:"must match pattern \""+"^[0-9a-hjkmnp-tv-z]{16}$"+"\""};
 if(vErrors === null){
 vErrors = [err5];
@@ -2917,7 +2958,7 @@ errors++;
 if(data1.variant !== undefined){
 let data3 = data1.variant;
 if(typeof data3 === "string"){
-if(!pattern15.test(data3)){
+if(!pattern16.test(data3)){
 const err7 = {instancePath:instancePath+"/parents/variant",schemaPath:"#/$defs/opid/pattern",keyword:"pattern",params:{pattern: "^[0-9a-hjkmnp-tv-z]{16}$"},message:"must match pattern \""+"^[0-9a-hjkmnp-tv-z]{16}$"+"\""};
 if(vErrors === null){
 vErrors = [err7];
@@ -3050,7 +3091,7 @@ errors++;
 if(data6.family !== undefined){
 let data7 = data6.family;
 if(typeof data7 === "string"){
-if(!pattern15.test(data7)){
+if(!pattern16.test(data7)){
 const err16 = {instancePath:instancePath+"/parents/family",schemaPath:"#/$defs/opid/pattern",keyword:"pattern",params:{pattern: "^[0-9a-hjkmnp-tv-z]{16}$"},message:"must match pattern \""+"^[0-9a-hjkmnp-tv-z]{16}$"+"\""};
 if(vErrors === null){
 vErrors = [err16];
@@ -3281,7 +3322,7 @@ errors++;
 if(data.opid !== undefined){
 let data12 = data.opid;
 if(typeof data12 === "string"){
-if(!pattern15.test(data12)){
+if(!pattern16.test(data12)){
 const err32 = {instancePath:instancePath+"/opid",schemaPath:"#/$defs/opid/pattern",keyword:"pattern",params:{pattern: "^[0-9a-hjkmnp-tv-z]{16}$"},message:"must match pattern \""+"^[0-9a-hjkmnp-tv-z]{16}$"+"\""};
 if(vErrors === null){
 vErrors = [err32];
@@ -3334,7 +3375,7 @@ errors++;
 if(data14.family !== undefined){
 let data15 = data14.family;
 if(typeof data15 === "string"){
-if(!pattern15.test(data15)){
+if(!pattern16.test(data15)){
 const err36 = {instancePath:instancePath+"/parents/family",schemaPath:"#/$defs/opid/pattern",keyword:"pattern",params:{pattern: "^[0-9a-hjkmnp-tv-z]{16}$"},message:"must match pattern \""+"^[0-9a-hjkmnp-tv-z]{16}$"+"\""};
 if(vErrors === null){
 vErrors = [err36];
@@ -3359,7 +3400,7 @@ errors++;
 if(data14.variant !== undefined){
 let data16 = data14.variant;
 if(typeof data16 === "string"){
-if(!pattern15.test(data16)){
+if(!pattern16.test(data16)){
 const err38 = {instancePath:instancePath+"/parents/variant",schemaPath:"#/$defs/opid/pattern",keyword:"pattern",params:{pattern: "^[0-9a-hjkmnp-tv-z]{16}$"},message:"must match pattern \""+"^[0-9a-hjkmnp-tv-z]{16}$"+"\""};
 if(vErrors === null){
 vErrors = [err38];
@@ -3400,7 +3441,7 @@ const len0 = data17.length;
 for(let i0=0; i0<len0; i0++){
 let data18 = data17[i0];
 if(typeof data18 === "string"){
-if(!pattern15.test(data18)){
+if(!pattern16.test(data18)){
 const err41 = {instancePath:instancePath+"/children/" + i0,schemaPath:"#/$defs/opid/pattern",keyword:"pattern",params:{pattern: "^[0-9a-hjkmnp-tv-z]{16}$"},message:"must match pattern \""+"^[0-9a-hjkmnp-tv-z]{16}$"+"\""};
 if(vErrors === null){
 vErrors = [err41];
@@ -3461,7 +3502,7 @@ const len1 = data19.length;
 for(let i2=0; i2<len1; i2++){
 let data20 = data19[i2];
 if(typeof data20 === "string"){
-if(!pattern15.test(data20)){
+if(!pattern16.test(data20)){
 const err45 = {instancePath:instancePath+"/merged_from/" + i2,schemaPath:"#/$defs/opid/pattern",keyword:"pattern",params:{pattern: "^[0-9a-hjkmnp-tv-z]{16}$"},message:"must match pattern \""+"^[0-9a-hjkmnp-tv-z]{16}$"+"\""};
 if(vErrors === null){
 vErrors = [err45];
@@ -3596,10 +3637,10 @@ return errors === 0;
 validate22.evaluated = {"props":true,"dynamicProps":false,"dynamicItems":false};
 
 export const source = validate27;
-const schema53 = {"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://prodid.org/schemas/v0/org.prodid.source.json","title":"org.prodid.source","description":"The public status of one source: who it is, how its control was proven, whether it has lapsed, and what the last crawl saw. It reports only what the source itself publishes and when the index looked; never who asked for a crawl.","type":"object","required":["$type","name","kind","trust","lapsed"],"additionalProperties":false,"properties":{"$type":{"const":"org.prodid.source"},"name":{"description":"The identity: a domain, a slug host, or a dataset id.","type":"string","minLength":1,"maxLength":253},"kind":{"enum":["domain","hosted","dataset","community"]},"trust":{"enum":["authoritative","verified","unverified"]},"verified_by":{"description":"How domain control was proven. Present exactly when trust is above unverified.","$ref":"#/$defs/verifiedBy"},"verified_at":{"$ref":"#/$defs/timestamp"},"lapsed":{"type":"boolean"},"lapsed_at":{"description":"When discovery stopped succeeding. Present exactly while lapsed is true; 30 days after it, the source's active claims are withdrawn.","$ref":"#/$defs/timestamp"},"license":{"description":"SPDX license identifier the source publishes its facts under.","type":"string","minLength":1,"maxLength":64},"last_crawl":{"$ref":"#/$defs/crawl"}},"allOf":[{"if":{"required":["trust"],"properties":{"trust":{"enum":["authoritative","verified"]}}},"then":{"required":["verified_by","verified_at"],"properties":{"verified_by":{"$ref":"#/$defs/verifiedBy"},"verified_at":{"$ref":"#/$defs/timestamp"}}},"else":{"properties":{"verified_by":false,"verified_at":false}}},{"if":{"required":["kind"],"properties":{"kind":{"enum":["hosted","dataset","community"]}}},"then":{"properties":{"trust":{"const":"unverified"}}}},{"if":{"required":["lapsed"],"properties":{"lapsed":{"const":true}}},"then":{"required":["lapsed_at"],"properties":{"lapsed_at":{"$ref":"#/$defs/timestamp"}}},"else":{"properties":{"lapsed_at":false}}}],"$defs":{"timestamp":{"type":"string","format":"date-time"},"verifiedBy":{"enum":["well-known","dns-txt"]},"crawl":{"description":"The last discovery run. A crawl held back by the crawler's own rate limits is rescheduled and is not reported as an outcome.","type":"object","required":["at","outcome"],"additionalProperties":false,"allOf":[{"if":{"required":["outcome"],"properties":{"outcome":{"const":"success"}}},"then":{"properties":{"http_status":{"enum":[200,304]},"feeds_failed":{"const":0}}}},{"if":{"required":["outcome"],"properties":{"outcome":{"const":"transport-failure"}}},"then":{"properties":{"http_status":{"$ref":"#/$defs/failureStatus"}}}}],"properties":{"at":{"$ref":"#/$defs/timestamp"},"via":{"enum":["well-known","dns-txt"]},"document_url":{"description":"The discovery document this crawl asked for. Shown only for the host the source was last verified at, so the status of one source can never report how a host someone else chose answers the crawler.","type":"string","format":"uri","pattern":"^https://"},"outcome":{"description":"success: an acceptable document and every feed it lists read. definite-negative: discovery ended with no acceptable document — either none was found at all, or one was fetched and refused — which lapses the source at once. transport-failure: something could not be read, including a feed, and nothing could be concluded.","enum":["success","definite-negative","transport-failure"]},"http_status":{"description":"The status of the discovery document fetch, when there was one, and only for the host the source was last verified at. The crawler's own error text is never published.","type":"integer","minimum":100,"maximum":599},"records_seen":{"type":"integer","minimum":0},"records_changed":{"description":"Records whose body changed since the last crawl. Never more than records_seen.","type":"integer","minimum":0},"lines_skipped":{"description":"Feed lines that were too long, unparseable or invalid. While this is above zero, absent keys are not withdrawn, for at most seven days.","type":"integer","minimum":0},"feeds_failed":{"description":"Feeds the document lists that could not be read. Above zero makes the crawl a transport failure, so seven days of it lapses the source; the feeds that did answer are still ingested and none of them withdraws anything.","type":"integer","minimum":0}}},"failureStatus":{"description":"What a transport failure can carry: a status that says nothing was concluded, or none at all.","type":"integer","oneOf":[{"const":429},{"minimum":500,"maximum":599}]}}};
+const schema53 = {"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://prodid.org/schemas/v0/org.prodid.source.json","title":"org.prodid.source","description":"The public status of one source: who it is, how its control was proven, whether it has lapsed, and what the last crawl saw. It reports only what the source itself publishes and when the index looked; never who asked for a crawl.","type":"object","required":["$type","name","kind","trust","lapsed"],"additionalProperties":false,"properties":{"$type":{"const":"org.prodid.source"},"name":{"description":"The identity: a domain, a slug host, or a dataset id.","type":"string","minLength":1,"maxLength":253},"kind":{"enum":["domain","hosted","dataset","community"]},"trust":{"enum":["authoritative","verified","unverified"]},"verified_by":{"description":"How domain control was proven. Present exactly when trust is above unverified.","$ref":"#/$defs/verifiedBy"},"verified_at":{"$ref":"#/$defs/timestamp"},"lapsed":{"type":"boolean"},"lapsed_at":{"description":"When discovery stopped succeeding. Present exactly while lapsed is true; 30 days after it, the source's active claims are withdrawn.","$ref":"#/$defs/timestamp"},"license":{"description":"SPDX license identifier the source publishes its facts under.","type":"string","minLength":1,"maxLength":64},"last_crawl":{"$ref":"#/$defs/crawl"}},"allOf":[{"if":{"required":["trust"],"properties":{"trust":{"enum":["authoritative","verified"]}}},"then":{"required":["verified_by","verified_at"],"properties":{"verified_by":{"$ref":"#/$defs/verifiedBy"},"verified_at":{"$ref":"#/$defs/timestamp"}}},"else":{"properties":{"verified_by":false,"verified_at":false}}},{"if":{"required":["kind"],"properties":{"kind":{"enum":["hosted","dataset","community"]}}},"then":{"properties":{"trust":{"const":"unverified"}}}},{"if":{"required":["lapsed"],"properties":{"lapsed":{"const":true}}},"then":{"required":["lapsed_at"],"properties":{"lapsed_at":{"$ref":"#/$defs/timestamp"}}},"else":{"properties":{"lapsed_at":false}}}],"$defs":{"timestamp":{"type":"string","format":"date-time"},"verifiedBy":{"enum":["well-known","dns-txt"]},"crawl":{"description":"The last discovery run. A crawl held back by the crawler's own rate limits is rescheduled and is not reported as an outcome.","type":"object","required":["at","outcome"],"additionalProperties":false,"allOf":[{"if":{"required":["outcome"],"properties":{"outcome":{"const":"success"}}},"then":{"properties":{"http_status":{"enum":[200,304]},"feeds_failed":{"const":0}}}},{"if":{"required":["outcome"],"properties":{"outcome":{"const":"transport-failure"}}},"then":{"properties":{"http_status":{"$ref":"#/$defs/failureStatus"}}}}],"properties":{"at":{"$ref":"#/$defs/timestamp"},"via":{"enum":["well-known","dns-txt"]},"document_url":{"description":"The discovery document this crawl asked for. Shown only for the host the source was last verified at, so the status of one source can never report how a host someone else chose answers the crawler.","type":"string","format":"uri","pattern":"^https://"},"outcome":{"description":"success: an acceptable document and every feed it lists read. definite-negative: discovery ended with no acceptable document — either none was found at all, or one was fetched and refused — which lapses the source at once; a failure at a host this source has never been verified at is a definite negative too, whatever the failure was. transport-failure: something could not be read at a host the source is verified at, including a feed, and nothing could be concluded.","enum":["success","definite-negative","transport-failure"]},"http_status":{"description":"The status of the discovery document fetch, when there was one, and only for the host the source was last verified at. The crawler's own error text is never published.","type":"integer","minimum":100,"maximum":599},"records_seen":{"type":"integer","minimum":0},"records_changed":{"description":"Records whose body changed since the last crawl. Never more than records_seen.","type":"integer","minimum":0},"lines_skipped":{"description":"Feed lines that were too long, unparseable or invalid. While this is above zero, absent keys are not withdrawn, for at most seven days.","type":"integer","minimum":0},"feeds_failed":{"description":"Feeds the document lists that could not be read. Above zero makes the crawl a transport failure, so seven days of it lapses the source; the feeds that did answer are still ingested and none of them withdraws anything.","type":"integer","minimum":0}}},"failureStatus":{"description":"What a transport failure can carry: a status that says nothing was concluded, or none at all.","type":"integer","oneOf":[{"const":429},{"minimum":500,"maximum":599}]}}};
 const schema54 = {"enum":["well-known","dns-txt"]};
 const schema55 = {"type":"string","format":"date-time"};
-const schema60 = {"description":"The last discovery run. A crawl held back by the crawler's own rate limits is rescheduled and is not reported as an outcome.","type":"object","required":["at","outcome"],"additionalProperties":false,"allOf":[{"if":{"required":["outcome"],"properties":{"outcome":{"const":"success"}}},"then":{"properties":{"http_status":{"enum":[200,304]},"feeds_failed":{"const":0}}}},{"if":{"required":["outcome"],"properties":{"outcome":{"const":"transport-failure"}}},"then":{"properties":{"http_status":{"$ref":"#/$defs/failureStatus"}}}}],"properties":{"at":{"$ref":"#/$defs/timestamp"},"via":{"enum":["well-known","dns-txt"]},"document_url":{"description":"The discovery document this crawl asked for. Shown only for the host the source was last verified at, so the status of one source can never report how a host someone else chose answers the crawler.","type":"string","format":"uri","pattern":"^https://"},"outcome":{"description":"success: an acceptable document and every feed it lists read. definite-negative: discovery ended with no acceptable document — either none was found at all, or one was fetched and refused — which lapses the source at once. transport-failure: something could not be read, including a feed, and nothing could be concluded.","enum":["success","definite-negative","transport-failure"]},"http_status":{"description":"The status of the discovery document fetch, when there was one, and only for the host the source was last verified at. The crawler's own error text is never published.","type":"integer","minimum":100,"maximum":599},"records_seen":{"type":"integer","minimum":0},"records_changed":{"description":"Records whose body changed since the last crawl. Never more than records_seen.","type":"integer","minimum":0},"lines_skipped":{"description":"Feed lines that were too long, unparseable or invalid. While this is above zero, absent keys are not withdrawn, for at most seven days.","type":"integer","minimum":0},"feeds_failed":{"description":"Feeds the document lists that could not be read. Above zero makes the crawl a transport failure, so seven days of it lapses the source; the feeds that did answer are still ingested and none of them withdraws anything.","type":"integer","minimum":0}}};
+const schema60 = {"description":"The last discovery run. A crawl held back by the crawler's own rate limits is rescheduled and is not reported as an outcome.","type":"object","required":["at","outcome"],"additionalProperties":false,"allOf":[{"if":{"required":["outcome"],"properties":{"outcome":{"const":"success"}}},"then":{"properties":{"http_status":{"enum":[200,304]},"feeds_failed":{"const":0}}}},{"if":{"required":["outcome"],"properties":{"outcome":{"const":"transport-failure"}}},"then":{"properties":{"http_status":{"$ref":"#/$defs/failureStatus"}}}}],"properties":{"at":{"$ref":"#/$defs/timestamp"},"via":{"enum":["well-known","dns-txt"]},"document_url":{"description":"The discovery document this crawl asked for. Shown only for the host the source was last verified at, so the status of one source can never report how a host someone else chose answers the crawler.","type":"string","format":"uri","pattern":"^https://"},"outcome":{"description":"success: an acceptable document and every feed it lists read. definite-negative: discovery ended with no acceptable document — either none was found at all, or one was fetched and refused — which lapses the source at once; a failure at a host this source has never been verified at is a definite negative too, whatever the failure was. transport-failure: something could not be read at a host the source is verified at, including a feed, and nothing could be concluded.","enum":["success","definite-negative","transport-failure"]},"http_status":{"description":"The status of the discovery document fetch, when there was one, and only for the host the source was last verified at. The crawler's own error text is never published.","type":"integer","minimum":100,"maximum":599},"records_seen":{"type":"integer","minimum":0},"records_changed":{"description":"Records whose body changed since the last crawl. Never more than records_seen.","type":"integer","minimum":0},"lines_skipped":{"description":"Feed lines that were too long, unparseable or invalid. While this is above zero, absent keys are not withdrawn, for at most seven days.","type":"integer","minimum":0},"feeds_failed":{"description":"Feeds the document lists that could not be read. Above zero makes the crawl a transport failure, so seven days of it lapses the source; the feeds that did answer are still ingested and none of them withdraws anything.","type":"integer","minimum":0}}};
 const schema61 = {"description":"What a transport failure can carry: a status that says nothing was concluded, or none at all.","type":"integer","oneOf":[{"const":429},{"minimum":500,"maximum":599}]};
 
 function validate28(data, {instancePath="", parentData, parentDataProperty, rootData=data, dynamicAnchors={}}={}){
@@ -3932,7 +3973,7 @@ errors++;
 if(data.document_url !== undefined){
 let data7 = data.document_url;
 if(typeof data7 === "string"){
-if(!pattern12.test(data7)){
+if(!pattern13.test(data7)){
 const err19 = {instancePath:instancePath+"/document_url",schemaPath:"#/properties/document_url/pattern",keyword:"pattern",params:{pattern: "^https://"},message:"must match pattern \""+"^https://"+"\""};
 if(vErrors === null){
 vErrors = [err19];

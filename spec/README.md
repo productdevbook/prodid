@@ -200,10 +200,11 @@ A line that is over the size cap, unparseable or invalid is skipped and counted.
 
 A feed that cannot be fetched at all is a different failure and has its own bound: the crawl becomes a [transport failure](#lapse), which lapses the source after seven days of it.
 
-Two rules make a record invalid that the schemas cannot express, and a record that breaks either is skipped like any other:
+Three rules make a record invalid that the schemas cannot express, and a record that breaks any of them is skipped like any other:
 
 - **Every string must be storable.** No U+0000, and no lone surrogate: the string has to be well-formed Unicode. [RFC 8785](https://www.rfc-editor.org/rfc/rfc8785) makes a lone surrogate an error when canonicalizing, and the index's store rejects both, so a record carrying one cannot be kept at all — and one such line must cost its own line, not the whole ingest.
 - **A `gtin` identifier must be a GTIN**: 8, 12, 13 or 14 digits, a correct check digit, and not all zeros. [Which GTINs are identifiers](#which-gtins-are-identifiers) has the rest, including restricted numbers, which are stored rather than rejected.
+- **A record must carry at least one identifier the index can store.** An identifier value is not blank and is not padded — the schema requires at least one character that is not whitespace, and no whitespace at either end — and an `mpn` needs the record's `brand` to normalize to something, because that is the scope it is unique within. A record with nothing usable left identifies nothing, so matching it would mint a fresh entity on every single crawl; it is skipped instead.
 
 [`fixtures/ndjson/`](fixtures/ndjson) is a feed with one of each defect and the line numbers that must be skipped.
 
@@ -218,6 +219,8 @@ All three produce the same records.
 | a manufacturer with no domain | publish at `<slug>.prodid.org` | `<slug>.prodid.org` |
 
 A prodid record wins over a file on the domain, so a domain that serves its own document must not delegate elsewhere — and, as [Security considerations](#security-considerations) explains, should say so with a record of its own.
+
+A name under the hosting zone is a case of its own: `<slug>.prodid.org` is always a `hosted` source and always `unverified`, however discovery reached it. Pinging a slug runs discovery like any other name, and the document it finds there is served from prodid.org's domain, so it proves control of a slug and nothing more. Only a domain's own `_prodid` record, naming that host, turns the slug into a verified source.
 
 Sources that are not the brand owner — retailers, registries, open datasets, contributors — publish the same way. Their claims are attributed to them and never overwrite anyone else's.
 
@@ -313,9 +316,13 @@ A **definite negative** is discovery ending with no acceptable document, whether
 
 A **transport failure** is a crawl that could not be completed: DNS timeout or SERVFAIL, connection or TLS failure, 429, 5xx, a cap or a timeout reached — on the document **or on any feed it lists**. One changes nothing. Seven consecutive days in which every attempt ends this way set the lapse too, so serving errors forever is not a way to freeze claims where they are.
 
+**That benefit of the doubt belongs to a host, not to a source.** It applies only at a host this source has already been verified at. At a host it has never been verified at, any failure — a timeout or a 5xx included — is a definite negative and lapses the source at once. Otherwise a verified source could re-point its `_prodid` record at a host it does not control and read back, from its own `outcome` and from whether its lapse starts today or in a week, whether that host is up. A publisher moving hosts loses nothing to this: the first crawl that succeeds at the new host clears everything, and even a lapse is recoverable for the 30 days before claims are withdrawn.
+
 A feed that cannot be read is therefore not a free pass. The feeds that did answer are still ingested, and no feed withdraws anything on a crawl that failed — but the crawl counts as a transport failure and `feeds_failed` says so in the source's status, so a valid document in front of a permanently broken feed lapses on the same seven-day clock as a domain that stopped answering at all. Nothing can hold a source's claims still and healthy-looking for ever.
 
-While a source is lapsed it makes no new claims, its existing claims stay readable and stay marked, and its `publisher.contact` is notified. After 30 days of continuous lapse its active claims are withdrawn; they remain as history. Any successful discovery clears the lapse. Those 30 days are the window in which a publisher can notice and put the record, the document or the feed back.
+While a source is lapsed it makes no new claims, its existing claims stay readable and stay marked, and its `publisher.contact` is notified. A crawl of a lapsed source writes nothing until it has succeeded in full; only then is the lapse cleared and the source ingested again. After 30 days of continuous lapse its records and their active claims are withdrawn together; they remain as history. Those 30 days are the window in which a publisher can notice and put the record, the document or the feed back.
+
+Claims re-asserted after such a withdrawal are new assertions, with a new `seen_at`: for the length of the gap nobody verifiable stood behind them, and saying otherwise would date a fact to a time when it had no source. The withdrawn rows stay, so `?history=1` shows the gap.
 
 ### Identity continuity
 
@@ -433,7 +440,9 @@ An `opid` that was merged into another answers `308 Permanent Redirect` to `/id/
 }
 ```
 
-The response has no bare fields. There is no top-level `name` or `brand`: every value a reader sees is inside a claim that carries its `source` — the source's identity, its `trust` and whether it is lapsed — and the `seen_at` at which that source first asserted it. Two sources disagreeing produce two claims, and choosing between them is the reader's decision, made with the source in hand.
+The response has no bare fields. There is no top-level `name` or `brand`: every value a reader sees is inside a claim that carries its `source` — the source's identity, its `trust` and whether it is lapsed — and the `seen_at` at which that source began asserting it. Two sources disagreeing produce two claims, and choosing between them is the reader's decision, made with the source in hand.
+
+`seen_at` is when this source started asserting this value and has not stopped since, not when the fact was first published anywhere. It survives a re-crawl that finds the same value, which is the point of it; it does not survive a withdrawal. A source [lapsed](#lapse) for 30 days has its records and claims withdrawn, and what it publishes afterwards is asserted again from that day, because for the length of the gap nobody verifiable stood behind it. `?history=1` shows the withdrawn rows, so the gap is visible rather than implied.
 
 `parents` and `children` are the hierarchy as opids: an item names its variant and its family, a variant names its family and lists its items, a family lists its variants and has no parents. An item has no children. Property names are the namespaced ones above, so a reader can tell `name` from `properties.name` without guessing.
 
@@ -530,7 +539,7 @@ The claim keeps the hash, the original URL, the license, the source and the fetc
 | [`fixtures/brand/`](fixtures/brand) | brand normalization |
 | [`fixtures/ndjson/`](fixtures/ndjson) | a feed and the line numbers that must be skipped |
 
-Every file in `fixtures/invalid/` has an entry in [`fixtures/expected.json`](fixtures/expected.json) naming the instance path, the schema keyword and, where it disambiguates, the error parameters that must reject it. A fixture that fails for a new and unrelated reason is a failure, not a pass. Five of the keywords name rules that live on top of the schemas rather than inside them, because JSON Schema cannot express them: `storable` for a string that cannot be stored, `gtin` for a value that is not a GTIN, `self-reference` for an entity that lists its own `opid`, `order` for a `withdrawn_at` before its `seen_at`, and `digest` for a `media_url` that does not address its claim's `sha256`.
+Every file in `fixtures/invalid/` has an entry in [`fixtures/expected.json`](fixtures/expected.json) naming the instance path, the schema keyword and, where it disambiguates, the error parameters that must reject it. A fixture that fails for a new and unrelated reason is a failure, not a pass. Six of the keywords name rules that live on top of the schemas rather than inside them, because JSON Schema cannot express them: `storable` for a string that cannot be stored, `gtin` for a value that is not a GTIN, `identifiable` for a record with no identifier the index can store, `self-reference` for an entity that lists its own `opid`, `order` for a `withdrawn_at` before its `seen_at`, and `digest` for a `media_url` that does not address its claim's `sha256`.
 
 A TXT vector is `{ "value": [...], "outcome": "delegation" | "ignored" | "malformed", "host": "..." }`, where `value` is the RR's character-strings in order and `host` is the normalized host, present exactly when the outcome is `delegation`. The three outcomes are behavioural, not cosmetic: `ignored` means the RR is not a prodid record and discovery carries on without it, `malformed` means discovery fails.
 

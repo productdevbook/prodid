@@ -18,13 +18,19 @@ create table source (
     feed_host       text,
     license         text,
     last_crawled_at timestamptz,
+    -- set when the source is handed to the crawl queue; last_crawled_at only moves when a crawl
+    -- finishes, so without this a source stays due for as long as it takes and is enqueued again
+    queued_at       timestamptz,
     created_at      timestamptz not null default now(),
 
     check (num_nonnulls(verified_by, verified_at, verified_crawl)
            = case when trust = 'unverified' then 0 else 3 end)
 );
 
-create index source_due on source (last_crawled_at nulls first);
+-- `id` carries the claim query's tiebreaker, without which a batch sharing one last_crawled_at
+-- makes it sort thousands of rows to return a page. queued_at is deliberately not a key here: it
+-- is rewritten on every claim, and keeping it out of every index leaves that update HOT-eligible.
+create index source_due on source (last_crawled_at nulls first, id);
 create index source_lapsed on source (lapsed_at) where lapsed_at is not null;
 create index source_failing on source (failing_since) where failing_since is not null and lapsed_at is null;
 -- the delegated half of countVerifiedSourcesAtHost; source_name_key serves the other half,

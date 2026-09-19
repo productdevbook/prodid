@@ -6,7 +6,6 @@ import type { Caps, GuardedFetcher } from '../net/guard'
 const INGEST_BATCH = 200
 
 export type FeedRead =
-	| { kind: 'deferred'; retryAfterMs: number }
 	| { kind: 'failed'; status: number | null; reason: string }
 	| { kind: 'not-modified'; status: 304; etag: string | null; lastModified: string | null }
 	| {
@@ -31,6 +30,8 @@ export interface FeedInput {
 	url: string
 	headers: Record<string, string>
 	now: Date
+	/** False while the source is lapsed: the feed is read to prove it can be read, and nothing is written. */
+	ingest: boolean
 }
 
 /**
@@ -65,7 +66,13 @@ export async function readFeed(input: FeedInput): Promise<FeedRead> {
 
 	const flush = async (): Promise<void> => {
 		if (batch.length === 0) return
-		const result = await ingestRecords(input.sql, { source: input.source, records: batch, now: input.now })
+		if (!input.ingest) {
+			seen += batch.length
+			for (const entry of batch) keys.add(entry.record.key)
+			batch = []
+			return
+		}
+		const result = await ingestRecords(input.sql, { source: input.source, feed: input.url, records: batch, now: input.now })
 		seen += result.seen
 		changed += result.changed
 		claimsInserted += result.claimsInserted

@@ -24,6 +24,7 @@ export interface SourceRow {
 	feed_host: string | null
 	license: string | null
 	last_crawled_at: Date | null
+	queued_at: Date | null
 	created_at: Date
 }
 
@@ -38,7 +39,7 @@ export interface FeedRow {
 }
 
 const SOURCE_COLUMNS = `id::text, kind, name, trust, verified_by, verified_at, verified_crawl::text,
-	lapsed_at, failing_since, feed_host, license, last_crawled_at, created_at`
+	lapsed_at, failing_since, feed_host, license, last_crawled_at, queued_at, created_at`
 
 export async function findSourceByName(sql: Sql, name: string): Promise<SourceRow | null> {
 	const rows = await sql<SourceRow[]>`select ${sql.unsafe(SOURCE_COLUMNS)} from source where name = ${name}`
@@ -89,11 +90,48 @@ export interface FinishCrawlInput {
 	via?: VerifiedBy | null
 	documentUrl?: string | null
 	httpStatus?: number | null
-	recordsSeen?: number | null
-	recordsChanged?: number | null
-	linesSkipped?: number | null
 	error?: string | null
 	finishedAt: Date
+}
+
+export interface CrawlProgress {
+	crawl: string
+	recordsSeen?: number
+	recordsChanged?: number
+	linesSkipped?: number
+	feedsFailed?: number
+	/** Identifier disagreements, appended as they are found. */
+	conflicts?: readonly unknown[]
+}
+
+/**
+ * A crawl is one row from discovery to finalize, and its counters are written by each feed as it is
+ * read. Adding to them rather than setting them is what lets a crawl span several queue messages.
+ */
+export async function accumulateCrawl(sql: Sql, input: CrawlProgress): Promise<void> {
+	const conflicts = input.conflicts ?? []
+	await sql`
+		update crawl set
+			records_seen = coalesce(records_seen, 0) + ${input.recordsSeen ?? 0},
+			records_changed = coalesce(records_changed, 0) + ${input.recordsChanged ?? 0},
+			lines_skipped = coalesce(lines_skipped, 0) + ${input.linesSkipped ?? 0},
+			feeds_failed = coalesce(feeds_failed, 0) + ${input.feedsFailed ?? 0},
+			conflicts = case
+				when ${conflicts.length} = 0 then conflicts
+				else coalesce(conflicts, '[]'::jsonb) || ${JSON.stringify(conflicts)}::text::jsonb
+			end
+		where id = ${input.crawl}
+	`
+}
+
+/** The feed rows a document's URLs need before any record can name one. */
+export async function ensureFeeds(sql: Sql, source: string, urls: readonly string[]): Promise<void> {
+	if (urls.length === 0) return
+	await sql`
+		insert into feed (source, url)
+		select ${source}, u.url from unnest(${urls as string[]}::text[]) as u(url)
+		on conflict (source, url) do nothing
+	`
 }
 
 /**
@@ -111,22 +149,20 @@ export function finishCrawl(sql: Sql, input: FinishCrawlInput): Promise<void> {
 				via = coalesce(${input.via ?? null}, via),
 				document_url = coalesce(${input.documentUrl ?? null}, document_url),
 				http_status = ${input.httpStatus ?? null},
-				records_seen = ${input.recordsSeen ?? null},
-				records_changed = ${input.recordsChanged ?? null},
-				lines_skipped = ${input.linesSkipped ?? null},
 				error = ${input.error ?? null}
 			where id = ${input.crawl}
 		`
 		switch (classifyOutcome(input.outcome)) {
 			case 'success':
 				await tx`
-					update source set last_crawled_at = ${at}, failing_since = null, lapsed_at = null
+					update source set last_crawled_at = ${at}, queued_at = null, failing_since = null, lapsed_at = null
 					where id = ${input.source}
 				`
 				return
 			case 'definite-negative':
 				await tx`
-					update source set last_crawled_at = ${at}, failing_since = null, lapsed_at = coalesce(lapsed_at, ${at})
+					update source set
+						last_crawled_at = ${at}, queued_at = null, failing_since = null, lapsed_at = coalesce(lapsed_at, ${at})
 					where id = ${input.source}
 				`
 				return
@@ -134,6 +170,7 @@ export function finishCrawl(sql: Sql, input: FinishCrawlInput): Promise<void> {
 				await tx`
 					update source set
 						last_crawled_at = ${at},
+						queued_at = null,
 						failing_since = coalesce(failing_since, ${at}),
 						lapsed_at = case
 							when coalesce(failing_since, ${at}) <= ${lapseCutoff} then coalesce(lapsed_at, ${at})
@@ -260,14 +297,54 @@ export function withinSkipGrace(feed: FeedRow | undefined, now: Date, grace = SK
 	return feed.skipping_since.getTime() > now.getTime() - grace
 }
 
-export async function sourcesDueForCrawl(sql: Sql, input: { now: Date; intervalMs: number; limit: number }): Promise<SourceRow[]> {
+export const QUEUE_LEASE_MS = 3_600_000
+
+/**
+ * Claims the sources that are due and marks them handed to the queue in the same statement, so two
+ * overlapping cron runs cannot enqueue one source twice. `skip locked` lets the second run take the
+ * next page instead of waiting for the first. The lease expires, so a source whose crawl never came
+ * back becomes due again.
+ */
+export async function claimDueSources(
+	sql: Sql,
+	input: { now: Date; intervalMs: number; limit: number; leaseMs?: number },
+): Promise<SourceRow[]> {
 	const cutoff = new Date(input.now.getTime() - input.intervalMs)
+	const lease = new Date(input.now.getTime() - (input.leaseMs ?? QUEUE_LEASE_MS))
 	return await sql<SourceRow[]>`
-		select ${sql.unsafe(SOURCE_COLUMNS)} from source
-		where last_crawled_at is null or last_crawled_at <= ${cutoff}
-		order by last_crawled_at nulls first, id
-		limit ${input.limit}
+		with due as (
+			select id from source
+			where (last_crawled_at is null or last_crawled_at <= ${cutoff})
+				and (queued_at is null or queued_at <= ${lease})
+			order by last_crawled_at nulls first, id
+			limit ${input.limit}
+			for update skip locked
+		)
+		update source set queued_at = ${input.now}
+		where id in (select id from due)
+		returning ${sql.unsafe(SOURCE_COLUMNS)}
 	`
+}
+
+/**
+ * A crawl whose feed message never came back. Nothing else closes it, and the contract calls `crawl`
+ * a log of discovery runs, so it is finished as what it was: something that could not be read.
+ */
+export async function finalizeStaleCrawls(sql: Sql, input: { now: Date; olderThanMs: number }): Promise<number> {
+	const cutoff = new Date(input.now.getTime() - input.olderThanMs)
+	const stale = await sql<{ id: string; source: string }[]>`
+		select id::text, source::text from crawl where finished_at is null and started_at <= ${cutoff}
+	`
+	for (const row of stale) {
+		await finishCrawl(sql, {
+			crawl: row.id,
+			source: row.source,
+			outcome: 'fetch-failed',
+			error: 'abandoned: no message came back for this crawl',
+			finishedAt: input.now,
+		})
+	}
+	return stale.length
 }
 
 /**

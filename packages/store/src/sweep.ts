@@ -1,12 +1,12 @@
 import type { Sql } from './client'
 import { LAPSE_AFTER_FAILING_MS, WITHDRAW_AFTER_LAPSE_MS } from './source'
-import { withdrawSourceClaims } from './withdraw'
+import { withdrawSource } from './withdraw'
 
 export interface SweepResult {
 	/** Sources whose unbroken run of transport failures reached seven days. */
 	lapsed: string[]
-	/** Sources lapsed for thirty days whose active claims were withdrawn. */
-	withdrawn: { source: string; claims: number }[]
+	/** Sources lapsed for thirty days whose records and active claims were withdrawn. */
+	withdrawn: { source: string; records: number; claims: number }[]
 }
 
 /**
@@ -35,10 +35,10 @@ export async function lapseSweep(
 		limit ${limit}
 	`
 
-	const withdrawn: { source: string; claims: number }[] = []
+	const withdrawn: { source: string; records: number; claims: number }[] = []
 	for (const row of due) {
-		const claims = await withdrawSourceClaims(sql, { source: row.id, now: input.now })
-		withdrawn.push({ source: row.id, claims })
+		const result = await withdrawSource(sql, { source: row.id, now: input.now })
+		withdrawn.push({ source: row.id, ...result })
 	}
 
 	return { lapsed: lapsed.map((row) => row.id), withdrawn }

@@ -20,12 +20,14 @@ const RESOLVER_CACHE = 'public, max-age=60, stale-while-revalidate=300'
 const SOURCE_CACHE = 'public, max-age=60'
 const SCHEMA_CACHE = 'public, max-age=3600'
 
-const SCHEMAS: Record<string, unknown> = {
-	'org.prodid.entity.json': entitySchema,
-	'org.prodid.feed.json': feedSchema,
-	'org.prodid.item.json': itemSchema,
-	'org.prodid.source.json': sourceSchema,
-}
+// A Map, not an object: `/schemas/v0/__proto__` and `/constructor` are paths a stranger can ask for,
+// and a plain property lookup answers both of them with something.
+const SCHEMAS = new Map<string, unknown>([
+	['org.prodid.entity.json', entitySchema],
+	['org.prodid.feed.json', feedSchema],
+	['org.prodid.item.json', itemSchema],
+	['org.prodid.source.json', sourceSchema],
+])
 
 function executionContext(c: Context<App>): Lifetime | undefined {
 	try {
@@ -58,10 +60,10 @@ export function createApp(build: ServicesFactory): Hono<App> {
 
 	app.get('/id/:opid', async (c) => {
 		const opid = c.req.param('opid')
-		if (!isOpid(opid)) return problemResponse(c.req.raw, 'unknown-opid', 404)
+		if (!isOpid(opid)) return problemResponse(c.req.raw, 'unknown-opid')
 		const history = c.req.query('history') === '1'
 		const found = await readEntity(c.get('services').sql, opid, { history })
-		if (!found.found) return problemResponse(c.req.raw, 'unknown-opid', 404)
+		if (!found.found) return problemResponse(c.req.raw, 'unknown-opid')
 		if (found.merged) {
 			// Per request, not permanent in practice: a merge is reversible, so the redirect is cached
 			// for as long as any other resolver answer and no longer.
@@ -81,11 +83,11 @@ export function createApp(build: ServicesFactory): Hono<App> {
 	const gtinHandler = async (c: Context<App>): Promise<Response> => {
 		const written = c.req.param('gtin') ?? ''
 		const gtin = parseGtin(written)
-		if (!gtin.ok) return problemResponse(c.req.raw, 'invalid-gtin', 400, gtin.problem)
-		if (gtin.restricted) return problemResponse(c.req.raw, 'restricted-gtin', 404)
+		if (!gtin.ok) return problemResponse(c.req.raw, 'invalid-gtin', gtin.problem)
+		if (gtin.restricted) return problemResponse(c.req.raw, 'restricted-gtin')
 		const history = c.req.query('history') === '1'
 		const found = await readEntityByGtin(c.get('services').sql, gtin.value, { history })
-		if (!found.found) return problemResponse(c.req.raw, 'unknown-gtin', 404)
+		if (!found.found) return problemResponse(c.req.raw, 'unknown-gtin')
 		return await respond(c.req.raw, found.entity, () => renderEntity(found.entity), {
 			cacheControl: RESOLVER_CACHE,
 			headers: { 'content-location': `/id/${found.opid}` },
@@ -98,13 +100,13 @@ export function createApp(build: ServicesFactory): Hono<App> {
 		const name = c.req.param('name')
 		const sql = c.get('services').sql
 		const status = (await readSourceStatus(sql, name)) ?? (await readSourceStatus(sql, name.toLowerCase()))
-		if (status === null) return problemResponse(c.req.raw, 'unknown-source', 404)
+		if (status === null) return problemResponse(c.req.raw, 'unknown-source')
 		return await respond(c.req.raw, status, () => renderSource(status), { cacheControl: SOURCE_CACHE })
 	})
 
 	app.get('/schemas/v0/:file', async (c) => {
-		const schema = SCHEMAS[c.req.param('file')]
-		if (schema === undefined) return problemResponse(c.req.raw, 'not-found', 404)
+		const schema = SCHEMAS.get(c.req.param('file'))
+		if (schema === undefined) return problemResponse(c.req.raw, 'not-found')
 		return new Response(`${JSON.stringify(schema, null, '\t')}\n`, {
 			headers: { 'content-type': 'application/schema+json; charset=utf-8', 'cache-control': SCHEMA_CACHE },
 		})
@@ -119,7 +121,7 @@ export function createApp(build: ServicesFactory): Hono<App> {
 		const caller = callerKey(c.req.header('cf-connecting-ip') ?? null)
 		const allowed = await services.limits.caller(caller, now)
 		if (!allowed.ok) {
-			return problemResponse(c.req.raw, 'rate-limited', 429, undefined, {
+			return problemResponse(c.req.raw, 'rate-limited', undefined, {
 				'retry-after': String(Math.ceil(allowed.retryAfterMs / 1000)),
 			})
 		}
@@ -128,13 +130,13 @@ export function createApp(build: ServicesFactory): Hono<App> {
 		try {
 			body = await c.req.json()
 		} catch {
-			return problemResponse(c.req.raw, 'invalid-request', 400, 'body is not JSON')
+			return problemResponse(c.req.raw, 'invalid-request', 'body is not JSON')
 		}
 		const parsed = parsePingRequest(body)
-		if (!parsed.ok) return problemResponse(c.req.raw, 'invalid-request', 400, parsed.reason)
-		if (parsed.domains.length > MAX_PING_DOMAINS) return problemResponse(c.req.raw, 'invalid-request', 400, 'too-many-domains')
+		if (!parsed.ok) return problemResponse(c.req.raw, 'invalid-request', parsed.reason)
+		if (parsed.domains.length > MAX_PING_DOMAINS) return problemResponse(c.req.raw, 'invalid-request', 'too-many-domains')
 
-		await services.queue.sendBatch(parsed.domains.map((domain) => ({ domain })))
+		await services.queue.sendBatch(parsed.domains.map((domain) => ({ kind: 'discover' as const, domain })))
 
 		// 202 is the whole vocabulary: it says nothing about whether the domain is known, whether a
 		// crawl is already scheduled, or what any of it found.
@@ -144,7 +146,7 @@ export function createApp(build: ServicesFactory): Hono<App> {
 		})
 	})
 
-	app.notFound((c) => problemResponse(c.req.raw, 'not-found', 404))
+	app.notFound((c) => problemResponse(c.req.raw, 'not-found'))
 
 	app.onError((error) => {
 		console.error(error)

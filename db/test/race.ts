@@ -326,6 +326,62 @@ async function sameGroup(sql: Sql, source: string, s1: ReservedSql, s2: Reserved
 	return counts
 }
 
+function claimDue(limit: number): string {
+	return `update source set queued_at = now()
+    where id in (
+      select id from source
+      where (last_crawled_at is null or last_crawled_at <= now() - interval '6 hours')
+        and (queued_at is null or queued_at <= now() - interval '15 minutes')
+      order by last_crawled_at nulls first, id
+      limit ${limit}
+      for update skip locked
+    )
+    returning id`
+}
+
+async function claiming(sql: Sql, s1: ReservedSql, s2: ReservedSql): Promise<Tally> {
+	const scenario = 'two cron runs claiming due sources'
+	const counts = tally()
+	const seeded = 6
+	const page = 3
+
+	for (let round = 0; round < ROUNDS; round++) {
+		await sql`update source set last_crawled_at = now(), queued_at = null`
+		for (let n = 0; n < seeded; n++) {
+			await sql`insert into source (kind, name) values ('domain', ${`due-${round}-${n}.example`})`
+		}
+
+		await s1.unsafe('begin')
+		await s2.unsafe('begin')
+		const first = await s1.unsafe<{ id: string }[]>(claimDue(page))
+		const second = await Promise.race([
+			s2.unsafe<{ id: string }[]>(claimDue(page)),
+			new Promise<{ id: string }[]>((_, reject) => setTimeout(() => reject(new Error('blocked')), 5000)),
+		]).catch((error: Error) => error)
+
+		if (second instanceof Error) {
+			fail(scenario, round, `the second claim ${second.message} instead of skipping locked rows`)
+			await reset(s1, s2)
+			continue
+		}
+
+		const e1 = await attempt(s1.unsafe('commit'))
+		const e2 = await attempt(s2.unsafe('commit'))
+		record(counts, e1, e2)
+
+		const mine = new Set(first.map((row) => row.id))
+		const theirs = second.map((row) => row.id)
+		const shared = theirs.filter((id) => mine.has(id))
+		if (shared.length > 0) fail(scenario, round, `both runs claimed source ${shared[0]}`)
+		if (first.length !== page) fail(scenario, round, `the first run claimed ${first.length} of ${page}`)
+		if (theirs.length !== page) fail(scenario, round, `the second run claimed ${theirs.length} of ${page}`)
+
+		await reset(s1, s2)
+		await audit(sql, scenario, round)
+	}
+	return counts
+}
+
 async function lockRelease(admin: Sql, base: URL): Promise<void> {
 	const scenario = 'a failed migration releases the advisory lock'
 	const name = `prodid_race_${randomBytes(8).toString('hex')}`
@@ -457,6 +513,7 @@ try {
 			report('DB-3b claim insert first', await db3(sql, source.id, s1, s2, false))
 			report('DB-6 log and state written separately', await db6(sql, s1, s2))
 			report('grouping two sessions ingesting one new group', await sameGroup(sql, source.id, s1, s2))
+			report('two cron runs claiming due sources', await claiming(sql, s1, s2))
 		} finally {
 			s1.release()
 			s2.release()

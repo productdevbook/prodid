@@ -40,6 +40,11 @@ export type PrepareResult = { ok: true; prepared: PreparedRecord } | { ok: false
 export async function prepareRecord(record: ItemRecord, source: string): Promise<PrepareResult> {
 	try {
 		const derived = deriveRecord(record, { source })
+		if (derived.identifiers.length === 0) {
+			// Without one the record can only ever mint a fresh entity, so every crawl would mint
+			// another and orphan the last. The line is skipped instead.
+			return { ok: false, error: 'no identifier survives normalization' }
+		}
 		const claims: PreparedClaim[] = derived.claims.map((claim) => ({
 			property: claim.property,
 			lang: claim.lang,

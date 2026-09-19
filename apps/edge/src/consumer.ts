@@ -1,24 +1,67 @@
-import { lapseSweep } from '@prodid/store'
+import { finalizeStaleCrawls, lapseSweep, QUEUE_LEASE_MS } from '@prodid/store'
 
-import { enqueueDueSources, runCrawl } from './crawl/run'
+import { type CrawlStep, runDiscover, runFeedStep, runFinalize } from './crawl/run'
 import { POLICY } from './limits/policy'
+import { claimDueSources } from './schedule'
 import type { CrawlMessage, Services } from './services'
 
+/** A limiter that cannot be reached is the crawler's own limit saying no, not the publisher failing. */
+export class LimiterUnavailable extends Error {}
+
 /**
- * A crawl held back by the crawler's own limits is not retried as a failure: it is acknowledged and
+ * One message, one unit of work. A crawl held back by the crawler's own limits is acknowledged and
  * sent again with the delay the limit asked for, so it never counts against the queue's retries and
- * never reaches a dead letter queue for being early.
+ * never reaches a dead letter queue for being early. Past the cap it is not dropped: it goes to the
+ * dead letter queue with the reason, where an operator can see it.
  */
-export async function consumeCrawl(services: Services, message: CrawlMessage): Promise<void> {
-	const result = await runCrawl(services, message.domain)
-	if (result.kind !== 'deferred') return
+export async function consumeCrawl(services: Services, message: CrawlMessage): Promise<CrawlStep> {
+	let result: CrawlStep
+	try {
+		result = await step(services, message)
+	} catch (error) {
+		if (!isLimiterFailure(error)) throw error
+		// Failing closed is right; dead-lettering the crawl for it is not.
+		result = { kind: 'deferred', retryAfterMs: POLICY.limiterOutageMs }
+	}
+	if (result.kind !== 'deferred') return result
+
 	const deferrals = (message.deferrals ?? 0) + 1
-	if (deferrals > POLICY.maxDeferrals) return
+	if (deferrals > POLICY.maxDeferrals) {
+		const reason = `held back by the crawler's own limits ${deferrals} times`
+		console.warn('crawl deferred past the cap', describe(message), reason)
+		await services.dead.send(message, reason)
+		return result
+	}
 	const delaySeconds = Math.min(POLICY.maxDeferralSeconds, Math.max(1, Math.ceil(result.retryAfterMs / 1000)))
-	await services.queue.send({ domain: message.domain, deferrals }, { delaySeconds })
+	await services.queue.send({ ...message, deferrals }, { delaySeconds })
+	return result
+}
+
+function step(services: Services, message: CrawlMessage): Promise<CrawlStep> {
+	switch (message.kind) {
+		case 'discover':
+			return runDiscover(services, message.domain)
+		case 'feed':
+			return runFeedStep(services, message.plan, message.at, message.touched ?? false)
+		case 'finalize':
+			return runFinalize(services, message.plan, message.touched ?? false)
+	}
+}
+
+function describe(message: CrawlMessage): string {
+	return message.kind === 'discover' ? message.domain : `${message.plan.domain} (${message.kind})`
+}
+
+function isLimiterFailure(error: unknown): boolean {
+	if (error instanceof LimiterUnavailable) return true
+	// A Durable Object that cannot be reached surfaces as a plain runtime error; the crawl is held
+	// back by it just the same.
+	const text = error instanceof Error ? `${error.name}: ${error.message}` : String(error)
+	return /durable object|internal error|network connection lost|cannot reach/i.test(text)
 }
 
 export async function runScheduled(services: Services): Promise<void> {
-	await enqueueDueSources(services)
+	await claimDueSources(services)
+	await finalizeStaleCrawls(services.sql, { now: services.now(), olderThanMs: QUEUE_LEASE_MS })
 	await lapseSweep(services.sql, { now: services.now() })
 }
