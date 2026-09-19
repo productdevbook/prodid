@@ -1,0 +1,57 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "prodid-edge",
+	"main": "src/index.ts",
+	"compatibility_date": "2026-09-19",
+	// `nodejs_compat` because postgres.js reaches for Node built-ins; it is the driver Hyperdrive
+	// documents for PostgreSQL.
+	//
+	// `global_fetch_strictly_public` because every crawl fetch is a URL a stranger pointed us at.
+	// The crawler resolves the name and refuses non-public addresses itself, but that check races
+	// with the connection; this flag is the runtime enforcing the same rule underneath it.
+	"compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+	"observability": {
+		"enabled": true,
+	},
+	"upload_source_maps": true,
+	// edge answers prodid.org/id/*, /01/*, /source/*, /ping and /schemas/*, plus *.prodid.org.
+	// Routes are attached at deploy time; this file declares none.
+	"hyperdrive": [
+		{
+			"binding": "HYPERDRIVE",
+			// PLACEHOLDER — replace with the real Hyperdrive config id before deploying.
+			"id": "0000000000000000000000000000cafe",
+			"localConnectionString": "postgres://prodid:prodid@127.0.0.1:54329/prodid",
+		},
+	],
+	"durable_objects": {
+		"bindings": [{ "name": "LIMITS", "class_name": "RateLimiter" }],
+	},
+	// Declarative form; `exports` and `migrations` cannot both be present.
+	"exports": {
+		"RateLimiter": { "type": "durable-object", "storage": "sqlite" },
+	},
+	"queues": {
+		"producers": [{ "binding": "CRAWL", "queue": "prodid-crawl" }],
+		"consumers": [
+			{
+				"queue": "prodid-crawl",
+				// One crawl per message: a crawl streams feeds and can take minutes, so batching
+				// them would put unrelated domains behind each other's timeouts.
+				"max_batch_size": 1,
+				"max_batch_timeout": 5,
+				"max_retries": 3,
+				"dead_letter_queue": "prodid-crawl-dlq",
+			},
+		],
+	},
+	"triggers": {
+		// Every ten minutes: enqueue the sources that are due, then run the lapse sweep.
+		"crons": ["*/10 * * * *"],
+	},
+	"vars": {
+		// How long a source waits between scheduled crawls. A ping only makes the next one sooner.
+		"CRAWL_INTERVAL_MINUTES": "360",
+		"DOH_ENDPOINT": "https://cloudflare-dns.com/dns-query",
+	},
+}
