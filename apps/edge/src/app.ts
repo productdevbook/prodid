@@ -6,7 +6,7 @@ import sourceSchema from '@prodid/spec/schemas/org.prodid.source.json'
 import { findMedia, readEntity, readEntityByGtin, readSourceStatus } from '@prodid/store'
 import { type Context, Hono } from 'hono'
 
-import { problemResponse, rateLimitedResponse, respond } from './http'
+import { chooseVariant, problemResponse, rateLimitedResponse, respond } from './http'
 import { callerKey } from './limits/policy'
 import { mediaKey } from './media/store'
 import { IMMUTABLE } from './media/store'
@@ -66,6 +66,17 @@ export function createApp(build: ServicesFactory): Hono<App> {
 		if (onMediaHost !== c.req.path.startsWith('/sha256/')) return problemResponse(c.req.raw, 'not-found')
 		await next()
 	})
+
+	// The record is open: a page on any origin may read the JSON, never the HTML. A 308 has no body,
+	// so it is JSON when the request asked for JSON.
+	for (const path of ['/id/*', '/01/*', '/source/*', '/schemas/v0/*']) {
+		app.use(path, async (c, next) => {
+			await next()
+			const type = c.res.headers.get('content-type')
+			const json = type === null ? chooseVariant(c.req.header('accept') ?? null) === 'json' : !type.startsWith('text/html')
+			if (json) c.res.headers.set('access-control-allow-origin', '*')
+		})
+	}
 
 	app.get('/id/:opid', async (c) => {
 		const opid = c.req.param('opid')
