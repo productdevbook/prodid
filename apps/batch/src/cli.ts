@@ -7,6 +7,7 @@ import type { MerchantDeclaration } from '@prodid/core'
 import { checkDocument, checkFeed, type CheckResult, formatProblem } from './check'
 import { convertMerchant, type MerchantConversion } from './merchant'
 import { OperatorClient, OperatorError, type SiteSettings } from './operator'
+import { parseDigest, runBlockMedia, TakedownError, takedownEnv } from './takedown'
 
 const USAGE = `prodid-batch <command>
 
@@ -32,8 +33,15 @@ const USAGE = `prodid-batch <command>
   remove-feed <slug> <name>
   remove-site <slug>
 
-The other commands call the operator endpoint, PRODID_OPERATOR_URL
-(default https://publish.prodid.org), authenticated with PRODID_OPERATOR_TOKEN.`
+  block-media <sha256> --reason TEXT
+      Take a file down: block the hash in the index and withdraw every claim naming it, delete
+      sha256/<hex> from the media bucket, and purge https://media.prodid.org/sha256/<hex> from the
+      cache. Prints each step's result; run it again to finish a step that failed. Needs
+      DATABASE_URL, R2_ENDPOINT, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_MEDIA_BUCKET,
+      CLOUDFLARE_API_TOKEN (Cache Purge) and CLOUDFLARE_ZONE_ID; never the operator token.
+
+site, feed, publish, verify, show, remove-feed and remove-site call the operator endpoint,
+PRODID_OPERATOR_URL (default https://publish.prodid.org), authenticated with PRODID_OPERATOR_TOKEN.`
 
 const OPTIONS = {
 	license: { type: 'string' },
@@ -44,6 +52,7 @@ const OPTIONS = {
 	contact: { type: 'string' },
 	domain: { type: 'string' },
 	name: { type: 'string' },
+	reason: { type: 'string' },
 	help: { type: 'boolean', short: 'h' },
 } as const
 
@@ -109,6 +118,14 @@ async function main(argv: string[]): Promise<void> {
 		case 'remove-site':
 			await operator().removeSite(need(rest[0], 'slug'))
 			return
+		case 'block-media': {
+			const sha256 = parseDigest(need(rest[0], 'sha256'))
+			const reason = need(values.reason, '--reason').trim()
+			if (reason === '') throw new UsageError('--reason is empty')
+			const env = takedownEnv(process.env)
+			if (!(await runBlockMedia(env, { sha256, reason, now: new Date() }))) process.exitCode = 1
+			return
+		}
 		default:
 			throw new UsageError(`unknown command ${command}`)
 	}
@@ -166,7 +183,7 @@ function print(value: unknown): void {
 
 main(process.argv.slice(2)).catch((error: unknown) => {
 	if (error instanceof UsageError) console.error(`${error.message}\n\n${USAGE}`)
-	else if (error instanceof OperatorError) console.error(error.message)
+	else if (error instanceof OperatorError || error instanceof TakedownError) console.error(error.message)
 	else console.error(error)
 	process.exit(1)
 })

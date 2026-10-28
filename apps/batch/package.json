@@ -24,6 +24,7 @@
 		"test": "bun test test"
 	},
 	"dependencies": {
-		"@prodid/core": "workspace:*"
+		"@prodid/core": "workspace:*",
+		"@prodid/store": "workspace:*"
 	}
 }
