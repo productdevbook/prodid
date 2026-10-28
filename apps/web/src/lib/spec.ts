@@ -16,12 +16,13 @@ export const examples = {
 }
 
 export const SPEC_STATUS =
-	'Spec v0 draft. The index and the hosted publisher run on prodid.org. Hosting is operator-assisted. No catalogue is published yet.'
+	'Spec v0 draft. The index and the hosted publisher run on prodid.org. Anyone can publish, on their own domain or hosted.'
 
 const REPOSITORY = 'https://github.com/productdevbook/prodid'
 
 export const CONTACT = {
 	issues: `${REPOSITORY}/issues/new/choose`,
 	security: `${REPOSITORY}/blob/main/SECURITY.md`,
-	publish: `${REPOSITORY}/issues/new?template=publish-my-catalogue.yml`,
 }
+
+export const HOSTED_PUBLISHER = 'https://publish.prodid.org/'

@@ -2,7 +2,7 @@
 import CodeSample from '@/components/code-sample.astro'
 import PageHeader from '@/components/page-header.astro'
 import Layout from '@/layouts/base.astro'
-import { CONTACT, examples, SPEC_STATUS } from '@/lib/spec'
+import { examples, HOSTED_PUBLISHER, SPEC_STATUS } from '@/lib/spec'
 
 const DESCRIPTION =
 	'How a manufacturer or a software vendor publishes product data to prodid: the discovery document, the NDJSON feed, the one DNS TXT record that holds the identity, and the ping.'
@@ -16,7 +16,7 @@ const routes = [
 		identity: 'the domain',
 		trust: 'verified',
 		href: '#own-domain',
-		ready: true,
+		hosted: false,
 	},
 	{
 		n: '2',
@@ -26,7 +26,7 @@ const routes = [
 		identity: 'the domain, proven by DNS',
 		trust: 'verified',
 		href: '#delegated',
-		ready: false,
+		hosted: true,
 	},
 	{
 		n: '3',
@@ -36,7 +36,7 @@ const routes = [
 		identity: 'the slug host',
 		trust: 'unverified',
 		href: '#hosted',
-		ready: false,
+		hosted: true,
 	},
 ]
 
@@ -226,11 +226,6 @@ const checklist = [
 						<li class="flex flex-col bg-surface p-6">
 							<div class="flex min-h-[1.5rem] items-center justify-between gap-3">
 								<p class="font-mono text-xs text-soft">Route {route.n}</p>
-								{!route.ready && (
-									<span class="rounded-full border border-rule px-2 py-0.5 text-[0.65rem] font-semibold tracking-wider text-soft uppercase">
-										Operator-assisted
-									</span>
-								)}
 							</div>
 							<h3 class="mt-3 text-base font-semibold tracking-tight">{route.when}</h3>
 							<p class="mt-3 text-[0.9375rem] leading-relaxed text-soft">{route.who}</p>
@@ -245,18 +240,25 @@ const checklist = [
 									<dd class="font-mono">{route.trust}</dd>
 								</div>
 							</dl>
-							<a href={route.href} class="mt-5 rounded-sm text-sm font-medium text-accent underline-offset-4 hover:underline">
-								Route {route.n} in detail →
-							</a>
+							<div class="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-sm font-medium">
+								<a href={route.href} class="rounded-sm text-accent underline-offset-4 hover:underline">
+									Route {route.n} in detail →
+								</a>
+								{route.hosted && (
+									<a href={HOSTED_PUBLISHER} class="rounded-sm text-accent underline-offset-4 hover:underline">
+										Start at publish.prodid.org →
+									</a>
+								)}
+							</div>
 						</li>
 					))
 				}
 			</ol>
 			<p class="mt-6 max-w-3xl text-[0.9375rem] leading-relaxed text-soft">
-				Routes 2 and 3 need the hosted publishing service at <code class="chip">&lt;slug&gt;.prodid.org</code>, which runs
-				but has no self-service sign-up yet: an operator sets each site up. Ask for one with the{' '}
-				<a href={CONTACT.publish} class="rounded-sm text-accent underline underline-offset-4">Publish my catalogue</a> form.
-				Route 1 is the one you can do on your own.
+				Routes 2 and 3 use the hosted publishing service at <code class="chip">&lt;slug&gt;.prodid.org</code>. Sign in at{' '}
+				<a href={HOSTED_PUBLISHER} class="rounded-sm text-accent underline underline-offset-4">publish.prodid.org</a> with
+				a link sent to your email, create a site, upload your file, and connect a domain if you have one. You can export
+				everything or delete the site there at any time.
 			</p>
 		</div>
 	</section>
@@ -424,39 +426,34 @@ const checklist = [
 	<section aria-labelledby="delegated" class="border-t border-line">
 		<div class="shell py-14 sm:py-16">
 			<div class="max-w-3xl">
-				<div class="flex flex-wrap items-center gap-3">
-					<p class="font-mono text-xs tracking-[0.18em] text-soft uppercase">Route 2</p>
-					<span class="rounded-full border border-rule px-2.5 py-0.5 text-[0.65rem] font-semibold tracking-wider text-soft uppercase">
-						Operator-assisted
-					</span>
-				</div>
+				<p class="font-mono text-xs tracking-[0.18em] text-soft uppercase">Route 2</p>
 				<h2 id="delegated" class="mt-4 text-2xl font-semibold tracking-tight sm:text-3xl">
 					Delegate the hosting, keep the identity
 				</h2>
 				<p class="mt-5 text-base leading-relaxed text-soft sm:text-lg">
-					Plenty of manufacturers own a domain and cannot put a file on it. The model is that the feed would be hosted
-					somewhere else and the domain proven with DNS, so the source identity would still be the domain and the trust
-					level still <code class="chip">verified</code>. The hosted service this depends on runs, but an
-					operator sets each site up; there is no self-service sign-up yet. To have one set up, open the{' '}
-					<a href={CONTACT.publish} class="rounded-sm text-accent underline underline-offset-4">Publish my catalogue</a> form.
+					Plenty of manufacturers own a domain and cannot put a file on it. The feed is hosted somewhere else and the
+					domain proven with DNS, so the source identity is still the domain and the trust level still{' '}
+					<code class="chip">verified</code>. Create a site at{' '}
+					<a href={HOSTED_PUBLISHER} class="rounded-sm text-accent underline underline-offset-4">publish.prodid.org</a>,
+					enter your domain, and it shows the exact record to add and checks it for you.
 				</p>
 			</div>
 
 			<div class="mt-10 grid max-w-3xl gap-6 [&>*]:min-w-0">
 				<div class="rounded-xl border border-line bg-surface p-6">
-					<h3 class="text-base font-semibold tracking-tight">What it would look like</h3>
+					<h3 class="text-base font-semibold tracking-tight">What it looks like</h3>
 					<ol class="mt-4 grid gap-4 text-[0.9375rem] leading-relaxed text-soft">
 						<li>
 							<span class="font-medium text-ink">A catalogue uploaded at a hosted slug</span> — say{' '}
-							<code class="chip">acme.prodid.org</code> — which would serve both the discovery document and the feed.
+							<code class="chip">acme.prodid.org</code> — which serves both the discovery document and the feed.
 						</li>
 						<li>
 							<span class="font-medium text-ink">One TXT record on the domain you own</span>, naming that host. A host,
 							never a URL, so a record can never aim the crawler at an arbitrary address.
 						</li>
 						<li>
-							<span class="font-medium text-ink">A document that names your domain back.</span> DNS would say{' '}
-							<em>my document is over there</em>; the document would say <em>I speak for that domain</em>. A delegated
+							<span class="font-medium text-ink">A document that names your domain back.</span> DNS says{' '}
+							<em>my document is over there</em>; the document says <em>I speak for that domain</em>. A delegated
 							document without <code class="chip">domain</code> is rejected — absence is never read as consent, which is
 							what stops anyone pointing a record at somebody else's feed.
 						</li>
@@ -472,8 +469,8 @@ const checklist = [
 					/>
 				</div>
 				<p class="text-[0.9375rem] leading-relaxed text-soft">
-					A hosted publisher would write <code class="chip">domain</code> into the document only after it had seen your
-					TXT record itself, so there would be no window in which a document claims a domain that has not asked for it.
+					The hosted publisher writes <code class="chip">domain</code> into the document only after it has seen your TXT
+					record itself, so there is no window in which a document claims a domain that has not asked for it.
 				</p>
 			</div>
 		</div>
@@ -482,18 +479,14 @@ const checklist = [
 	<section aria-labelledby="hosted" class="border-t border-line">
 		<div class="shell py-14 sm:py-16">
 			<div class="max-w-3xl">
-				<div class="flex flex-wrap items-center gap-3">
-					<p class="font-mono text-xs tracking-[0.18em] text-soft uppercase">Route 3</p>
-					<span class="rounded-full border border-rule px-2.5 py-0.5 text-[0.65rem] font-semibold tracking-wider text-soft uppercase">
-						Operator-assisted
-					</span>
-				</div>
+				<p class="font-mono text-xs tracking-[0.18em] text-soft uppercase">Route 3</p>
 				<h2 id="hosted" class="mt-4 text-2xl font-semibold tracking-tight sm:text-3xl">Publish without a domain</h2>
 				<p class="mt-5 text-base leading-relaxed text-soft sm:text-lg">
-					The model for a producer with no domain at all is a hosted slug, <code class="chip">&lt;slug&gt;.prodid.org</code>,
-					publishing under its own name. The source identity would be the slug host and the trust level{' '}
-					<code class="chip">unverified</code>, because nothing would have been proven about a domain. The records would
-					be real records: identifiers, resolution, attribution.
+					A producer with no domain at all publishes at a hosted slug, <code class="chip">&lt;slug&gt;.prodid.org</code>,
+					under its own name. Claim one at{' '}
+					<a href={HOSTED_PUBLISHER} class="rounded-sm text-accent underline underline-offset-4">publish.prodid.org</a>.
+					The source identity is the slug host and the trust level <code class="chip">unverified</code>, because nothing
+					has been proven about a domain. The records are real records: identifiers, resolution, attribution.
 				</p>
 				<p class="mt-5 text-base leading-relaxed text-soft sm:text-lg">
 					Most publishers in this position already keep a{' '}
@@ -506,9 +499,8 @@ const checklist = [
 					<a href="/spec#appendix-importing-a-merchant-feed" class="rounded-sm text-accent underline underline-offset-4">
 						Importing a Merchant feed</a
 					>{' '}
-					is worth reading before you export: the operator converts your file with exactly that mapping (<code class="chip"
-						>prodid-batch merchant</code
-					>). Four things in it decide what your spreadsheet has to look like:
+					is worth reading before you export: publish.prodid.org converts the CSV or TSV you upload with exactly that
+					mapping. Four things in it decide what your spreadsheet has to look like:
 				</p>
 				<ul class="mt-5 grid gap-4 [&>*]:min-w-0">
 					<li class="border-l-2 border-rule pl-5 text-[0.9375rem] leading-relaxed text-soft">
@@ -556,10 +548,8 @@ const checklist = [
 					<strong class="font-medium text-ink">the same source, the same records, every{' '}
 					<code class="chip">opid</code> kept</strong>, with trust rising from <code class="chip">unverified</code> to{' '}
 					<code class="chip">verified</code>. Your <code class="chip">sku</code> identifiers are scoped to the source
-					itself rather than to its name, so they survive the move. Like route 2, a hosted site is set up by an
-					operator for now: open the{' '}
-					<a href={CONTACT.publish} class="rounded-sm text-accent underline underline-offset-4">Publish my catalogue</a> form
-					to ask for one.
+					itself rather than to its name, so they survive the move. On publish.prodid.org that is
+					the same domain field route 2 uses.
 				</p>
 			</div>
 		</div>
