@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'bun:test'
 
-import type { EntityRecord } from '@prodid/core'
+import { type EntityRecord, problem, type SourceRecord } from '@prodid/core'
 
-import { renderEntity } from '../src/render'
+import { renderEntity, renderProblem, renderSource } from '../src/render'
 import { entityView } from '../src/view'
 
 const SOURCE = { name: 'acme.example', trust: 'verified' as const, lapsed: false }
@@ -222,6 +222,112 @@ describe('the entity page', () => {
 		expect(html).toContain('<a class="wordmark" href="https://prodid.org/"')
 		expect(html).toContain('@media (prefers-color-scheme:dark)')
 		expect(sectionOf(html, 'footer')).toContain('Every value is a claim by its source. Choosing between them is yours.')
+	})
+})
+
+describe('the source page', () => {
+	const healthy = (): SourceRecord => ({
+		$type: 'org.prodid.source',
+		name: 'acme.example',
+		kind: 'domain',
+		trust: 'verified',
+		verified_by: 'dns-txt',
+		verified_at: '2026-09-14T09:12:03Z',
+		lapsed: false,
+		license: 'CC0-1.0',
+		last_crawl: {
+			at: '2026-09-19T06:00:11Z',
+			via: 'dns-txt',
+			document_url: 'https://acme.example/.well-known/prodid.json',
+			outcome: 'success',
+			http_status: 200,
+			records_seen: 3,
+			records_changed: 1,
+			lines_skipped: 0,
+			feeds_failed: 0,
+			media_failed: 0,
+		},
+	})
+
+	test('has the sections of chapter 05, in order, and no lapse banner when healthy', () => {
+		const html = renderSource(healthy())
+		const sections = ['header', 'verification', 'crawl', 'footer'].map((name) => html.indexOf(`data-section="${name}"`))
+		for (const position of sections) expect(position).toBeGreaterThan(0)
+		expect([...sections].sort((a, b) => a - b)).toEqual(sections)
+		expect(sectionOf(html, 'header')).toContain('<span class="trust verified badge">verified</span>')
+		expect(html).not.toContain('Lapsed since')
+		expect(sectionOf(html, 'verification')).toContain('<code>dns-txt</code>')
+		expect(sectionOf(html, 'verification')).toContain('<code>CC0-1.0</code>')
+	})
+
+	test('the last crawl shows every field present, the outcome with its meaning', () => {
+		const crawl = sectionOf(renderSource(healthy()), 'crawl')
+		for (const term of [
+			'At',
+			'Outcome',
+			'Via',
+			'Document',
+			'HTTP status',
+			'Records seen',
+			'Records changed',
+			'Lines skipped',
+			'Feeds failed',
+			'Media failed',
+		]) {
+			expect(crawl).toContain(`<dt>${term}</dt>`)
+		}
+		expect(crawl).toContain('<span class="outcome success">success</span>')
+		expect(crawl).toContain('every feed answered 200 or 304')
+		expect(crawl).toContain('https://acme.example/.well-known/prodid.json')
+	})
+
+	test('a lapsed source says since when and the withdrawal date thirty days on', () => {
+		const record = healthy()
+		record.lapsed = true
+		record.lapsed_at = '2026-09-20T08:00:00Z'
+		record.last_crawl = { at: '2026-09-20T08:00:00Z', outcome: 'definite-negative' }
+		const html = renderSource(record)
+		const header = sectionOf(html, 'header')
+		expect(header).toContain('<span class="lapsed">lapsed</span>')
+		expect(header).toContain('Lapsed since <time datetime="2026-09-20T08:00:00Z"')
+		expect(header).toContain('<time datetime="2026-10-20T08:00:00Z"')
+		const crawl = sectionOf(html, 'crawl')
+		expect(crawl).toContain('definite-negative')
+		expect(crawl).not.toContain('<dt>Document</dt>')
+		expect(crawl).not.toContain('<dt>HTTP status</dt>')
+	})
+
+	test('the footer states the two rules and links the spec section', () => {
+		const footer = sectionOf(renderSource(healthy()), 'footer')
+		expect(footer).toContain('first successful discovery')
+		expect(footer).toContain('only for the host this source was last verified at')
+		expect(footer).toContain('href="https://prodid.org/spec#a-sources-status"')
+	})
+
+	test('a source with no finished crawl says so', () => {
+		const record = healthy()
+		delete record.last_crawl
+		expect(sectionOf(renderSource(record), 'crawl')).toContain('No crawl has finished yet.')
+	})
+})
+
+describe('the problem page', () => {
+	test('unknown-gtin has the status, the title and where manufacturers publish', () => {
+		const html = renderProblem(problem('unknown-gtin').body)
+		expect(html).toContain('<title>404 No entity with that GTIN — prodid</title>')
+		expect(html).toContain('Error 404')
+		expect(html).toContain('<h1>No entity with that GTIN</h1>')
+		expect(html).toContain(
+			'No publisher has published this GTIN yet. Manufacturers publish at <a href="https://prodid.org/publish">prodid.org/publish</a>.',
+		)
+	})
+
+	test('invalid-gtin has its status, title and detail, and no publishing line', () => {
+		const html = renderProblem(problem('invalid-gtin', { detail: '<b>check-digit</b>' }).body)
+		expect(html).toContain('Error 400')
+		expect(html).toContain('<h1>Not a GTIN</h1>')
+		expect(html).toContain('&lt;b&gt;check-digit&lt;/b&gt;')
+		expect(html).not.toContain('No publisher has published')
 	})
 })
 

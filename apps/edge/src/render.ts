@@ -1,6 +1,16 @@
-import type { EntityRecord, JsonValue, ProblemBody, SourceRecord } from '@prodid/core'
+import { type EntityRecord, type JsonValue, PROBLEM_BASE, type ProblemBody, type SourceRecord } from '@prodid/core'
+import { WITHDRAW_AFTER_LAPSE_MS } from '@prodid/store'
 
-import { type EntityView, entityView, type LinkView, type MediaView, type PropertyView, type SourceView, type ValueView } from './view'
+import {
+	type EntityView,
+	entityView,
+	type LinkView,
+	type MediaView,
+	type PropertyView,
+	sourceStatusView,
+	type SourceView,
+	type ValueView,
+} from './view'
 
 const SITE = 'https://prodid.org'
 
@@ -56,52 +66,88 @@ export function renderEntity(entity: EntityRecord, options: { history?: boolean 
 }
 
 export function renderSource(source: SourceRecord): string {
-	const crawl = source.last_crawl
-	const rows: Row[] = [
-		['name', text(source.name)],
-		['kind', text(source.kind)],
-		['trust', text(source.trust)],
-		['lapsed', text(source.lapsed ? `yes, since ${source.lapsed_at ?? ''}` : 'no')],
-	]
-	if (source.verified_by !== undefined) rows.push(['verified by', text(`${source.verified_by} at ${source.verified_at ?? ''}`)])
-	if (source.license !== undefined) rows.push(['license', text(source.license)])
+	const view = sourceStatusView(source)
+	const badges = `<p class="badges"><span class="trust ${escape(view.trust)} badge">${escape(view.trust)}</span>${
+		view.lapsed ? '<span class="lapsed">lapsed</span>' : ''
+	}</p>`
+	const banner =
+		view.lapsed && view.lapsedAt !== null
+			? `<p class="banner warn" role="note"><strong>Lapsed since ${time(view.lapsedAt, 'full')}.</strong> Its discovery stopped succeeding. Its records and active claims are withdrawn on ${time(
+					new Date(Date.parse(view.lapsedAt) + WITHDRAW_AFTER_LAPSE_MS).toISOString().replace('.000Z', 'Z'),
+					'full',
+				)}, 30 days after the lapse started, unless a crawl succeeds in full before then.</p>`
+			: ''
+	const header = section(
+		'header',
+		`<p class="eyebrow"><span class="kind">${escape(view.kind)} source</span></p><h1 class="mono">${escape(view.name)}</h1>${badges}${banner}`,
+	)
 
-	const crawlRows: Row[] =
-		crawl === undefined
+	const verification = section(
+		'verification',
+		`${subheading('Verification')}${definitions([
+			['Verified by', view.verifiedBy === null ? '<span class="soft">not verified</span>' : `<code>${escape(view.verifiedBy)}</code>`],
+			...(view.verifiedAt === null ? [] : [['Verified at', time(view.verifiedAt, 'full')] as Row]),
+			['Licence', view.license === null ? '<span class="soft">none stated</span>' : `<code>${escape(view.license)}</code>`],
+		])}`,
+	)
+
+	const crawl = view.lastCrawl
+	const counts: [string, number | null][] =
+		crawl === null
 			? []
 			: [
-					['at', text(crawl.at)],
-					['outcome', text(crawl.outcome)],
-					...(crawl.via === undefined ? [] : [['via', text(crawl.via)] as Row]),
-					...(crawl.document_url === undefined ? [] : [['document', text(crawl.document_url)] as Row]),
-					...(crawl.http_status === undefined ? [] : [['http status', text(String(crawl.http_status))] as Row]),
-					...(crawl.records_seen === undefined ? [] : [['records seen', text(String(crawl.records_seen))] as Row]),
-					...(crawl.records_changed === undefined ? [] : [['records changed', text(String(crawl.records_changed))] as Row]),
-					...(crawl.lines_skipped === undefined ? [] : [['lines skipped', text(String(crawl.lines_skipped))] as Row]),
+					['Records seen', crawl.recordsSeen],
+					['Records changed', crawl.recordsChanged],
+					['Lines skipped', crawl.linesSkipped],
+					['Feeds failed', crawl.feedsFailed],
+					['Media failed', crawl.mediaFailed],
 				]
-
-	return page(
-		`source ${source.name} — prodid`,
-		[
-			`<h1>${escape(`source ${source.name}`)}</h1>`,
-			definitions(rows),
-			crawlRows.length === 0 ? '<p>No crawl has finished yet.</p>' : `${subheading('Last crawl')}\n${definitions(crawlRows)}`,
-		].join('\n'),
+	const lastCrawl = section(
+		'crawl',
+		`${subheading('Last crawl')}${
+			crawl === null
+				? '<p class="soft">No crawl has finished yet.</p>'
+				: definitions([
+						['At', time(crawl.at, 'full')],
+						[
+							'Outcome',
+							`<span class="outcome ${escape(crawl.outcome)}">${escape(crawl.outcome)}</span><span class="meaning">${escape(OUTCOME[crawl.outcome])}</span>`,
+						],
+						...(crawl.via === null ? [] : [['Via', `<code>${escape(crawl.via)}</code>`] as Row]),
+						...(crawl.documentUrl === null ? [] : [['Document', `<code>${escape(crawl.documentUrl)}</code>`] as Row]),
+						...(crawl.httpStatus === null ? [] : [['HTTP status', `<span class="mono">${crawl.httpStatus}</span>`] as Row]),
+						...counts
+							.filter((entry): entry is [string, number] => entry[1] !== null)
+							.map(([term, count]) => [term, `<span class="mono">${count}</span>`] as Row),
+					])
+		}`,
 	)
+
+	const footer = `<footer class="foot" data-section="footer"><div class="shell"><p class="lede">What this status says, and what it never says.</p><ul class="rules"><li>A domain becomes a source at its first successful discovery, not before. Until then this page answers 404, the same as for a name nobody has ever pinged.</li><li>The HTTP status and the document URL are shown only for the host this source was last verified at, never for another.</li><li>It never reports who asked for a crawl, how often anyone asks, or the crawler&#39;s internal error text.</li></ul><ul class="links"><li><a href="${SITE}/spec#a-sources-status">A source&#39;s status in the specification</a></li><li><span class="soft">JSON</span> the same URL with <code>Accept: application/json</code></li></ul></div></footer>`
+
+	return page(`${view.name} — prodid source`, header + verification + lastCrawl, footer)
 }
 
 export function renderProblem(body: ProblemBody): string {
-	return page(
-		`${body.title} — prodid`,
-		[
-			`<h1>${escape(body.title)}</h1>`,
-			`<p>${escape(String(body.status))}</p>`,
-			body.detail === undefined ? '' : `<p>${escape(body.detail)}</p>`,
-		]
-			.filter((part) => part !== '')
-			.join('\n'),
-	)
+	const type = body.type.startsWith(PROBLEM_BASE) ? body.type.slice(PROBLEM_BASE.length) : null
+	const parts = [
+		`<p class="eyebrow"><span class="kind">Error ${escape(String(body.status))}</span></p>`,
+		`<h1>${escape(body.title)}</h1>`,
+		body.detail === undefined ? '' : `<p class="detail"><code>${escape(body.detail)}</code></p>`,
+		type === 'unknown-gtin'
+			? `<p class="lede-line">No publisher has published this GTIN yet. Manufacturers publish at <a href="${SITE}/publish">prodid.org/publish</a>.</p>`
+			: '',
+		type === null ? '' : `<p class="soft">Problem type <code>${escape(type)}</code></p>`,
+	]
+	return page(`${body.status} ${body.title} — prodid`, section('problem', parts.join('')))
 }
+
+const OUTCOME = {
+	success: 'Everything the document lists was read: an acceptable document, and every feed answered 200 or 304.',
+	'definite-negative': 'Discovery ended with no acceptable document: none was found, or the one fetched was refused.',
+	'transport-failure':
+		'The crawl could not be completed: DNS, connection or TLS failure, 429, 5xx, a cap or a timeout, on the document or on a feed it lists. Seven days of nothing else lapse the source.',
+} as const
 
 type Row = [string, string]
 
@@ -230,8 +276,8 @@ function chip(entry: { source: SourceView; seenAt: string; withdrawnAt: string |
 	)}">${escape(source.trust)}</span>${lapsed}${time(entry.seenAt)}${withdrawn}</span>`
 }
 
-function time(at: string): string {
-	return `<time datetime="${escape(at)}" title="${escape(at)}">${escape(at.slice(0, 10))}</time>`
+function time(at: string, shown: 'date' | 'full' = 'date'): string {
+	return `<time datetime="${escape(at)}" title="${escape(at)}">${escape(shown === 'date' ? at.slice(0, 10) : at)}</time>`
 }
 
 function withdrawnClass(withdrawnAt: string | null): string {
@@ -277,10 +323,6 @@ function definitions(rows: readonly Row[]): string {
 	return `<dl>${body}</dl>`
 }
 
-function text(value: string): string {
-	return escape(value)
-}
-
 function subheading(title: string): string {
 	return `<h2>${escape(title)}</h2>`
 }
@@ -317,7 +359,7 @@ code{font-size:0.875em;background:var(--sunken);border:1px solid var(--line);bor
 .mark i:nth-child(2){left:26.9%;width:4.7%;top:28.1%;height:43.75%}
 .mark i:nth-child(3){left:40.9%;width:10%}
 .mark i:nth-child(4){left:62.5%;top:35.6%;width:28.75%;height:28.75%}
-main{padding-top:2.5rem;padding-bottom:3rem}
+main.shell{padding-top:2.5rem;padding-bottom:3rem}
 .eyebrow{margin:0 0 0.5rem;font-size:0.75rem;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--soft)}
 .kind{display:inline-block;border:1px solid var(--rule);border-radius:999px;padding:0.1rem 0.6rem}
 .names .name{display:flex;flex-wrap:wrap;align-items:baseline;gap:0.25rem 0.75rem}
@@ -367,6 +409,17 @@ table.pairs th:first-child{width:38%}
 dl{margin:0.75rem 0 0;display:grid;grid-template-columns:minmax(7rem,max-content) 1fr;gap:0}
 dt,dd{margin:0;padding:0.55rem 0;border-bottom:1px solid var(--line)}
 dt{color:var(--soft);padding-right:1rem;font-size:0.875rem}
+.badges{display:flex;flex-wrap:wrap;gap:0.5rem;margin-top:0.75rem}
+.badge{display:inline-block;border:1px solid currentColor;border-radius:999px;padding:0 0.6rem;font-size:0.8125rem}
+.trust.unverified{color:var(--soft)}
+.outcome{display:inline-block;font-family:var(--mono);font-weight:600;font-size:0.875rem;margin-right:0.5rem}
+.outcome.success{color:var(--ok)}
+.outcome.definite-negative,.outcome.transport-failure{color:var(--warn)}
+.meaning{display:block;color:var(--soft);font-size:0.875rem}
+.rules{margin-top:1rem;padding-left:1.25rem;list-style:disc;color:var(--soft)}
+.rules li+li{margin-top:0.4rem}
+.lede-line{font-size:1.0625rem}
+.detail code{font-size:0.875rem}
 @media (max-width:30rem){h1{font-size:1.5rem}.names .name+.name{font-size:1.1875rem}table.pairs th:first-child{width:40%}table.data td .chip{margin:0.35rem 0 0}table.data td .chip{display:flex;width:fit-content;max-width:100%}}`
 
 function page(title: string, body: string, footer = ''): string {

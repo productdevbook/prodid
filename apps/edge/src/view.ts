@@ -93,6 +93,7 @@ export interface SourceStatusView {
 		recordsChanged: number | null
 		linesSkipped: number | null
 		feedsFailed: number | null
+		mediaFailed: number | null
 	} | null
 }
 
@@ -189,6 +190,7 @@ export function sourceStatusView(status: SourceRecord): SourceStatusView {
 						recordsChanged: crawl.records_changed ?? null,
 						linesSkipped: crawl.lines_skipped ?? null,
 						feedsFailed: crawl.feeds_failed ?? null,
+						mediaFailed: crawl.media_failed ?? null,
 					},
 	}
 }
