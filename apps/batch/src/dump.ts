@@ -4,13 +4,15 @@ import { dirname, join, resolve } from 'node:path'
 import { type DumpFile, type DumpManifest, validateDump } from '@prodid/core'
 import { createClient, DUMP_FILES, type DumpSnapshot, readSnapshot } from '@prodid/store'
 
-export const DUMP_VERSION_PREFIX = 'v0/'
+export const DUMP_VERSION_PREFIX = 'v1/'
 export const LATEST_KEY = `${DUMP_VERSION_PREFIX}latest.json`
+/** Every version directory retention applies to: the v0 dumps written before v1 expire as they always did. */
+export const RETAINED_PREFIXES = ['v0/', DUMP_VERSION_PREFIX] as const
 export const DAILY_KEPT = 7
 export const PART_BYTES = 16 * 1024 * 1024
 
 const CHUNK_BYTES = 64 * 1024
-const DATED = /^v0\/(\d{4}-\d{2}-\d{2})\//
+const DATED = /^v\d+\/(\d{4}-\d{2}-\d{2})\//
 
 export class DumpCommandError extends Error {}
 
@@ -181,13 +183,13 @@ export async function runDump(databaseUrl: string, target: DumpTarget, options: 
 		const [clock] = await sql<{ at: Date }[]>`select clock_timestamp() as at`
 		const manifest: DumpManifest = {
 			$type: 'org.prodid.dump',
-			version: 0,
+			version: 1,
 			created_at: clock!.at.toISOString(),
 			snapshot_at: written.snapshotAt.toISOString(),
 			files: written.files,
 			licenses: { index: 'CC0-1.0', claims: 'source' },
 		}
-		const valid = validateDump(manifest)
+		const valid = validateDump(manifest, { version: 1 })
 		if (!valid.ok)
 			throw new DumpCommandError(`the manifest does not validate: ${valid.errors.map((e) => `${e.path} ${e.message}`).join('; ')}`)
 		const body = `${JSON.stringify(manifest, null, '\t')}\n`
@@ -255,7 +257,13 @@ async function writeFile(target: DumpTarget, key: string, values: AsyncIterator<
 }
 
 async function applyRetention(target: DumpTarget, today: string): Promise<string[]> {
-	const keys = await target.list(DUMP_VERSION_PREFIX)
+	const removed: string[] = []
+	for (const prefix of RETAINED_PREFIXES) removed.push(...(await applyRetentionUnder(target, prefix, today)))
+	return removed
+}
+
+async function applyRetentionUnder(target: DumpTarget, prefix: string, today: string): Promise<string[]> {
+	const keys = await target.list(prefix)
 	const byDate = new Map<string, string[]>()
 	for (const key of keys) {
 		const date = DATED.exec(key)?.[1]
@@ -266,7 +274,7 @@ async function applyRetention(target: DumpTarget, today: string): Promise<string
 	for (const [date, dated] of [...byDate].sort(([a], [b]) => a.localeCompare(b))) {
 		if (kept.has(date)) continue
 		for (const key of dated) await target.delete(key)
-		removed.push(`${DUMP_VERSION_PREFIX}${date}/`)
+		removed.push(`${prefix}${date}/`)
 	}
 	return removed
 }

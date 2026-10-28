@@ -46,8 +46,9 @@ can run without it.
 - **Dumps.** `prodid-batch dump` (`apps/batch`) runs nightly at 04:30 UTC next to Postgres, with
   a direct `DATABASE_URL` and `R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` and
   `R2_DUMPS_BUCKET=prodid-dumps`: an R2 API token with Object Read & Write on that bucket only. It
-  only reads the index, writes `v0/<YYYY-MM-DD>/` and `v0/latest.json`, and applies the retention
-  itself (7 days, and the first dump of each month for good), so the bucket has no lifecycle rule.
+  only reads the index, writes `v1/<YYYY-MM-DD>/` and `v1/latest.json`, and applies the retention
+  itself (7 days, and the first dump of each month for good) under `v1/` and under the `v0/` dumps
+  written before v1, so the bucket has no lifecycle rule.
   prodid.org schedules it as a Kubernetes CronJob beside the database.
 - **Backups** are the operator's. Test them by restoring: bootstrap a throwaway database from the
   backups, compare `count(*)` of every table and `schema_migrations` with production, delete it.

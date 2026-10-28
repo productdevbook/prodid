@@ -1,9 +1,9 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
-import { cp, mkdtemp, rm } from 'node:fs/promises'
+import { cp, mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { type DumpManifest } from '@prodid/core'
+import { type DumpFile, type DumpManifest } from '@prodid/core'
 import { readEntity, readSourceStatus, type Sql } from '@prodid/store'
 import { createDatabase, databaseReachable, type Throwaway } from '@prodid/store/testing'
 
@@ -12,6 +12,8 @@ import { runLoadDump } from '../src/load'
 import { ACME, CANARY, crawlFeed, feedLines, ITEMS, MERCHANT, populate } from './support'
 
 const CLI = new URL('../src/cli.ts', import.meta.url).pathname
+
+const operator = (url: string) => ({ DATABASE_URL: url, PRODID_OPERATOR: 'test' })
 
 async function cli(args: string[], env: Record<string, string>): Promise<{ code: number; stdout: string; stderr: string }> {
 	const child = Bun.spawn(['bun', CLI, ...args], { env: { PATH: process.env.PATH ?? '', ...env }, stdout: 'pipe', stderr: 'pipe' })
@@ -28,6 +30,18 @@ describe('load-dump refuses before touching anything', () => {
 		expect(anonymous.code).toBe(1)
 		expect(anonymous.stderr).toContain('PRODID_OPERATOR is not set')
 		expect(anonymous.stdout).toBe('')
+	})
+
+	test('a manifest that is neither a v0 nor a v1 dump', async () => {
+		for (const version of ['', 'v1/']) {
+			const vectors = new URL(`../../../spec/fixtures/${version}dump/invalid/`, import.meta.url).pathname
+			for (const name of await readdir(vectors)) {
+				if (name === 'version-not-zero.json' || name === 'version-not-one.json') continue
+				await expect(runLoadDump(operator('postgres://u:p@127.0.0.1:1/x'), join(vectors, name), { log: () => {} })).rejects.toThrow(
+					/is not an org\.prodid\.dump manifest/,
+				)
+			}
+		}
 	})
 
 	test('without a location', async () => {
@@ -65,11 +79,29 @@ async function opids(sql: Sql): Promise<string[]> {
 	return (await sql<{ opid: string }[]>`select opid from entity order by opid`).map((row) => row.opid)
 }
 
+/** The dump at `from` as v0 wrote it: a v0 manifest, and source and entity lines without `version`. */
+async function asV0(from: string, to: string): Promise<void> {
+	const v1: DumpManifest = JSON.parse(await Bun.file(join(from, 'manifest.json')).text())
+	const files: DumpFile[] = []
+	for (const file of v1.files) {
+		let bytes = new Uint8Array(await Bun.file(join(from, file.name)).arrayBuffer())
+		if (file.name === 'sources.ndjson.gz' || file.name === 'entities.ndjson.gz') {
+			const lines = new TextDecoder().decode(Bun.gunzipSync(bytes)).split('\n').slice(0, -1)
+			const unversioned = lines.map((line) => {
+				const { version: _, ...rest } = JSON.parse(line) as Record<string, unknown>
+				return `${JSON.stringify(rest)}\n`
+			})
+			bytes = Bun.gzipSync(new TextEncoder().encode(unversioned.join('')))
+		}
+		await Bun.write(join(to, file.name), bytes)
+		files.push({ ...file, sha256: new Bun.CryptoHasher('sha256').update(bytes).digest('hex'), bytes: bytes.length })
+	}
+	await Bun.write(join(to, 'manifest.json'), JSON.stringify({ ...v1, version: 0, files }))
+}
+
 async function entityCount(sql: Sql): Promise<number> {
 	return (await sql<{ count: number }[]>`select count(*)::int as count from entity`)[0]!.count
 }
-
-const operator = (url: string) => ({ DATABASE_URL: url, PRODID_OPERATOR: 'test' })
 
 beforeAll(async () => {
 	if (!reachable) return
@@ -77,7 +109,7 @@ beforeAll(async () => {
 	await populate(indexA.sql, crawledAt)
 	out = await directory()
 	manifest = (await runDump(indexA.url, directoryTarget(out), { log: () => {} })).manifest
-	dated = join(out, 'v0', manifest.snapshot_at.slice(0, 10))
+	dated = join(out, 'v1', manifest.snapshot_at.slice(0, 10))
 	indexB = await database()
 })
 
@@ -149,12 +181,43 @@ describe.skipIf(!reachable)('the index is replaceable', () => {
 		try {
 			const target = await database()
 			const log: string[] = []
-			const loaded = await runLoadDump(operator(target.url), `${server.url.origin}/v0/latest.json`, { log: (line) => log.push(line) })
-			expect(log[1]).toBe(`dump: ${server.url.origin}/v0/${manifest.snapshot_at.slice(0, 10)}/, snapshot ${manifest.snapshot_at}`)
+			const loaded = await runLoadDump(operator(target.url), `${server.url.origin}/v1/latest.json`, { log: (line) => log.push(line) })
+			expect(log[1]).toBe(`dump: ${server.url.origin}/v1/${manifest.snapshot_at.slice(0, 10)}/, snapshot ${manifest.snapshot_at}`)
 			expect(loaded.entities).toBe(manifest.files.find((file) => file.name === 'entities.ndjson.gz')!.lines)
 			expect(await opids(target.sql)).toEqual(await opids(indexA.sql))
 		} finally {
 			server.stop(true)
+		}
+	})
+
+	test('a v0 dump, a v0 manifest with unversioned source and entity lines, loads to the same index', async () => {
+		const v0 = await directory()
+		await asV0(dated, v0)
+		const target = await database()
+		const loaded = await runLoadDump(operator(target.url), v0, { log: () => {} })
+		expect(loaded.entities).toBe(manifest.files.find((file) => file.name === 'entities.ndjson.gz')!.lines)
+		for (const opid of await opids(indexA.sql)) {
+			expect(await readEntity(target.sql, opid, { history: true })).toEqual(await readEntity(indexA.sql, opid, { history: true }))
+		}
+		for (const name of [ACME.name, CANARY.name])
+			expect(await readSourceStatus(target.sql, name)).toEqual(await readSourceStatus(indexA.sql, name))
+	})
+
+	test('the empty-index vectors of v0 and v1 load as an empty index', async () => {
+		const empty = Bun.gzipSync(new Uint8Array())
+		const digest = new Bun.CryptoHasher('sha256').update(empty).digest('hex')
+		for (const version of ['', 'v1/']) {
+			const vector: DumpManifest = await Bun.file(
+				new URL(`../../../spec/fixtures/${version}dump/valid/empty-index.json`, import.meta.url),
+			).json()
+			const dump = join(await directory(), vector.snapshot_at.slice(0, 10))
+			await mkdir(dump)
+			for (const file of vector.files) await Bun.write(join(dump, file.name), empty)
+			const files = vector.files.map((file) => ({ ...file, sha256: digest, bytes: empty.length }))
+			await writeFile(join(dump, '..', 'latest.json'), JSON.stringify({ ...vector, files }))
+			const target = await database()
+			const loaded = await runLoadDump(operator(target.url), join(dump, '..', 'latest.json'), { log: () => {} })
+			expect(loaded).toMatchObject({ sources: 0, entities: 0, records: 0, groupings: 0, merges: 0 })
 		}
 	})
 

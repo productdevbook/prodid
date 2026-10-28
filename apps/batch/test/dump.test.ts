@@ -53,9 +53,9 @@ test('a file larger than a part goes up as a multipart upload, whole', async () 
 				else controller.enqueue(chunk)
 			},
 		})
-		await target.write('v0/2026-01-01/entities.ndjson.gz', body, 'application/gzip')
+		await target.write('v1/2026-01-01/entities.ndjson.gz', body, 'application/gzip')
 		expect(parts.multipart).toBe(1)
-		expect(parts.objects.get('v0/2026-01-01/entities.ndjson.gz')!.body.length).toBe(chunks * chunk.length)
+		expect(parts.objects.get('v1/2026-01-01/entities.ndjson.gz')!.body.length).toBe(chunks * chunk.length)
 	} finally {
 		parts.stop()
 	}
@@ -144,12 +144,13 @@ describe.skipIf(!reachable)('dump to a directory', () => {
 	})
 
 	test('every file is the snapshot it names, counted and digested as served', async () => {
-		expect(validateDump(manifest).ok).toBe(true)
+		expect(manifest.version).toBe(1)
+		expect(validateDump(manifest, { version: 1 }).ok).toBe(true)
 		expect(manifest.files.map((file) => file.name)).toEqual([...DUMP_FILES])
 		const date = manifest.snapshot_at.slice(0, 10)
 		const expected = await expectedLines()
 		for (const file of manifest.files) {
-			const bytes = new Uint8Array(await Bun.file(join(out, 'v0', date, file.name)).arrayBuffer())
+			const bytes = new Uint8Array(await Bun.file(join(out, 'v1', date, file.name)).arrayBuffer())
 			expect(bytes.length).toBe(file.bytes)
 			expect(sha256(bytes)).toBe(file.sha256)
 			const lines = decompressed(bytes)
@@ -163,10 +164,10 @@ describe.skipIf(!reachable)('dump to a directory', () => {
 
 	test('latest.json is the manifest, byte for byte, and nothing else is left behind', async () => {
 		const date = manifest.snapshot_at.slice(0, 10)
-		const written = await Bun.file(join(out, 'v0', date, 'manifest.json')).text()
+		const written = await Bun.file(join(out, 'v1', date, 'manifest.json')).text()
 		expect(JSON.parse(written)).toEqual(manifest)
-		expect(await Bun.file(join(out, 'v0', 'latest.json')).text()).toBe(written)
-		expect((await readdir(join(out, 'v0', date))).sort()).toEqual([...DUMP_FILES, 'manifest.json'].sort())
+		expect(await Bun.file(join(out, 'v1', 'latest.json')).text()).toBe(written)
+		expect((await readdir(join(out, 'v1', date))).sort()).toEqual([...DUMP_FILES, 'manifest.json'].sort())
 	})
 
 	test('it prints the host, then lines, bytes and time per file, the manifest and latest.json last', () => {
@@ -182,35 +183,41 @@ describe.skipIf(!reachable)('dump to a directory', () => {
 			)
 		}
 		expect(log.slice(8)).toEqual([
-			`manifest: v0/${date}/manifest.json`,
-			'latest: v0/latest.json',
+			`manifest: v1/${date}/manifest.json`,
+			'latest: v1/latest.json',
 			expect.stringMatching(/^done in \d+\.\d s$/),
 		])
 	})
 
 	test('a second dump on the same date is refused and changes nothing', async () => {
-		const before = await Bun.file(join(out, 'v0', 'latest.json')).text()
+		const before = await Bun.file(join(out, 'v1', 'latest.json')).text()
 		await expect(runDump(database!.url, directoryTarget(out), { log: () => {} })).rejects.toThrow(
 			/already exists; a written dump is never rewritten/,
 		)
-		expect(await Bun.file(join(out, 'v0', 'latest.json')).text()).toBe(before)
+		expect(await Bun.file(join(out, 'v1', 'latest.json')).text()).toBe(before)
 	})
 
-	test('older dumps retention no longer keeps are removed, month firsts stay', async () => {
+	test('older dumps retention no longer keeps are removed under v1/ and v0/, month firsts stay', async () => {
 		const kept = await directory()
 		const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10)
-		for (const date of ['2020-01-05', '2020-01-09', '2020-02-03', '2020-02-10', yesterday]) {
-			await mkdir(join(kept, 'v0', date), { recursive: true })
-			for (const name of ['manifest.json', 'sources.ndjson.gz']) await writeFile(join(kept, 'v0', date, name), 'x')
+		for (const version of ['v0', 'v1']) {
+			for (const date of ['2020-01-05', '2020-01-09', '2020-02-03', '2020-02-10', yesterday]) {
+				await mkdir(join(kept, version, date), { recursive: true })
+				for (const name of ['manifest.json', 'sources.ndjson.gz']) await writeFile(join(kept, version, date, name), 'x')
+			}
 		}
+		await writeFile(join(kept, 'v0', 'latest.json'), 'v0 latest')
 		const log: string[] = []
 		const run = await runDump(database!.url, directoryTarget(kept), { log: (line) => log.push(line) })
-		expect(run.removed).toEqual(['v0/2020-01-09/', 'v0/2020-02-10/'])
+		expect(run.removed).toEqual(['v0/2020-01-09/', 'v0/2020-02-10/', 'v1/2020-01-09/', 'v1/2020-02-10/'])
 		expect(log).toContain('retention: removed v0/2020-01-09/')
+		expect(log).toContain('retention: removed v1/2020-01-09/')
 		const today = run.manifest.snapshot_at.slice(0, 10)
-		expect((await readdir(join(kept, 'v0'))).sort()).toEqual(
+		expect((await readdir(join(kept, 'v1'))).sort()).toEqual(
 			['2020-01-05', '2020-02-03', ...new Set([yesterday, today]), 'latest.json'].sort(),
 		)
+		expect((await readdir(join(kept, 'v0'))).sort()).toEqual(['2020-01-05', '2020-02-03', yesterday, 'latest.json'].sort())
+		expect(await Bun.file(join(kept, 'v0', 'latest.json')).text()).toBe('v0 latest')
 	})
 })
 
@@ -228,15 +235,18 @@ describe.skipIf(!reachable)('dump to the bucket', () => {
 		bucket!.failPut = null
 		bucket!.completed = []
 
-		bucket!.objects.set('v0/2020-03-02/manifest.json', { body: new Uint8Array([1]), type: null })
-		bucket!.objects.set('v0/2020-03-09/manifest.json', { body: new Uint8Array([1]), type: null })
-		bucket!.objects.set('v0/2020-03-09/entities.ndjson.gz', { body: new Uint8Array([1]), type: null })
+		bucket!.objects.set('v1/2020-03-02/manifest.json', { body: new Uint8Array([1]), type: null })
+		bucket!.objects.set('v1/2020-03-09/manifest.json', { body: new Uint8Array([1]), type: null })
+		bucket!.objects.set('v1/2020-03-09/entities.ndjson.gz', { body: new Uint8Array([1]), type: null })
+		bucket!.objects.set('v0/2020-03-01/manifest.json', { body: new Uint8Array([1]), type: null })
+		bucket!.objects.set('v0/2020-03-08/manifest.json', { body: new Uint8Array([1]), type: null })
+		bucket!.objects.set('v0/latest.json', { body: new Uint8Array([1]), type: null })
 		const log: string[] = []
 		const run = await runDump(database!.url, bucketTarget(env()), { log: (line) => log.push(line) })
 		expect(log[1]).toBe('target: bucket prodid-dumps')
 
-		const directory = `v0/${run.manifest.snapshot_at.slice(0, 10)}/`
-		expect(bucket!.completed).toEqual([...DUMP_FILES.map((name) => `${directory}${name}`), `${directory}manifest.json`, 'v0/latest.json'])
+		const directory = `v1/${run.manifest.snapshot_at.slice(0, 10)}/`
+		expect(bucket!.completed).toEqual([...DUMP_FILES.map((name) => `${directory}${name}`), `${directory}manifest.json`, 'v1/latest.json'])
 		for (const file of run.manifest.files) {
 			const object = bucket!.objects.get(`${directory}${file.name}`)!
 			expect(object.type).toBe('application/gzip')
@@ -244,13 +254,19 @@ describe.skipIf(!reachable)('dump to the bucket', () => {
 			expect(sha256(object.body)).toBe(file.sha256)
 			expect(decompressed(object.body)).toHaveLength(file.lines)
 		}
-		const latest = bucket!.objects.get('v0/latest.json')!
+		const latest = bucket!.objects.get('v1/latest.json')!
 		expect(latest.type).toStartWith('application/json')
 		expect(latest.body).toEqual(bucket!.objects.get(`${directory}manifest.json`)!.body)
 		expect(JSON.parse(new TextDecoder().decode(latest.body))).toEqual(run.manifest)
 
-		expect(run.removed).toEqual(['v0/2020-03-09/'])
-		expect(bucket!.deleted.sort()).toEqual(['v0/2020-03-09/entities.ndjson.gz', 'v0/2020-03-09/manifest.json'])
-		expect(bucket!.objects.has('v0/2020-03-02/manifest.json')).toBe(true)
+		expect(run.removed).toEqual(['v0/2020-03-08/', 'v1/2020-03-09/'])
+		expect(bucket!.deleted.sort()).toEqual([
+			'v0/2020-03-08/manifest.json',
+			'v1/2020-03-09/entities.ndjson.gz',
+			'v1/2020-03-09/manifest.json',
+		])
+		expect(bucket!.objects.has('v1/2020-03-02/manifest.json')).toBe(true)
+		expect(bucket!.objects.has('v0/2020-03-01/manifest.json')).toBe(true)
+		expect(bucket!.objects.has('v0/latest.json')).toBe(true)
 	})
 })

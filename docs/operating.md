@@ -80,20 +80,21 @@ prodid-batch <command>
       and reason. Prints the source's trust afterwards. Needs DATABASE_URL.
 
   dump [--out DIR]
-      Write a full dump of the index from one snapshot: the five gzip NDJSON files under
-      v0/<YYYY-MM-DD>/, then manifest.json, then v0/latest.json, each line counted and digested as
-      it is written. Then removes the dated dumps retention no longer keeps: the last 7 days and the
-      first dump of each month stay. A date that already has a manifest is refused. Prints lines,
+      Write a full v1 dump of the index from one snapshot: the five gzip NDJSON files under
+      v1/<YYYY-MM-DD>/, then manifest.json, then v1/latest.json, each line counted and digested as
+      it is written. Then removes the dated dumps retention no longer keeps, under v1/ and under the
+      v0/ written before v1 alike: the last 7 days and the first dump of each month stay, and
+      v0/latest.json is left as it is. A date that already has a manifest is refused. Prints lines,
       bytes and elapsed time per file. Writes to R2 over S3 multipart, needing R2_ENDPOINT,
       R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY and R2_DUMPS_BUCKET, or with --out to the same layout
       under DIR. Needs DATABASE_URL; it only reads the index.
 
   load-dump <dir|url>
-      Load a dump into an empty index migrated to the same version, in one transaction. <dir|url>
-      is a dump's dated directory, its manifest.json, or a latest.json, local or over HTTPS (e.g.
-      https://dumps.prodid.org/v0/latest.json). Every file is checked against the manifest's
-      sha256, bytes and lines before anything is written; a remote dump is downloaded to a
-      temporary directory first. A database that is not empty is refused. PRODID_OPERATOR is
+      Load a v0 or v1 dump into an empty index migrated to the same version, in one transaction.
+      <dir|url> is a dump's dated directory, its manifest.json, or a latest.json, local or over
+      HTTPS (e.g. https://dumps.prodid.org/v1/latest.json). Every file is checked against the
+      manifest's sha256, bytes and lines before anything is written; a remote dump is downloaded to
+      a temporary directory first. A database that is not empty is refused. PRODID_OPERATOR is
       recorded as the decider of the loaded merges. Needs DATABASE_URL and PRODID_OPERATOR.
 
   import wikidata <file|url> [--document-url URL]
