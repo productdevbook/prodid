@@ -1,0 +1,103 @@
+name: canary
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+    inputs:
+      gtin:
+        description: GTIN of the canary item
+        required: false
+        default: '9506000134352'
+
+permissions: {}
+
+concurrency:
+  group: canary
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      problems: ${{ steps.probe.outputs.problems }}
+    env:
+      GTIN: ${{ inputs.gtin || '9506000134352' }}
+      SOURCE: canary.prodid.org
+      ORIGIN: https://prodid.org
+      MAX_CRAWL_AGE_HOURS: '12'
+    steps:
+      - id: probe
+        shell: bash
+        run: |
+          set -uo pipefail
+          problems=()
+          if [[ ! "$GTIN" =~ ^[0-9]{8,14}$ ]]; then
+            problems+=("GTIN input \`$GTIN\` is not 8 to 14 digits")
+          else
+            item_url="$ORIGIN/01/$GTIN"
+            status=$(curl -sS -o item.json -w '%{http_code}' -H 'Accept: application/json' "$item_url") || status=000
+            if [[ "$status" != 200 ]]; then
+              problems+=("\`$item_url\` answered $status, expected 200")
+            elif ! jq -e --arg s "$SOURCE" '[.claims[]? | select(.source.name == $s)] | length > 0' item.json >/dev/null; then
+              problems+=("\`$item_url\` has no claim from \`$SOURCE\`")
+            fi
+          fi
+
+          source_url="$ORIGIN/source/$SOURCE"
+          status=$(curl -sS -o source.json -w '%{http_code}' -H 'Accept: application/json' "$source_url") || status=000
+          if [[ "$status" != 200 ]]; then
+            problems+=("\`$source_url\` answered $status, expected 200")
+          else
+            outcome=$(jq -r '.last_crawl.outcome // "none"' source.json)
+            at=$(jq -r '.last_crawl.at // empty' source.json)
+            if [[ "$outcome" != success ]]; then
+              problems+=("last crawl of \`$SOURCE\` has outcome \`$outcome\`, expected \`success\`")
+            fi
+            if [[ -z "$at" ]] || ! at_s=$(date -u -d "$at" +%s 2>/dev/null); then
+              problems+=("last crawl of \`$SOURCE\` has no readable time (\`$at\`)")
+            else
+              age_s=$(( $(date -u +%s) - at_s ))
+              if (( age_s > MAX_CRAWL_AGE_HOURS * 3600 )); then
+                problems+=("last crawl of \`$SOURCE\` was at $at, older than $MAX_CRAWL_AGE_HOURS hours")
+              fi
+            fi
+          fi
+
+          if (( ${#problems[@]} == 0 )); then
+            echo "canary ok: $GTIN and $SOURCE"
+            exit 0
+          fi
+          {
+            echo 'problems<<CANARY_EOF'
+            printf -- '- %s\n' "${problems[@]}"
+            echo 'CANARY_EOF'
+          } >> "$GITHUB_OUTPUT"
+          printf '::error::%s\n' "${problems[@]}"
+          exit 1
+
+  report:
+    needs: check
+    if: failure()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      PROBLEMS: ${{ needs.check.outputs.problems }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - shell: bash
+        run: |
+          set -euo pipefail
+          body=$(printf 'The canary failed at %s.\n\n%s\n\nRun: %s\n' \
+            "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${PROBLEMS:-- the check job failed before it reported}" "$RUN_URL")
+          number=$(gh issue list --label incident --state open --limit 1 --json number --jq '.[0].number // empty')
+          if [[ -n "$number" ]]; then
+            gh issue comment "$number" --body "$body"
+          else
+            gh issue create --title 'Canary failing' --label incident --body "$body"
+          fi
