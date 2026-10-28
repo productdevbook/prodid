@@ -71,6 +71,7 @@ export {
 	type ClaimSource,
 	type CrawlOutcome,
 	type CrawlStatus,
+	type CrawlVia,
 	type EntityClaim,
 	type EntityIdentifier,
 	type EntityKind,

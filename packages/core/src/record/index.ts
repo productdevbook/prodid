@@ -14,6 +14,7 @@ export type {
 	ClaimSource,
 	CrawlOutcome,
 	CrawlStatus,
+	CrawlVia,
 	EntityClaim,
 	EntityIdentifier,
 	EntityKind,

@@ -2,6 +2,7 @@ import type { JsonValue } from '../canonical'
 
 export type Trust = 'authoritative' | 'verified' | 'unverified'
 export type VerifiedBy = 'well-known' | 'dns-txt'
+export type CrawlVia = VerifiedBy | 'import'
 export type EntityKind = 'family' | 'variant' | 'item'
 export type SourceKind = 'domain' | 'hosted' | 'dataset' | 'community'
 export type CrawlOutcome = 'success' | 'definite-negative' | 'transport-failure'
@@ -91,7 +92,7 @@ export interface EntityRecord {
 
 export interface CrawlStatus {
 	at: string
-	via?: VerifiedBy
+	via?: CrawlVia
 	document_url?: string
 	outcome: CrawlOutcome
 	http_status?: number

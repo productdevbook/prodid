@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 
 import { canonicalHash } from '../src/canonical'
-import { validateEntity, validateFeed, validateItem, validateSource, type ValidationResult } from '../src/record/index'
+import { type CrawlStatus, validateEntity, validateFeed, validateItem, validateSource, type ValidationResult } from '../src/record/index'
 
 const SPEC = new URL('../../../spec/', import.meta.url)
 const GENERATED = new URL('../src/record/validators.generated.js', import.meta.url)
@@ -140,6 +140,18 @@ describe('validateEntity and validateSource', () => {
 		expect(validateSource({ ...source, last_crawl: { at, outcome: 'rate-limited' } }).ok).toBe(false)
 		expect(validateSource({ ...source, last_crawl: { at, outcome: 'success', http_status: 99 } }).ok).toBe(false)
 		expect(validateSource({ ...source, last_crawl: { at, outcome: 'success', document_url: 'http://acme.example/x' } }).ok).toBe(false)
+	})
+
+	test('types an import as a crawl a dataset reports, and only a dataset', () => {
+		const imported: CrawlStatus = {
+			at: '2026-11-03T02:14:55Z',
+			via: 'import',
+			document_url: 'https://exports.example/x.jsonl.gz',
+			outcome: 'success',
+		}
+		const dataset = { ...source, name: 'dataset:wikidata', kind: 'dataset', license: 'CC0-1.0', last_crawl: imported }
+		expect(validateSource(dataset).ok).toBe(true)
+		expect(validateSource({ ...dataset, name: 'acme.example', kind: 'domain' }).ok).toBe(false)
 	})
 })
 
