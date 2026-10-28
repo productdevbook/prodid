@@ -4,6 +4,7 @@ const PAGES = [
 	{ path: '/', priority: '1.0' },
 	{ path: '/spec', priority: '0.9' },
 	{ path: '/publish', priority: '0.9' },
+	{ path: '/data', priority: '0.8' },
 ]
 
 export const GET: APIRoute = ({ site }) => {

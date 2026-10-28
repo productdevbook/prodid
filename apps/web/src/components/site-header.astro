@@ -2,14 +2,15 @@
 import Wordmark from '@/components/wordmark.astro'
 
 interface Props {
-	active?: 'spec' | 'publish' | undefined
+	active?: 'spec' | 'publish' | 'data' | undefined
 }
 
 const { active } = Astro.props
 
 const links = [
-	{ key: 'spec', href: '/spec', label: 'Specification' },
-	{ key: 'publish', href: '/publish', label: 'Publish' },
+	{ key: 'spec', href: '/spec', label: 'Specification', short: 'Spec' },
+	{ key: 'publish', href: '/publish', label: 'Publish', short: 'Publish' },
+	{ key: 'data', href: '/data', label: 'Data', short: 'Data' },
 ] as const
 
 const REPOSITORY = 'https://github.com/productdevbook/prodid'
@@ -21,7 +22,7 @@ const REPOSITORY = 'https://github.com/productdevbook/prodid'
 			<Wordmark />
 		</a>
 		<nav aria-label="Primary" class="flex items-center gap-4 sm:gap-6">
-			<ul class="flex items-center gap-4 text-sm sm:gap-6">
+			<ul class="flex items-center gap-3 text-sm sm:gap-6">
 				{
 					links.map((link) => (
 						<li>
@@ -33,7 +34,14 @@ const REPOSITORY = 'https://github.com/productdevbook/prodid'
 									active === link.key ? 'font-medium text-accent' : 'text-soft',
 								]}
 							>
-								{link.label}
+								{link.short === link.label ? (
+									link.label
+								) : (
+									<>
+										<span class="sm:hidden">{link.short}</span>
+										<span class="hidden sm:inline">{link.label}</span>
+									</>
+								)}
 							</a>
 						</li>
 					))

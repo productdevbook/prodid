@@ -29,7 +29,7 @@
 		},
 		{
 			"anchor": "licensing",
-			"pages": ["/"],
+			"pages": ["/", "/data"],
 			"sha256": "e9efe39140516a124339ac9dab38266bc9fc962e979a5373f878f6a42d49dd0e"
 		},
 		{
@@ -131,6 +131,41 @@
 			"anchor": "appendix-importing-a-merchant-feed",
 			"pages": ["/publish"],
 			"sha256": "e9a460a54838ea10d99de72fc4033c7e86d77b5385f0848b2122271571f83d57"
+		},
+		{
+			"anchor": "dataset-sources",
+			"pages": ["/data"],
+			"sha256": "18234aaa90ebd4c497d48a1a9556fc64f5ba5aba15c6d9f4910f6e4c638e24ba"
+		},
+		{
+			"anchor": "dumps",
+			"pages": ["/data"],
+			"sha256": "d32c1bf998e065284a0b389f1a87ac0f3fa2b4299bf66a3fe600d62e8767528e"
+		},
+		{
+			"anchor": "files",
+			"pages": ["/data"],
+			"sha256": "de830edb5c44afa9ebfaa3b80ef186d878512d30c5a93d091fcdc13e9e2960ae"
+		},
+		{
+			"anchor": "what-a-dump-never-holds",
+			"pages": ["/data"],
+			"sha256": "41dbeed45e250c868339e2c0177ad002c564469e4aba1c948987183e20e3302e"
+		},
+		{
+			"anchor": "licences",
+			"pages": ["/data"],
+			"sha256": "0b2b6eeaab7a4b2f983e8e019bb83e15c61734c060752c38a1355b282cc1748f"
+		},
+		{
+			"anchor": "manifest",
+			"pages": ["/data"],
+			"sha256": "6b1bb56545df0d45b4d27d161e811c7e89753588ba2b8723b53c8785849e50a1"
+		},
+		{
+			"anchor": "retention",
+			"pages": ["/data"],
+			"sha256": "ef9f4210d1485bff1bfe64b6799f55272a1542d4464729f1993322de435078e9"
 		}
 	]
 }

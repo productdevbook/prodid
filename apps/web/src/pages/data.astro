@@ -1,0 +1,358 @@
+---
+import CodeSample from '@/components/code-sample.astro'
+import PageHeader from '@/components/page-header.astro'
+import Layout from '@/layouts/base.astro'
+import { DUMP_SCHEMA, DUMPS, fetchLatestDump, formatBytes, formatUtc, LATEST, type DumpFileName } from '@/lib/dump'
+
+const DESCRIPTION =
+	'Download the whole prodid index: a nightly dump of every source, entity, record, grouping and merge as gzip NDJSON, under CC0 for what the index makes and each source’s own licence for its claims.'
+
+const latest = await fetchLatestDump()
+
+const holds: Record<DumpFileName, { per: string; line: string }> = {
+	'sources.ndjson.gz': { per: 'source', line: 'The source’s status, exactly as /source/{name} answers it.' },
+	'entities.ndjson.gz': {
+		per: 'entity, merged ones included',
+		line: 'The entity document exactly as /id/{opid}?history=1 answers it, withdrawn claims included.',
+	},
+	'records.ndjson.gz': {
+		per: 'record, withdrawn ones included',
+		line: 'source, key, feed, opid, body, first_seen, last_seen, withdrawn_at.',
+	},
+	'groupings.ndjson.gz': { per: 'grouping', line: 'source, kind, key, opid.' },
+	'merges.ndjson.gz': { per: 'merge, reverted ones included', line: 'from, into, decided_at, reverted_at.' },
+}
+
+const recordFields = [
+	{ field: 'source', note: 'The source’s name.' },
+	{ field: 'key', note: 'The record’s key in that source.' },
+	{ field: 'feed', note: 'The URL of the feed it was read from. Absent for a record a dataset import wrote.' },
+	{ field: 'opid', note: 'The item it resolved to.' },
+	{ field: 'body', note: 'The org.prodid.item the publisher sent, unchanged.' },
+	{ field: 'first_seen', note: 'When the index first read it.' },
+	{ field: 'last_seen', note: 'When the index last read it.' },
+	{ field: 'withdrawn_at', note: 'Present exactly when the record is withdrawn.' },
+]
+
+const groupingKeys = [
+	{
+		kind: 'family',
+		key: '{ "group": "<group>" }',
+		note: 'for a publisher group; { "key": "<key>" } for a record with no group, which is a family of its own.',
+	},
+	{
+		kind: 'variant',
+		key: '{ "family": <the family’s key>, "variant": { <axis>: <value>, … } }',
+		note: 'the record’s variant, {} when it has none.',
+	},
+]
+
+const never = [
+	'A publisher’s contact address, which the index keeps only to send the lapse notice.',
+	'The crawl log, the crawler’s error text, or anything else about a crawl that the source’s status does not show.',
+	'Why a merge was made or who decided it.',
+	'Why a media hash was blocked.',
+	'Media bytes. A media claim’s media_url addresses the file, and a blocked hash is not served.',
+	'The index’s internal row identifiers. Every line names a source by its name and an entity by its opid.',
+]
+
+const layout = `${DUMPS}<YYYY-MM-DD>/manifest.json
+${DUMPS}<YYYY-MM-DD>/sources.ndjson.gz
+${DUMPS}<YYYY-MM-DD>/entities.ndjson.gz
+${DUMPS}<YYYY-MM-DD>/records.ndjson.gz
+${DUMPS}<YYYY-MM-DD>/groupings.ndjson.gz
+${DUMPS}<YYYY-MM-DD>/merges.ndjson.gz
+${LATEST}`
+
+const sources = latest.files.find((file) => file.name === 'sources.ndjson.gz')!
+
+const peek = `curl -sO ${sources.url}
+sha256sum ${sources.name}
+${sources.sha256}  ${sources.name}
+
+gunzip -c ${sources.name} | head -n 1`
+
+const load = `git clone https://github.com/productdevbook/prodid.git && cd prodid
+bun install --frozen-lockfile
+
+export DATABASE_URL=postgres://<user>:<password>@<host>:<port>/<database>
+bun run --filter '@prodid/db' migrate
+
+PRODID_OPERATOR=<your name> bun apps/batch/src/cli.ts load-dump ${LATEST}`
+
+const link = 'rounded-sm text-accent underline underline-offset-4'
+---
+
+<Layout title="Open data — prodid" description={DESCRIPTION} active="data">
+	<PageHeader
+		eyebrow="Open data"
+		title="Download the index"
+		lead="The index is replaceable. Everything it knows that a reader may know is published as a full export, a dump, that anyone can download and load into an index of their own."
+	/>
+
+	<section aria-labelledby="latest" class="border-t border-line">
+		<div class="shell py-14 sm:py-16">
+			<div class="max-w-3xl">
+				<h2 id="latest" class="text-2xl font-semibold tracking-tight">The latest dump</h2>
+				<p class="mt-5 text-base leading-relaxed text-soft sm:text-lg">
+					When this page was built, the newest dump was the snapshot taken at{' '}
+					<time datetime={latest.snapshotAt} class="font-medium text-ink">{formatUtc(latest.snapshotAt)}</time>. A new one is
+					written every night at 04:30 UTC, and{' '}
+					<a href={LATEST} class:list={[link, 'font-mono text-[0.9375rem] break-all']}>latest.json</a> always names the
+					newest.
+				</p>
+			</div>
+
+			<ul class="mt-9 grid max-w-3xl gap-px overflow-hidden rounded-xl border border-line bg-line [&>*]:min-w-0">
+				{
+					latest.files.map((file) => (
+						<li class="bg-surface p-5 sm:p-6">
+							<div class="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
+								<a href={file.url} class:list={[link, 'font-mono text-[0.9375rem] font-medium break-all']}>
+									{file.name}
+								</a>
+								<p class="font-mono text-[0.8125rem] text-soft">
+									{file.lines.toLocaleString('en-US')} {file.lines === 1 ? 'line' : 'lines'} · {formatBytes(file.bytes)}
+								</p>
+							</div>
+							<p class="mt-2 text-[0.9375rem] leading-relaxed text-soft">One line per {holds[file.name].per}.</p>
+							<p class="mt-3 font-mono text-xs leading-relaxed break-all text-soft">
+								<span class="text-ink">sha256</span> {file.sha256}
+							</p>
+						</li>
+					))
+				}
+			</ul>
+
+			<div class="mt-8 grid max-w-3xl gap-3 text-[0.9375rem] leading-relaxed text-soft">
+				<p>
+					This dump’s directory is <a href={latest.directory} class:list={[link, 'font-mono text-[0.8125rem] break-all']}>
+						{latest.directory}</a
+					>, and its manifest is{' '}
+					<a href={latest.manifest} class:list={[link, 'font-mono text-[0.8125rem] break-all']}>manifest.json</a>, written
+					at {formatUtc(latest.createdAt)}. Its licences read{' '}
+					<code class="chip">index: {latest.licenses.index}</code> and <code class="chip">claims: {latest.licenses.claims}</code>.
+				</p>
+			</div>
+		</div>
+	</section>
+
+	<section aria-labelledby="layout" class="border-t border-line">
+		<div class="shell py-14 sm:py-16">
+			<div class="max-w-3xl">
+				<h2 id="layout" class="text-2xl font-semibold tracking-tight">Where dumps are kept</h2>
+				<p class="mt-5 text-base leading-relaxed text-soft sm:text-lg">
+					A dump is a directory named after the UTC date of its snapshot. It holds five data files and a manifest.
+				</p>
+			</div>
+			<CodeSample class="mt-8 max-w-3xl" code={layout} lang="plaintext" label="dumps.prodid.org" />
+			<div class="mt-8 grid max-w-3xl gap-4 [&>*]:min-w-0">
+				<p class="rounded-lg border border-line bg-surface p-5 text-[0.9375rem] leading-relaxed text-soft">
+					<strong class="font-medium text-ink">latest.json is written last.</strong> It is a copy of the newest dump’s{' '}
+					<code class="chip">manifest.json</code>, written after every file of that dump and its manifest are in place. A
+					reader that starts from it never finds a manifest naming a file that is not there yet, and finds the directory
+					from the manifest’s own <code class="chip">snapshot_at</code>.
+				</p>
+				<p class="rounded-lg border border-line bg-surface p-5 text-[0.9375rem] leading-relaxed text-soft">
+					<strong class="font-medium text-ink">Retention.</strong> A daily dump is kept for 7 days. The first dump of each
+					UTC month is kept for good. A dump that is kept is never rewritten: its directory, its files and its manifest
+					stay byte for byte as they were.
+				</p>
+				<p class="rounded-lg border border-line bg-surface p-5 text-[0.9375rem] leading-relaxed text-soft">
+					<strong class="font-medium text-ink">The manifest.</strong> It names each of the five files exactly once, with
+					the SHA-256 and the size of the file as served, compressed, and its number of lines once decompressed. Check each
+					file against its digest before you load it. The schema is{' '}
+					<a href={DUMP_SCHEMA} class:list={[link, 'font-mono text-[0.8125rem] break-all']}>{DUMP_SCHEMA}</a>, with
+					vectors in <a href="/spec/fixtures/dump" class:list={[link, 'font-mono text-[0.8125rem]']}>/spec/fixtures/dump</a>.
+				</p>
+			</div>
+		</div>
+	</section>
+
+	<section aria-labelledby="files" class="border-t border-line">
+		<div class="shell py-14 sm:py-16">
+			<div class="max-w-3xl">
+				<h2 id="files" class="text-2xl font-semibold tracking-tight">What each file holds</h2>
+				<p class="mt-5 text-base leading-relaxed text-soft sm:text-lg">
+					Every file is NDJSON compressed with gzip, one JSON object per line. All five are read from one consistent
+					snapshot, so they agree with each other: every source a line names has its line in{' '}
+					<code class="chip">sources.ndjson.gz</code>, and every <code class="chip">opid</code> a line names has its line in{' '}
+					<code class="chip">entities.ndjson.gz</code>.
+				</p>
+			</div>
+
+			<div class="mt-9 max-w-4xl table-scroll" role="region" aria-label="Dump files" tabindex="0">
+				<table class="data-table">
+					<thead>
+						<tr><th scope="col">File</th><th scope="col">One line per</th><th scope="col">The line</th></tr>
+					</thead>
+					<tbody>
+						{
+							latest.files.map((file) => (
+								<tr>
+									<td class="font-mono text-[0.8125rem] whitespace-nowrap">{file.name}</td>
+									<td class="text-soft">{holds[file.name].per}</td>
+									<td class="text-soft">{holds[file.name].line}</td>
+								</tr>
+							))
+						}
+					</tbody>
+				</table>
+			</div>
+
+			<div class="mt-12 grid max-w-3xl gap-12 [&>*]:min-w-0">
+				<div>
+					<h3 class="text-lg font-semibold tracking-tight">Entities that were merged</h3>
+					<p class="mt-3 text-[0.9375rem] leading-relaxed text-soft">
+						An <code class="chip">opid</code> that was merged answers <code class="chip">308</code> at the resolver, so it
+						has no document of its own to copy. Its line is the document it would answer were it not merged — its own
+						identifiers and claims stay on it, which is what makes a merge reversible — with one more member,{' '}
+						<code class="chip">merged_into</code>, the <code class="chip">opid</code> of its survivor. Merges do not chain:
+						the survivor is never itself merged.
+					</p>
+				</div>
+
+				<div>
+					<h3 class="text-lg font-semibold tracking-tight">A record line</h3>
+					<p class="mt-3 text-[0.9375rem] leading-relaxed text-soft">One record as the index keeps it. Every time is UTC, ISO 8601.</p>
+					<div class="mt-5 table-scroll" role="region" aria-label="Record line fields" tabindex="0">
+						<table class="data-table">
+							<thead>
+								<tr><th scope="col">Field</th><th scope="col">What it is</th></tr>
+							</thead>
+							<tbody>
+								{
+									recordFields.map((row) => (
+										<tr>
+											<td class="font-mono text-[0.8125rem] whitespace-nowrap">{row.field}</td>
+											<td class="text-soft">{row.note}</td>
+										</tr>
+									))
+								}
+							</tbody>
+						</table>
+					</div>
+				</div>
+
+				<div>
+					<h3 class="text-lg font-semibold tracking-tight">A grouping line</h3>
+					<p class="mt-3 text-[0.9375rem] leading-relaxed text-soft">
+						Which entity a source’s grouping resolved to. <code class="chip">kind</code> is{' '}
+						<code class="chip">family</code> or <code class="chip">variant</code>, and <code class="chip">key</code> is what
+						the source’s records are grouped on, written out rather than digested, so that another implementation can match
+						its own grouping to it.
+					</p>
+					<ul class="mt-5 grid gap-px overflow-hidden rounded-xl border border-line bg-line [&>*]:min-w-0">
+						{
+							groupingKeys.map((row) => (
+								<li class="bg-surface p-5">
+									<p class="font-mono text-xs text-soft">{row.kind}</p>
+									<p class="mt-2 font-mono text-[0.8125rem] break-words">{row.key}</p>
+									<p class="mt-2 text-[0.9375rem] leading-relaxed text-soft">{row.note}</p>
+								</li>
+							))
+						}
+					</ul>
+				</div>
+
+				<div>
+					<h3 class="text-lg font-semibold tracking-tight">A merge line</h3>
+					<p class="mt-3 text-[0.9375rem] leading-relaxed text-soft">
+						One merge decision: <code class="chip">from</code> the merged <code class="chip">opid</code>,{' '}
+						<code class="chip">into</code> its survivor, <code class="chip">decided_at</code> when it was made, and{' '}
+						<code class="chip">reverted_at</code>, present exactly when it was reverted.
+					</p>
+				</div>
+			</div>
+		</div>
+	</section>
+
+	<section aria-labelledby="never" class="border-t border-line">
+		<div class="shell py-14 sm:py-16">
+			<div class="max-w-3xl">
+				<h2 id="never" class="text-2xl font-semibold tracking-tight">What a dump never holds</h2>
+				<p class="mt-5 text-base leading-relaxed text-soft sm:text-lg">
+					A dump says no more than the resolver already does, plus the records, groupings and merges its answers are built
+					from.
+				</p>
+				<ul class="mt-8 grid gap-3 [&>*]:min-w-0">
+					{
+						never.map((item) => (
+							<li class="flex gap-3 text-[0.9375rem] leading-relaxed">
+								<span aria-hidden="true" class="mt-[0.45em] size-1.5 shrink-0 rounded-full bg-rule" />
+								<span class="text-soft">{item}</span>
+							</li>
+						))
+					}
+				</ul>
+			</div>
+		</div>
+	</section>
+
+	<section aria-labelledby="licences" class="border-t border-line">
+		<div class="shell py-14 sm:py-16">
+			<div class="max-w-3xl">
+				<h2 id="licences" class="text-2xl font-semibold tracking-tight">Licences</h2>
+				<p class="mt-5 text-base leading-relaxed text-soft sm:text-lg">
+					Two rules, and the manifest’s <code class="chip">licenses</code> states both.
+				</p>
+			</div>
+			<ul class="mt-9 grid max-w-3xl gap-px overflow-hidden rounded-xl border border-line bg-line [&>*]:min-w-0">
+				<li class="bg-surface p-6">
+					<p class="font-mono text-xs text-soft">index: CC0-1.0</p>
+					<h3 class="mt-2 text-base font-semibold tracking-tight">Everything the index makes</h3>
+					<p class="mt-3 text-[0.9375rem] leading-relaxed text-soft">
+						<code class="chip">opid</code>s, the identifier mappings, the family and variant hierarchy, groupings and merges.
+					</p>
+				</li>
+				<li class="bg-surface p-6">
+					<p class="font-mono text-xs text-soft">claims: source</p>
+					<h3 class="mt-2 text-base font-semibold tracking-tight">Every claim and every record</h3>
+					<p class="mt-3 text-[0.9375rem] leading-relaxed text-soft">
+						Under the licence its own source declares: the <code class="chip">license</code> of that source’s line in{' '}
+						<code class="chip">sources.ndjson.gz</code>. A source that declares none has granted nothing, and prodid grants
+						nothing on its behalf.
+					</p>
+				</li>
+			</ul>
+			<p class="mt-6 max-w-3xl text-[0.9375rem] leading-relaxed text-soft">
+				An open dataset that publishes no discovery document of its own enters the index as a source named{' '}
+				<code class="chip">dataset:&lt;slug&gt;</code>, imported by the index’s operator from the dataset’s public export.
+				Such a source is always <code class="chip">unverified</code>, and its <code class="chip">license</code> is the
+				dataset’s own. The rules are in the{' '}
+				<a href="/spec#dataset-sources" class={link}>specification</a>.
+			</p>
+		</div>
+	</section>
+
+	<section aria-labelledby="load" class="border-t border-line">
+		<div class="shell py-14 sm:py-16">
+			<div class="max-w-3xl">
+				<h2 id="load" class="text-2xl font-semibold tracking-tight">Load it into your own index</h2>
+				<p class="mt-5 text-base leading-relaxed text-soft sm:text-lg">
+					<code class="chip">prodid-batch load-dump</code> loads a dump into an empty PostgreSQL 18 database migrated to the
+					same version, in one transaction. It takes a dump’s dated directory, its <code class="chip">manifest.json</code>,
+					or a <code class="chip">latest.json</code>, local or over HTTPS.
+				</p>
+			</div>
+			<CodeSample class="mt-8 max-w-3xl" code={load} lang="bash" label="from a clone of the repository" />
+			<div class="mt-8 grid max-w-3xl gap-3 text-[0.9375rem] leading-relaxed text-soft">
+				<p>
+					Every file is checked against the manifest’s <code class="chip">sha256</code>,{' '}
+					<code class="chip">bytes</code> and <code class="chip">lines</code> before anything is written, and a remote dump
+					is downloaded to a temporary directory first. A database that is not empty is refused.{' '}
+					<code class="chip">PRODID_OPERATOR</code> is recorded as the decider of the loaded merges.
+				</p>
+				<p>
+					To read a file without loading it, check it against its digest and decompress it. The digest below is the one in
+					the latest manifest when this page was built.
+				</p>
+			</div>
+			<CodeSample class="mt-6 max-w-3xl" code={peek} lang="bash" label={sources.name} />
+			<p class="mt-8 max-w-3xl text-[0.9375rem] leading-relaxed text-soft">
+				The full rules are in the specification under{' '}
+				<a href="/spec#dumps" class={link}>Dumps</a>.
+			</p>
+		</div>
+	</section>
+</Layout>
