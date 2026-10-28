@@ -72,14 +72,14 @@ A source row is permanent and its `id` never changes; `sku` identifiers are scop
 | path | contents | owner |
 | --- | --- | --- |
 | `spec/` | specification, JSON Schemas, examples, fixtures | spec |
-| `db/` | SQL migrations, dev Postgres, migrate script | db |
+| `db/` except `migrations/` | dev Postgres, migrate script | db |
 | root workspace files, `packages/core/` | pure TypeScript, no I/O: GTIN, opid, record validation, NDJSON, discovery rules | core |
-| `packages/store/`, `apps/edge/` | SQL access, the Worker | edge |
+| `packages/store/`, `apps/edge/`, `db/migrations/` | SQL access, the Worker, the SQL migrations | edge |
 | `apps/hosted/` | the hosted publisher: serves `<slug>.prodid.org`, the operator publish endpoint | hosted |
 | `apps/batch/` | operator CLI: Merchant import and publish now; bulk imports, resolution and dumps later | hosted |
 | `apps/web/` | the prodid.org website: landing, rendered spec, publisher guide | web |
 
-An owner changes only its own paths. A change that needs another owner's path goes through the coordinator. A **review** member owns no path: it re-runs every check itself and audits each delivery against the spec and this file.
+An owner changes only its own paths. A change that needs another owner's path goes through the maintainers. On review, the maintainers re-run every check themselves and audit each delivery against the spec and this file.
 
 ## Routing on prodid.org
 
