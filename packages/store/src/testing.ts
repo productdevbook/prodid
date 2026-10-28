@@ -40,10 +40,24 @@ function readEnv(path: string): string | null {
 	return line === undefined ? null : line.slice('DATABASE_URL='.length).trim()
 }
 
-/** Whether the dev Postgres is up. Without it every database-backed test skips instead of failing. */
+/**
+ * Whether the dev Postgres is up. Without it every database-backed test skips instead of failing,
+ * unless `PRODID_REQUIRE_DB=1`, where an unreachable database fails the test file.
+ */
 export async function databaseReachable(): Promise<boolean> {
 	const url = databaseUrl()
-	if (url === null) return false
+	const reachable = url !== null && (await answers(url))
+	if (!reachable && process.env.PRODID_REQUIRE_DB === '1') {
+		throw new Error(
+			url === null
+				? 'PRODID_REQUIRE_DB=1 but DATABASE_URL is not set'
+				: `PRODID_REQUIRE_DB=1 but no Postgres answers at DATABASE_URL=${redact(url)}`,
+		)
+	}
+	return reachable
+}
+
+async function answers(url: string): Promise<boolean> {
 	const admin = postgres(url, { max: 1, connect_timeout: 3, onnotice: () => {} })
 	try {
 		await admin`select 1`
@@ -52,6 +66,16 @@ export async function databaseReachable(): Promise<boolean> {
 		return false
 	} finally {
 		await admin.end({ timeout: 1 })
+	}
+}
+
+function redact(url: string): string {
+	try {
+		const parsed = new URL(url)
+		if (parsed.password !== '') parsed.password = '***'
+		return parsed.toString()
+	} catch {
+		return '(unparsable)'
 	}
 }
 
