@@ -46,7 +46,7 @@ can run without it.
 - **Backups** are the operator's. Test them by restoring: bootstrap a throwaway database from the
   backups, compare `count(*)` of every table and `schema_migrations` with production, delete it.
 
-Last restore drill of prodid.org's database: not run yet.
+Last restore drill of prodid.org's database: 2026-10-28.
 
 ## edge: `apps/edge/wrangler.jsonc`
 
