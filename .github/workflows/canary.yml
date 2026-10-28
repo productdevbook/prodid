@@ -27,7 +27,7 @@ jobs:
       SOURCE: canary.prodid.org
       ORIGIN: https://prodid.org
       MAX_CRAWL_AGE_HOURS: '12'
-      DUMP_LATEST_URL: https://dumps.prodid.org/v0/latest.json
+      DUMP_LATEST_URL: https://dumps.prodid.org/v1/latest.json
       MAX_DUMP_AGE_HOURS: '30'
     steps:
       - id: probe
