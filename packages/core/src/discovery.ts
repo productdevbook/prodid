@@ -5,6 +5,8 @@ import type { FeedRecord } from './record/types'
 export const WELL_KNOWN_PATH = '/.well-known/prodid.json'
 export const TXT_PREFIX = '_prodid.'
 export const TXT_VERSION = 'prodid0'
+/** The first instant at which a crawl refuses a v0 discovery document. */
+export const V0_DISCOVERY_CUTOFF = '2027-01-26T00:00:00Z'
 
 const DNS_NAME = /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z](?:[a-z0-9-]{0,61}[a-z0-9])?$/
 const JSON_MEDIA_TYPE = /^application\/(?:[\w.+-]+\+)?json$/i
@@ -246,11 +248,18 @@ export interface DiscoveryResponse {
 	contentType: string | null
 	/** The parsed JSON body, or undefined when the response did not parse as JSON. */
 	body: unknown
+	/** When the crawl started, which decides whether a v0 document is still accepted; without it, it is. */
+	crawlStartedAt?: Date
 }
 
 export type DiscoveryDecision =
 	| { ok: true; domain: string; host: string; delegated: boolean; document: FeedRecord; feeds: string[] }
 	| { ok: false; reason: DiscoveryRejection; detail?: string }
+
+/** Whether a crawl that started at this instant still accepts a v0 discovery document. */
+export function acceptsV0Discovery(crawlStartedAt: Date): boolean {
+	return crawlStartedAt.getTime() < Date.parse(V0_DISCOVERY_CUTOFF)
+}
 
 /** A feed is fetchable and served from the same host as the document that lists it. */
 export function isFeedAllowed(feedUrl: string, host: string): boolean {
@@ -271,7 +280,8 @@ export function acceptDiscovery(response: DiscoveryResponse): DiscoveryDecision 
 	if (response.status !== 200) return { ok: false, reason: 'not-ok', detail: String(response.status) }
 	if (!isJsonMediaType(response.contentType)) return { ok: false, reason: 'not-json', detail: response.contentType ?? '' }
 
-	const parsed = validateFeed(response.body)
+	const v0Accepted = response.crawlStartedAt === undefined || acceptsV0Discovery(response.crawlStartedAt)
+	const parsed = validateFeed(response.body, v0Accepted ? {} : { version: 1 })
 	if (!parsed.ok) {
 		const first = parsed.errors[0]
 		return { ok: false, reason: 'invalid-document', detail: first === undefined ? '' : `${first.path} ${first.message}` }

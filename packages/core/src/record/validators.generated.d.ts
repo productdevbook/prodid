@@ -15,7 +15,11 @@ export interface SchemaValidator<T> {
 }
 
 export declare const item: SchemaValidator<ItemRecord>
-export declare const feed: SchemaValidator<FeedRecord>
-export declare const entity: SchemaValidator<EntityRecord>
-export declare const source: SchemaValidator<SourceRecord>
-export declare const dump: SchemaValidator<DumpManifest>
+export declare const feedV0: SchemaValidator<FeedRecord>
+export declare const feedV1: SchemaValidator<FeedRecord>
+export declare const entityV0: SchemaValidator<EntityRecord>
+export declare const entityV1: SchemaValidator<EntityRecord>
+export declare const sourceV0: SchemaValidator<SourceRecord>
+export declare const sourceV1: SchemaValidator<SourceRecord>
+export declare const dumpV0: SchemaValidator<DumpManifest>
+export declare const dumpV1: SchemaValidator<DumpManifest>

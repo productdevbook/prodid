@@ -1,10 +1,15 @@
 import { describe, expect, test } from 'bun:test'
 
-import dumpSchema from '@prodid/spec/schemas/org.prodid.dump.json'
-import entitySchema from '@prodid/spec/schemas/org.prodid.entity.json'
-import feedSchema from '@prodid/spec/schemas/org.prodid.feed.json'
-import itemSchema from '@prodid/spec/schemas/org.prodid.item.json'
-import sourceSchema from '@prodid/spec/schemas/org.prodid.source.json'
+import dumpV0 from '@prodid/spec/schemas/org.prodid.dump.json'
+import entityV0 from '@prodid/spec/schemas/org.prodid.entity.json'
+import feedV0 from '@prodid/spec/schemas/org.prodid.feed.json'
+import itemV0 from '@prodid/spec/schemas/org.prodid.item.json'
+import sourceV0 from '@prodid/spec/schemas/org.prodid.source.json'
+import dumpV1 from '@prodid/spec/schemas/v1/org.prodid.dump.json'
+import entityV1 from '@prodid/spec/schemas/v1/org.prodid.entity.json'
+import feedV1 from '@prodid/spec/schemas/v1/org.prodid.feed.json'
+import itemV1 from '@prodid/spec/schemas/v1/org.prodid.item.json'
+import sourceV1 from '@prodid/spec/schemas/v1/org.prodid.source.json'
 
 import type {
 	ClaimSource,
@@ -64,7 +69,7 @@ const mediaEntry: Required<MediaEntry> = { url: 'https://acme.example/a.webp', l
 
 const feed: Required<FeedRecord> = {
 	$type: 'org.prodid.feed',
-	version: 0,
+	version: 1,
 	domain: 'acme.example',
 	publisher: { name: 'Acme Tekstil' },
 	license: 'CC0-1.0',
@@ -75,6 +80,7 @@ const publisher: Required<FeedPublisher> = { name: 'Acme Tekstil', contact: 'dat
 
 const entity: Required<EntityRecord> = {
 	$type: 'org.prodid.entity',
+	version: 1,
 	opid: '3n7k2q9vdfhb4mta',
 	kind: 'family',
 	parents: { family: '9p2d4kv7mq3nbhxf', variant: 'kq7m3v9dn2hb4t5x' },
@@ -109,6 +115,7 @@ const claimSource: Required<ClaimSource> = { name: 'acme.example', trust: 'verif
 
 const source: Required<SourceRecord> = {
 	$type: 'org.prodid.source',
+	version: 1,
 	name: 'acme.example',
 	kind: 'domain',
 	trust: 'verified',
@@ -144,35 +151,63 @@ const dumpLicenses: Required<DumpLicenses> = { index: 'CC0-1.0', claims: 'source
 
 const dump: Required<DumpManifest> = {
 	$type: 'org.prodid.dump',
-	version: 0,
+	version: 1,
 	created_at: '2026-11-02T04:41:27Z',
 	snapshot_at: '2026-11-02T04:30:02Z',
 	files: [dumpFile],
 	licenses: dumpLicenses,
 }
 
-const MIRRORS: { name: string; sample: object; properties: object }[] = [
-	{ name: 'ItemRecord', sample: item, properties: itemSchema.properties },
-	{ name: 'RecordIdentifier', sample: recordIdentifier, properties: itemSchema.$defs.identifier.properties },
-	{ name: 'MediaEntry', sample: mediaEntry, properties: itemSchema.$defs.media.properties },
-	{ name: 'FeedRecord', sample: feed, properties: feedSchema.properties },
-	{ name: 'FeedPublisher', sample: publisher, properties: feedSchema.properties.publisher.properties },
-	{ name: 'EntityRecord', sample: entity, properties: entitySchema.properties },
-	{ name: 'EntityRecord.parents', sample: parents, properties: entitySchema.properties.parents.properties },
-	{ name: 'EntityIdentifier', sample: entityIdentifier, properties: entitySchema.$defs.identifier.properties },
-	{ name: 'EntityClaim', sample: claim, properties: entitySchema.$defs.claim.properties },
-	{ name: 'MediaValue', sample: mediaValue, properties: entitySchema.$defs.mediaValue.properties },
-	{ name: 'ClaimSource', sample: claimSource, properties: entitySchema.$defs.source.properties },
-	{ name: 'SourceRecord', sample: source, properties: sourceSchema.properties },
-	{ name: 'CrawlStatus', sample: crawl, properties: sourceSchema.$defs.crawl.properties },
-	{ name: 'DumpManifest', sample: dump, properties: dumpSchema.properties },
-	{ name: 'DumpFile', sample: dumpFile, properties: dumpSchema.$defs.file.properties },
-	{ name: 'DumpLicenses', sample: dumpLicenses, properties: dumpSchema.properties.licenses.properties },
+const { version: _entityVersion, ...entityV0Sample } = entity
+const { version: _sourceVersion, ...sourceV0Sample } = source
+
+type Schemas = { item: typeof itemV1; feed: typeof feedV1; entity: typeof entityV0; source: typeof sourceV0; dump: typeof dumpV1 }
+
+function mirrors(
+	version: string,
+	schemas: Schemas,
+	samples: { entity: object; source: object },
+): { name: string; sample: object; properties: object }[] {
+	const { item: itemSchema, feed: feedSchema, entity: entitySchema, source: sourceSchema, dump: dumpSchema } = schemas
+	return [
+		{ name: 'ItemRecord', sample: item, properties: itemSchema.properties },
+		{ name: 'RecordIdentifier', sample: recordIdentifier, properties: itemSchema.$defs.identifier.properties },
+		{ name: 'MediaEntry', sample: mediaEntry, properties: itemSchema.$defs.media.properties },
+		{ name: 'FeedRecord', sample: feed, properties: feedSchema.properties },
+		{ name: 'FeedPublisher', sample: publisher, properties: feedSchema.properties.publisher.properties },
+		{ name: 'EntityRecord', sample: samples.entity, properties: entitySchema.properties },
+		{ name: 'EntityRecord.parents', sample: parents, properties: entitySchema.properties.parents.properties },
+		{ name: 'EntityIdentifier', sample: entityIdentifier, properties: entitySchema.$defs.identifier.properties },
+		{ name: 'EntityClaim', sample: claim, properties: entitySchema.$defs.claim.properties },
+		{ name: 'MediaValue', sample: mediaValue, properties: entitySchema.$defs.mediaValue.properties },
+		{ name: 'ClaimSource', sample: claimSource, properties: entitySchema.$defs.source.properties },
+		{ name: 'SourceRecord', sample: samples.source, properties: sourceSchema.properties },
+		{ name: 'CrawlStatus', sample: crawl, properties: sourceSchema.$defs.crawl.properties },
+		{ name: 'DumpManifest', sample: dump, properties: dumpSchema.properties },
+		{ name: 'DumpFile', sample: dumpFile, properties: dumpSchema.$defs.file.properties },
+		{ name: 'DumpLicenses', sample: dumpLicenses, properties: dumpSchema.properties.licenses.properties },
+	].map((mirror) => ({ ...mirror, name: `${mirror.name} (${version})` }))
+}
+
+const MIRRORS = [
+	...mirrors(
+		'v0',
+		{ item: itemV0, feed: feedV0, entity: entityV0, source: sourceV0, dump: dumpV0 },
+		{
+			entity: entityV0Sample,
+			source: sourceV0Sample,
+		},
+	),
+	...mirrors('v1', { item: itemV1, feed: feedV1, entity: entityV1, source: sourceV1, dump: dumpV1 }, { entity, source }),
 ]
 
 describe('the exported types name exactly what the schemas declare', () => {
 	test('every type mirrors its schema, property for property', () => {
 		expect(MIRRORS.length).toBeGreaterThan(0)
+		expect(entityV1.properties.version).toEqual({ const: 1 })
+		expect(sourceV1.properties.version).toEqual({ const: 1 })
+		expect([feedV0.properties.version, feedV1.properties.version]).toEqual([{ const: 0 }, { const: 1 }])
+		expect([dumpV0.properties.version, dumpV1.properties.version]).toEqual([{ const: 0 }, { const: 1 }])
 		for (const { name, sample, properties } of MIRRORS) {
 			const { missing, extra } = drift(sample, properties)
 			if (missing.length > 0) throw new Error(`${name} is missing ${missing.join(', ')}, which the schema declares`)
@@ -183,10 +218,10 @@ describe('the exported types name exactly what the schemas declare', () => {
 	test('catches a property the schema declares and the type forgot', () => {
 		// What CrawlStatus looked like before feeds_failed: the shape edge had to cast around.
 		const { feeds_failed: _dropped, ...stale } = crawl
-		expect(drift(stale, sourceSchema.$defs.crawl.properties)).toEqual({ missing: ['feeds_failed'], extra: [] })
+		expect(drift(stale, sourceV1.$defs.crawl.properties)).toEqual({ missing: ['feeds_failed'], extra: [] })
 	})
 
 	test('catches a property the type has and the schema does not', () => {
-		expect(drift({ ...crawl, invented: 1 }, sourceSchema.$defs.crawl.properties)).toEqual({ missing: [], extra: ['invented'] })
+		expect(drift({ ...crawl, invented: 1 }, sourceV1.$defs.crawl.properties)).toEqual({ missing: [], extra: ['invented'] })
 	})
 })

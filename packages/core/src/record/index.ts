@@ -1,14 +1,18 @@
 import { parseGtin } from '../gtin'
 import { normalizeIdentifier } from '../identifier'
-import type { DumpManifest, EntityClaim, EntityRecord, FeedRecord, ItemRecord, SourceRecord } from './types'
+import type { DumpManifest, EntityClaim, EntityRecord, FeedRecord, ItemRecord, SourceRecord, SpecVersion } from './types'
 import {
-	dump as dumpSchema,
-	entity as entitySchema,
-	feed as feedSchema,
+	dumpV0,
+	dumpV1,
+	entityV0,
+	entityV1,
+	feedV0,
+	feedV1,
 	item as itemSchema,
 	type SchemaError,
 	type SchemaValidator,
-	source as sourceSchema,
+	sourceV0,
+	sourceV1,
 } from './validators.generated.js'
 
 export type {
@@ -33,6 +37,7 @@ export type {
 	RecordIdentifier,
 	SourceKind,
 	SourceRecord,
+	SpecVersion,
 	Trust,
 	VerifiedBy,
 } from './types'
@@ -45,6 +50,32 @@ export interface ValidationError {
 }
 
 export type ValidationResult<T> = { ok: true; value: T } | { ok: false; errors: ValidationError[] }
+
+/**
+ * Without `version`, the schema is the one the document's own `version` names: `0` or `1` for a
+ * discovery document or a dump manifest, absent or `1` for an entity or a source status. Anything
+ * else is checked against v1, the current version, and refused there.
+ */
+export interface ValidateOptions {
+	version?: SpecVersion
+}
+
+const FEED: Record<SpecVersion, SchemaValidator<FeedRecord>> = { 0: feedV0, 1: feedV1 }
+const ENTITY: Record<SpecVersion, SchemaValidator<EntityRecord>> = { 0: entityV0, 1: entityV1 }
+const SOURCE: Record<SpecVersion, SchemaValidator<SourceRecord>> = { 0: sourceV0, 1: sourceV1 }
+const DUMP: Record<SpecVersion, SchemaValidator<DumpManifest>> = { 0: dumpV0, 1: dumpV1 }
+
+function declaredVersion(value: unknown): SpecVersion {
+	return isObject(value) && value.version === 0 ? 0 : 1
+}
+
+function versionIfPresent(value: unknown): SpecVersion {
+	return isObject(value) && Object.hasOwn(value, 'version') ? 1 : 0
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
+	return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
 
 export function validateItem(value: unknown): ValidationResult<ItemRecord> {
 	const result = run(itemSchema, value)
@@ -71,12 +102,12 @@ function isIdentifiable(record: ItemRecord): boolean {
 	return record.identifiers.some((identifier) => normalizeIdentifier(identifier, scope) !== null)
 }
 
-export function validateFeed(value: unknown): ValidationResult<FeedRecord> {
-	return run(feedSchema, value)
+export function validateFeed(value: unknown, options: ValidateOptions = {}): ValidationResult<FeedRecord> {
+	return run(FEED[options.version ?? declaredVersion(value)], value)
 }
 
-export function validateEntity(value: unknown): ValidationResult<EntityRecord> {
-	const result = run(entitySchema, value)
+export function validateEntity(value: unknown, options: ValidateOptions = {}): ValidationResult<EntityRecord> {
+	const result = run(ENTITY[options.version ?? versionIfPresent(value)], value)
 	if (!result.ok) return result
 	const errors = entityErrors(result.value)
 	return errors.length === 0 ? result : { ok: false, errors }
@@ -115,12 +146,12 @@ function mediaValue(claim: EntityClaim): { sha256: string; media_url: string } |
 	return typeof sha256 === 'string' && typeof mediaUrl === 'string' ? { sha256, media_url: mediaUrl } : null
 }
 
-export function validateSource(value: unknown): ValidationResult<SourceRecord> {
-	return run(sourceSchema, value)
+export function validateSource(value: unknown, options: ValidateOptions = {}): ValidationResult<SourceRecord> {
+	return run(SOURCE[options.version ?? versionIfPresent(value)], value)
 }
 
-export function validateDump(value: unknown): ValidationResult<DumpManifest> {
-	const result = run(dumpSchema, value)
+export function validateDump(value: unknown, options: ValidateOptions = {}): ValidationResult<DumpManifest> {
+	const result = run(DUMP[options.version ?? declaredVersion(value)], value)
 	if (!result.ok) return result
 	if (Date.parse(result.value.snapshot_at) > Date.parse(result.value.created_at)) {
 		return { ok: false, errors: [{ path: '/snapshot_at', keyword: 'order', message: 'must not be after created_at' }] }

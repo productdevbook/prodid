@@ -1,5 +1,8 @@
 import type { JsonValue } from '../canonical'
 
+/** The specification version a document carries in `version`. */
+export type SpecVersion = 0 | 1
+
 export type Trust = 'authoritative' | 'verified' | 'unverified'
 export type VerifiedBy = 'well-known' | 'dns-txt'
 export type CrawlVia = VerifiedBy | 'import'
@@ -42,7 +45,7 @@ export interface FeedPublisher {
 
 export interface FeedRecord {
 	$type: 'org.prodid.feed'
-	version: 0
+	version: SpecVersion
 	domain?: string
 	publisher: FeedPublisher
 	license: string
@@ -81,6 +84,8 @@ export interface EntityClaim {
 
 export interface EntityRecord {
 	$type: 'org.prodid.entity'
+	/** Absent in v0. */
+	version?: 1
 	opid: string
 	kind: EntityKind
 	parents?: { family?: string; variant?: string }
@@ -105,6 +110,8 @@ export interface CrawlStatus {
 
 export interface SourceRecord {
 	$type: 'org.prodid.source'
+	/** Absent in v0. */
+	version?: 1
 	name: string
 	kind: SourceKind
 	trust: Trust
@@ -132,7 +139,7 @@ export interface DumpLicenses {
 
 export interface DumpManifest {
 	$type: 'org.prodid.dump'
-	version: 0
+	version: SpecVersion
 	created_at: string
 	snapshot_at: string
 	files: DumpFile[]

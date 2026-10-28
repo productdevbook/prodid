@@ -19,6 +19,7 @@ export {
 } from './claims'
 export {
 	acceptDiscovery,
+	acceptsV0Discovery,
 	checkFetchable,
 	decodeTxtPresentation,
 	delegationUrl,
@@ -46,6 +47,7 @@ export {
 	type TxtRecord,
 	type TxtRejection,
 	type TxtResult,
+	V0_DISCOVERY_CUTOFF,
 	WELL_KNOWN_PATH,
 	wellKnownUrl,
 } from './discovery'
@@ -98,12 +100,14 @@ export {
 	type RecordIdentifier,
 	type SourceKind,
 	type SourceRecord,
+	type SpecVersion,
 	type Trust,
 	validateDump,
 	validateEntity,
 	validateFeed,
 	validateItem,
 	validateSource,
+	type ValidateOptions,
 	type ValidationError,
 	type ValidationResult,
 	type VerifiedBy,

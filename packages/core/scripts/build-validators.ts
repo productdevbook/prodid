@@ -1,8 +1,12 @@
-import dumpSchema from '@prodid/spec/schemas/org.prodid.dump.json'
-import entitySchema from '@prodid/spec/schemas/org.prodid.entity.json'
-import feedSchema from '@prodid/spec/schemas/org.prodid.feed.json'
-import itemSchema from '@prodid/spec/schemas/org.prodid.item.json'
-import sourceSchema from '@prodid/spec/schemas/org.prodid.source.json'
+import dumpV0 from '@prodid/spec/schemas/org.prodid.dump.json'
+import entityV0 from '@prodid/spec/schemas/org.prodid.entity.json'
+import feedV0 from '@prodid/spec/schemas/org.prodid.feed.json'
+import sourceV0 from '@prodid/spec/schemas/org.prodid.source.json'
+import dumpV1 from '@prodid/spec/schemas/v1/org.prodid.dump.json'
+import entityV1 from '@prodid/spec/schemas/v1/org.prodid.entity.json'
+import feedV1 from '@prodid/spec/schemas/v1/org.prodid.feed.json'
+import itemV1 from '@prodid/spec/schemas/v1/org.prodid.item.json'
+import sourceV1 from '@prodid/spec/schemas/v1/org.prodid.source.json'
 import { _ } from 'ajv'
 import addFormats from 'ajv-formats'
 import Ajv2020 from 'ajv/dist/2020'
@@ -24,21 +28,11 @@ const ajv = new Ajv2020({
 })
 
 addFormats(ajv, ['uri', 'email', 'date-time'])
-ajv.addSchema(itemSchema)
-ajv.addSchema(feedSchema)
-ajv.addSchema(entitySchema)
-ajv.addSchema(sourceSchema)
-ajv.addSchema(dumpSchema)
 
-const source = toEsm(
-	standaloneCode(ajv, {
-		item: itemSchema.$id,
-		feed: feedSchema.$id,
-		entity: entitySchema.$id,
-		source: sourceSchema.$id,
-		dump: dumpSchema.$id,
-	}),
-)
+const SCHEMAS = { item: itemV1, feedV0, feedV1, entityV0, entityV1, sourceV0, sourceV1, dumpV0, dumpV1 }
+for (const schema of Object.values(SCHEMAS)) ajv.addSchema(schema)
+
+const source = toEsm(standaloneCode(ajv, Object.fromEntries(Object.entries(SCHEMAS).map(([name, schema]) => [name, schema.$id]))))
 
 if (/\brequire\s*\(/.test(source)) throw new Error('generated validators still contain require()')
 if (/\beval\s*\(|\bFunction\s*\(/.test(source)) throw new Error('generated validators contain eval or Function')
@@ -88,9 +82,13 @@ export interface SchemaValidator<T> {
 }
 
 export declare const item: SchemaValidator<ItemRecord>
-export declare const feed: SchemaValidator<FeedRecord>
-export declare const entity: SchemaValidator<EntityRecord>
-export declare const source: SchemaValidator<SourceRecord>
-export declare const dump: SchemaValidator<DumpManifest>
+export declare const feedV0: SchemaValidator<FeedRecord>
+export declare const feedV1: SchemaValidator<FeedRecord>
+export declare const entityV0: SchemaValidator<EntityRecord>
+export declare const entityV1: SchemaValidator<EntityRecord>
+export declare const sourceV0: SchemaValidator<SourceRecord>
+export declare const sourceV1: SchemaValidator<SourceRecord>
+export declare const dumpV0: SchemaValidator<DumpManifest>
+export declare const dumpV1: SchemaValidator<DumpManifest>
 `
 }

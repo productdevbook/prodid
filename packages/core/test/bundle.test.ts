@@ -49,4 +49,14 @@ describe('the record validators bundled the way wrangler bundles a Worker', () =
 		expect(record.validateDump(manifest).ok).toBe(true)
 		expect(record.validateDump({ ...manifest, files: manifest.files.slice(1) }).ok).toBe(false)
 	})
+
+	test('validate the v1 documents beside the v0 ones', async () => {
+		const v1 = async (name: string): Promise<Record<string, unknown>> => await Bun.file(new URL(`../fixtures/v1/${name}`, SPEC)).json()
+		expect(record.validateFeed(await v1('examples/prodid.json')).ok).toBe(true)
+		expect(record.validateEntity(await v1('examples/entity.item.json')).ok).toBe(true)
+		expect(record.validateSource(await v1('examples/source.json')).ok).toBe(true)
+		const manifest = await v1('dump/valid/manifest.json')
+		expect(record.validateDump(manifest).ok).toBe(true)
+		expect(record.validateDump({ ...manifest, version: 2 }).ok).toBe(false)
+	})
 })

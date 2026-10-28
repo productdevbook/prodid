@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test'
 
 import {
 	acceptDiscovery,
+	acceptsV0Discovery,
 	checkFetchable,
 	decodeTxtPresentation,
 	delegationUrl,
@@ -15,6 +16,7 @@ import {
 	planDiscovery,
 	txtName,
 	type TxtRecord,
+	V0_DISCOVERY_CUTOFF,
 	wellKnownUrl,
 } from '../src/discovery'
 import type { FeedRecord } from '../src/record/types'
@@ -443,5 +445,54 @@ describe('acceptDiscovery', () => {
 	test('refuses a domain or a host that is not a domain', () => {
 		expect(acceptDiscovery(response({ domain: '127.0.0.1' }))).toEqual({ ok: false, reason: 'bad-domain' })
 		expect(acceptDiscovery(response({ host: '169.254.169.254' }))).toEqual({ ok: false, reason: 'bad-host' })
+	})
+})
+
+describe('the v0 cut-off', () => {
+	const before = new Date('2027-01-25T23:59:59.999Z')
+	const at = new Date(V0_DISCOVERY_CUTOFF)
+	const after = new Date('2027-03-01T00:00:00Z')
+	const V1: FeedRecord = { ...DIRECT, version: 1 }
+
+	test('is the instant the spec fixes', () => {
+		expect(V0_DISCOVERY_CUTOFF).toBe('2027-01-26T00:00:00Z')
+		expect(acceptsV0Discovery(before)).toBe(true)
+		expect(acceptsV0Discovery(at)).toBe(false)
+		expect(acceptsV0Discovery(after)).toBe(false)
+	})
+
+	test('is compared as an instant, whatever the offset it was written in', () => {
+		expect(acceptsV0Discovery(new Date('2027-01-26T02:59:59+03:00'))).toBe(true)
+		expect(acceptsV0Discovery(new Date('2027-01-25T19:00:00-05:00'))).toBe(false)
+	})
+
+	test('refuses v0 when the crawl start is not a time at all', () => {
+		expect(acceptsV0Discovery(new Date('not a time'))).toBe(false)
+	})
+
+	test('a crawl that started before it accepts a v0 document and a v1 one', () => {
+		expect(acceptDiscovery(response({ crawlStartedAt: before }))).toMatchObject({ ok: true, document: DIRECT })
+		expect(acceptDiscovery(response({ crawlStartedAt: before, body: V1 }))).toMatchObject({ ok: true, document: V1 })
+	})
+
+	test('a crawl that starts at it or later refuses a v0 document as invalid, and accepts a v1 one', () => {
+		for (const crawlStartedAt of [at, after]) {
+			expect(acceptDiscovery(response({ crawlStartedAt }))).toEqual({
+				ok: false,
+				reason: 'invalid-document',
+				detail: '/version must be equal to constant',
+			})
+			expect(acceptDiscovery(response({ crawlStartedAt, body: V1 }))).toMatchObject({ ok: true, document: V1 })
+		}
+	})
+
+	test('a delegated v0 document is refused after it like any other', () => {
+		expect(acceptDiscovery(response({ host: HOST, delegated: true, body: DELEGATED, crawlStartedAt: after })).ok).toBe(false)
+		expect(acceptDiscovery(response({ host: HOST, delegated: true, body: DELEGATED, crawlStartedAt: before })).ok).toBe(true)
+	})
+
+	test('a response without a crawl start is read as the crawler read it before v1', () => {
+		expect(acceptDiscovery(response()).ok).toBe(true)
+		expect(acceptDiscovery(response({ body: V1 })).ok).toBe(true)
 	})
 })

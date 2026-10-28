@@ -3,6 +3,7 @@ import { describe, expect, test } from 'bun:test'
 import { canonicalHash } from '../src/canonical'
 import {
 	type CrawlStatus,
+	type SpecVersion,
 	validateDump,
 	validateEntity,
 	validateFeed,
@@ -20,11 +21,11 @@ async function fixtures(folder: string): Promise<string[]> {
 	return names.sort()
 }
 
-function validateByName(name: string, value: unknown): ValidationResult<unknown> {
+function validateByName(name: string, value: unknown, version: SpecVersion): ValidationResult<unknown> {
 	if (name.startsWith('item.')) return validateItem(value)
-	if (name.startsWith('entity.')) return validateEntity(value)
-	if (name.startsWith('source.')) return validateSource(value)
-	return validateFeed(value)
+	if (name.startsWith('entity.')) return validateEntity(value, { version })
+	if (name.startsWith('source.')) return validateSource(value, { version })
+	return validateFeed(value, { version })
 }
 
 const valid = await fixtures('fixtures/valid/')
@@ -41,12 +42,12 @@ describe('the record validators', () => {
 	})
 
 	test.each(valid)('accepts fixtures/valid/%s', async (name) => {
-		const result = validateByName(name, await Bun.file(new URL(`fixtures/valid/${name}`, SPEC)).json())
+		const result = validateByName(name, await Bun.file(new URL(`fixtures/valid/${name}`, SPEC)).json(), 0)
 		expect(result.ok ? [] : result.errors).toEqual([])
 	})
 
 	test.each(invalid)('refuses fixtures/invalid/%s for the reason the spec expects', async (name) => {
-		const result = validateByName(name, await Bun.file(new URL(`fixtures/invalid/${name}`, SPEC)).json())
+		const result = validateByName(name, await Bun.file(new URL(`fixtures/invalid/${name}`, SPEC)).json(), 0)
 		expect(result.ok).toBe(false)
 		if (result.ok) return
 		const want = expected[name]
@@ -121,12 +122,12 @@ describe('validateDump', () => {
 	})
 
 	test.each(dumpValid)('accepts fixtures/dump/valid/%s', async (name) => {
-		const result = validateDump(await Bun.file(new URL(`fixtures/dump/valid/${name}`, SPEC)).json())
+		const result = validateDump(await Bun.file(new URL(`fixtures/dump/valid/${name}`, SPEC)).json(), { version: 0 })
 		expect(result.ok ? [] : result.errors).toEqual([])
 	})
 
 	test.each(dumpInvalid)('refuses fixtures/dump/invalid/%s for the reason the spec expects', async (name) => {
-		const result = validateDump(await Bun.file(new URL(`fixtures/dump/invalid/${name}`, SPEC)).json())
+		const result = validateDump(await Bun.file(new URL(`fixtures/dump/invalid/${name}`, SPEC)).json(), { version: 0 })
 		expect(result.ok).toBe(false)
 		if (result.ok) return
 		const want = dumpExpected[name]
@@ -145,6 +146,98 @@ describe('validateDump', () => {
 		const manifest = await Bun.file(new URL('fixtures/dump/valid/manifest.json', SPEC)).json()
 		expect(validateDump({ ...manifest, snapshot_at: '2026-11-02T06:30:02+02:00' }).ok).toBe(true)
 		expect(validateDump({ ...manifest, snapshot_at: '2026-11-02T04:30:02-02:00' }).ok).toBe(false)
+	})
+})
+
+const V1 = 'fixtures/v1/'
+const v1Valid = await fixtures(`${V1}valid/`)
+const v1Invalid = await fixtures(`${V1}invalid/`)
+const v1Expected = (await Bun.file(new URL(`${V1}expected.json`, SPEC)).json()) as Record<string, { instancePath: string; keyword: string }>
+const v1DumpValid = await fixtures(`${V1}dump/valid/`)
+const v1DumpInvalid = await fixtures(`${V1}dump/invalid/`)
+const v1DumpExpected = (await Bun.file(new URL(`${V1}dump/expected.json`, SPEC)).json()) as Record<
+	string,
+	{ instancePath: string; keyword: string }
+>
+
+function refusedFor(result: ValidationResult<unknown>, want: { instancePath: string; keyword: string } | undefined): void {
+	expect(result.ok).toBe(false)
+	if (result.ok || want === undefined) return
+	expect(result.errors).toContainEqual(
+		expect.objectContaining({ path: want.instancePath === '' ? '/' : want.instancePath, keyword: want.keyword }),
+	)
+}
+
+describe('the v1 validators', () => {
+	test('the spec ships v1 fixtures on both sides', () => {
+		expect(v1Valid.length).toBeGreaterThan(0)
+		expect(v1Invalid.length).toBeGreaterThan(0)
+		expect(Object.keys(v1DumpExpected).sort()).toEqual(v1DumpInvalid)
+	})
+
+	test.each(v1Valid)('accepts fixtures/v1/valid/%s', async (name) => {
+		const result = validateByName(name, await Bun.file(new URL(`${V1}valid/${name}`, SPEC)).json(), 1)
+		expect(result.ok ? [] : result.errors).toEqual([])
+	})
+
+	test.each(v1Invalid)('refuses fixtures/v1/invalid/%s for the reason the spec expects', async (name) => {
+		refusedFor(validateByName(name, await Bun.file(new URL(`${V1}invalid/${name}`, SPEC)).json(), 1), v1Expected[name])
+	})
+
+	test.each(v1DumpValid)('accepts fixtures/v1/dump/valid/%s', async (name) => {
+		const result = validateDump(await Bun.file(new URL(`${V1}dump/valid/${name}`, SPEC)).json(), { version: 1 })
+		expect(result.ok ? [] : result.errors).toEqual([])
+	})
+
+	test.each(v1DumpInvalid)('refuses fixtures/v1/dump/invalid/%s for the reason the spec expects', async (name) => {
+		refusedFor(validateDump(await Bun.file(new URL(`${V1}dump/invalid/${name}`, SPEC)).json(), { version: 1 }), v1DumpExpected[name])
+	})
+
+	test('accepts the published v1 examples', async () => {
+		const example = async (name: string): Promise<unknown> => await Bun.file(new URL(`${V1}examples/${name}`, SPEC)).json()
+		expect(validateItem(await example('item.jacket.json')).ok).toBe(true)
+		expect(validateFeed(await example('prodid.json'), { version: 1 }).ok).toBe(true)
+		expect(validateFeed(await example('prodid.delegated.json'), { version: 1 }).ok).toBe(true)
+		expect(validateEntity(await example('entity.item.json'), { version: 1 }).ok).toBe(true)
+		expect(validateEntity(await example('entity.family.json'), { version: 1 }).ok).toBe(true)
+		expect(validateSource(await example('source.json'), { version: 1 }).ok).toBe(true)
+	})
+})
+
+describe('a document is read by the version it declares', () => {
+	const feed = { $type: 'org.prodid.feed', publisher: { name: 'Acme' }, license: 'CC0-1.0', feeds: ['https://acme.example/items.ndjson'] }
+	const entity = { $type: 'org.prodid.entity', opid: 'h027qsrdrp9c06x1', kind: 'family', identifiers: [], claims: [] }
+	const source = { $type: 'org.prodid.source', name: 'acme.example', kind: 'domain', trust: 'unverified', lapsed: false }
+
+	test('a discovery document is v0 or v1, and nothing else', () => {
+		expect(validateFeed({ ...feed, version: 0 }).ok).toBe(true)
+		expect(validateFeed({ ...feed, version: 1 }).ok).toBe(true)
+		refusedFor(validateFeed({ ...feed, version: 2 }), { instancePath: '/version', keyword: 'const' })
+		refusedFor(validateFeed(feed), { instancePath: '', keyword: 'required' })
+	})
+
+	test('an entity or a status is v0 without a version and v1 with version 1', () => {
+		expect(validateEntity(entity).ok).toBe(true)
+		expect(validateEntity({ ...entity, version: 1 }).ok).toBe(true)
+		refusedFor(validateEntity({ ...entity, version: 0 }), { instancePath: '/version', keyword: 'const' })
+		expect(validateSource(source).ok).toBe(true)
+		expect(validateSource({ ...source, version: 1 }).ok).toBe(true)
+		refusedFor(validateSource({ ...source, version: 2 }), { instancePath: '/version', keyword: 'const' })
+	})
+
+	test('a dump manifest of either version stays loadable', async () => {
+		const v0 = await Bun.file(new URL('fixtures/dump/valid/manifest.json', SPEC)).json()
+		const v1 = await Bun.file(new URL(`${V1}dump/valid/manifest.json`, SPEC)).json()
+		expect(validateDump(v0).ok).toBe(true)
+		expect(validateDump(v1).ok).toBe(true)
+		refusedFor(validateDump({ ...v1, version: 2 }), { instancePath: '/version', keyword: 'const' })
+	})
+
+	test('a pinned version refuses the other one', () => {
+		refusedFor(validateFeed({ ...feed, version: 0 }, { version: 1 }), { instancePath: '/version', keyword: 'const' })
+		refusedFor(validateFeed({ ...feed, version: 1 }, { version: 0 }), { instancePath: '/version', keyword: 'const' })
+		refusedFor(validateEntity(entity, { version: 1 }), { instancePath: '', keyword: 'required' })
+		refusedFor(validateSource({ ...source, version: 1 }, { version: 0 }), { instancePath: '', keyword: 'additionalProperties' })
 	})
 })
 
