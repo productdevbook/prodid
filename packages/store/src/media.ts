@@ -30,13 +30,29 @@ export async function recordMedia(sql: Sql, input: { sha256: string; bytes: numb
 	`
 }
 
-/** A hash on the takedown list is deleted from R2 and can never be stored again. */
-export async function blockMedia(sql: Sql, input: { sha256: string; now: Date }): Promise<void> {
-	await sql`
-		insert into media (sha256, bytes, content_type, first_seen, blocked_at)
-		values (${input.sha256}, 0, 'application/octet-stream', ${input.now}, ${input.now})
-		on conflict (sha256) do update set blocked_at = coalesce(media.blocked_at, excluded.blocked_at)
-	`
+/**
+ * Puts a hash on the takedown list and withdraws every active claim naming it, in one transaction
+ * with one timestamp. The upsert holds the row lock, so a claim being attached concurrently either
+ * commits first and is withdrawn here, or waits and finds the hash blocked. Returns the number of
+ * claims withdrawn; the file itself is deleted from R2 by the operator.
+ */
+export function blockMedia(sql: Sql, input: { sha256: string; reason: string; now: Date }): Promise<number> {
+	return withRetry(() =>
+		sql.begin(async (tx) => {
+			await tx`
+				insert into media (sha256, bytes, content_type, first_seen, blocked_at, blocked_reason)
+				values (${input.sha256}, 0, 'application/octet-stream', ${input.now}, ${input.now}, ${input.reason})
+				on conflict (sha256) do update set
+					blocked_at = coalesce(media.blocked_at, excluded.blocked_at),
+					blocked_reason = coalesce(media.blocked_reason, excluded.blocked_reason)
+			`
+			const withdrawn = await tx`
+				update claim set withdrawn_at = ${input.now}
+				where property = 'media' and withdrawn_at is null and value->>'sha256' = ${input.sha256}
+			`
+			return withdrawn.count
+		}),
+	)
 }
 
 export interface MediaClaimInput {
@@ -78,6 +94,10 @@ export function attachMediaClaim(sql: Sql, input: MediaClaimInput): Promise<bool
 	const canonical = canonicalize(claim.value)
 	return withRetry(() =>
 		sql.begin(async (tx) => {
+			const stored = await tx<{ blocked: boolean }[]>`
+				select blocked_at is not null as blocked from media where sha256 = ${input.sha256} for share
+			`
+			if (stored[0]?.blocked !== false) return false
 			await tx`
 				update claim set withdrawn_at = ${input.now}
 				where source = ${input.source} and record_key = ${input.recordKey} and opid = ${input.opid}

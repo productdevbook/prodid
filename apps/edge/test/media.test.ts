@@ -158,7 +158,7 @@ describe.skipIf(!reachable)('media into R2', () => {
 		const bytes = png(7)
 		const digest = await crypto.subtle.digest('SHA-256', bytes as unknown as ArrayBuffer)
 		const sha256 = [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('')
-		await blockMedia(edge!.sql, { sha256, now: edge!.clock.now() })
+		await blockMedia(edge!.sql, { sha256, reason: 'test', now: edge!.clock.now() })
 
 		serve([{ url: IMAGE, license: 'CC-BY-4.0' }], bytes)
 		await edge!.crawl('acme.example')
@@ -258,7 +258,7 @@ describe.skipIf(!reachable)('media.prodid.org', () => {
 		const [key] = [...edge!.media.objects.keys()]
 		const hex = key!.slice('sha256/'.length)
 
-		await blockMedia(edge!.sql, { sha256: hex, now: edge!.clock.now() })
+		await blockMedia(edge!.sql, { sha256: hex, reason: 'test', now: edge!.clock.now() })
 		const response = await edge!.fetchMedia(`/sha256/${hex}`)
 		expect(response.status).toBe(410)
 		expect(await json<{ type: string }>(response)).toMatchObject({ type: 'https://prodid.org/problem/blocked-media' })
