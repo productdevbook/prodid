@@ -1,7 +1,8 @@
 /** @jsxImportSource hono/jsx */
-import { INGESTIBLE_LICENCES, TXT_PREFIX, TXT_VERSION } from '@prodid/core'
+import { type CrawlOutcome, INGESTIBLE_LICENCES, TXT_PREFIX, TXT_VERSION } from '@prodid/core'
 
 import { MAX_FEEDS } from './app'
+import type { IndexView } from './crawl'
 import type { FeedProblem } from './feeds'
 import type { DroppedValues, SkippedRow } from './merchant'
 import type { SlugRejection } from './names'
@@ -9,8 +10,6 @@ import { HOLD_DAYS, SITES_PER_ACCOUNT } from './owners'
 import { Layout, SignOut } from './pages'
 import type { Site } from './sites'
 import type { VerifyOutcome } from './verify'
-
-export const LICENCES = ['CC0-1.0', 'CC-BY-4.0'] as const
 
 export type CreateProblem = SlugRejection | 'taken' | 'held' | 'limit' | 'settings'
 
@@ -25,11 +24,28 @@ export const SLUG_REASONS: Record<SlugRejection | 'taken' | 'held', string> = {
 export interface SiteRow {
 	site: Site
 	host: string
+	view: IndexView
 }
 
 export function domainState(site: Site): 'none' | 'waiting' | 'verified' {
 	if (site.domain === undefined) return 'none'
 	return site.verified === site.domain ? 'verified' : 'waiting'
+}
+
+const OUTCOMES: Record<CrawlOutcome, { text: string; tone: string }> = {
+	success: { text: 'success', tone: 'badge ok' },
+	'definite-negative': { text: 'nothing served', tone: 'badge warn' },
+	'transport-failure': { text: 'could not reach', tone: 'badge warn' },
+}
+
+function CrawlBadge(props: { view: IndexView }) {
+	const view = props.view
+	if (view.state === 'not-crawled') return <span class="badge">not crawled yet</span>
+	if (view.state === 'unavailable') return <span class="badge">index unavailable</span>
+	const crawl = view.source.last_crawl
+	if (crawl === undefined) return <span class="badge">not crawled yet</span>
+	const outcome = OUTCOMES[crawl.outcome]
+	return <span class={outcome.tone}>{outcome.text}</span>
 }
 
 function DomainBadge(props: { site: Site }) {
@@ -53,7 +69,7 @@ export function SitesPage(props: { email: string; form: string; sites: SiteRow[]
 				</p>
 			) : (
 				<ul class="sites">
-					{props.sites.map(({ site, host }) => (
+					{props.sites.map(({ site, host, view }) => (
 						<li>
 							<a href={`/sites/${site.slug}`}>{host}</a>
 							<dl class="facts">
@@ -64,6 +80,10 @@ export function SitesPage(props: { email: string; form: string; sites: SiteRow[]
 								</dd>
 								<dt>Feeds</dt>
 								<dd>{site.feeds.length}</dd>
+								<dt>Last crawl</dt>
+								<dd>
+									<CrawlBadge view={view} />
+								</dd>
 							</dl>
 						</li>
 					))}
@@ -82,12 +102,8 @@ export function SitesPage(props: { email: string; form: string; sites: SiteRow[]
 	)
 }
 
-export interface NewSiteValues {
+export interface NewSiteValues extends SettingsValues {
 	slug: string
-	name: string
-	contact: string
-	license: string
-	other: string
 }
 
 const SLUG_SCRIPT = `
@@ -177,35 +193,7 @@ export function NewSitePage(props: {
 						</p>
 						<p class="state" id="slug-state" aria-live="polite" data-reasons={JSON.stringify(SLUG_REASONS)} />
 					</div>
-					<div class="field">
-						<label for="name">Publisher name</label>
-						<input id="name" name="name" type="text" required value={props.values.name} />
-						<p class="note">Who publishes this catalogue, as the index shows it.</p>
-					</div>
-					<div class="field">
-						<label for="contact">Contact email</label>
-						<input id="contact" name="contact" type="email" required autocomplete="email" value={props.values.contact} />
-						<p class="note">Published with the catalogue. Notices about the index no longer reaching your site go here.</p>
-					</div>
-					<div class="field">
-						<label for="license">Licence for your data</label>
-						<select id="license" name="license">
-							<option value="CC0-1.0" selected={props.values.license === 'CC0-1.0'}>
-								CC0-1.0 (recommended)
-							</option>
-							<option value="CC-BY-4.0" selected={props.values.license === 'CC-BY-4.0'}>
-								CC-BY-4.0
-							</option>
-							<option value="other" selected={props.values.license === 'other'}>
-								Another SPDX licence
-							</option>
-						</select>
-					</div>
-					<div class="field">
-						<label for="other">Other SPDX identifier</label>
-						<input id="other" name="other" type="text" autocomplete="off" autocapitalize="none" value={props.values.other} />
-						<p class="note">Only when you chose another SPDX licence above.</p>
-					</div>
+					<PublisherFields values={props.values} />
 					<button type="submit">Create</button>
 				</form>
 			)}
@@ -234,11 +222,22 @@ export interface UploadValues {
 
 export type DomainCheck = { ran: true; outcome: VerifyOutcome; name: string; records: string[] | null } | { ran: false; wait: number }
 
+export interface SettingsValues {
+	name: string
+	contact: string
+	license: string
+	other: string
+}
+
 export interface SiteView {
 	form: string
 	site: Site
 	host: string
 	served: boolean
+	indexName: string
+	view: IndexView
+	settings: SettingsValues
+	settingsError?: string | undefined
 	feeds: FeedRow[]
 	upload?: UploadResult | undefined
 	values: UploadValues
@@ -248,28 +247,142 @@ export interface SiteView {
 }
 
 export function SitePage(props: SiteView) {
-	const documentUrl = `https://${props.host}/.well-known/prodid.json`
 	return (
 		<Layout title={`${props.host} · prodid hosting`} header={<SignOut form={props.form} />}>
 			<p>
 				<a href="/sites">Your sites</a>
 			</p>
 			<h1 class="address">{props.host}</h1>
-			<section>
-				<h2>Status</h2>
-				<dl class="facts">
-					<dt>Document</dt>
-					<dd>
-						<a href={documentUrl}>{documentUrl}</a>
-					</dd>
-					<dt>Served</dt>
-					<dd>{props.served ? 'yes' : 'not yet: it is served once the site has a feed'}</dd>
-				</dl>
-			</section>
+			<Status {...props} />
 			<Feeds {...props} />
 			<Upload {...props} />
 			<Domain {...props} />
+			<Settings {...props} />
 		</Layout>
+	)
+}
+
+function Status(props: SiteView) {
+	const documentUrl = `https://${props.host}/.well-known/prodid.json`
+	const statusUrl = `https://prodid.org/source/${props.indexName}`
+	const view = props.view
+	const crawl = view.state === 'crawled' ? view.source.last_crawl : undefined
+	return (
+		<section id="status">
+			<h2>Status</h2>
+			<dl class="facts">
+				<dt>Document</dt>
+				<dd>
+					<a href={documentUrl}>{documentUrl}</a>
+				</dd>
+				<dt>Served</dt>
+				<dd>{props.served ? 'yes' : 'not yet: it is served once the site has a feed'}</dd>
+				<dt>Index name</dt>
+				<dd class="mono">{props.indexName}</dd>
+			</dl>
+			<h3>What the index sees</h3>
+			{view.state === 'not-crawled' && (
+				<p class="soft">
+					Not crawled yet. The index lists a name from its first successful crawl;{' '}
+					{props.served ? 'a crawl was asked for when you uploaded.' : 'upload a feed to ask for one.'}
+				</p>
+			)}
+			{view.state === 'unavailable' && <p class="soft">The index could not be asked just now. Reload the page in a minute.</p>}
+			{view.state === 'crawled' && (
+				<dl class="facts">
+					<dt>Trust</dt>
+					<dd>{view.source.trust}</dd>
+					<dt>Lapsed</dt>
+					<dd>
+						{view.source.lapsed ? (
+							<span class="badge warn">
+								{view.source.lapsed_at === undefined ? 'lapsed' : `since ${when(new Date(view.source.lapsed_at))}`}
+							</span>
+						) : (
+							'no'
+						)}
+					</dd>
+					<dt>Last crawl</dt>
+					<dd>
+						<CrawlBadge view={view} />
+						{crawl !== undefined && ` ${when(new Date(crawl.at))}`}
+					</dd>
+					{crawl !== undefined && (
+						<>
+							<dt>Lines skipped</dt>
+							<dd>{crawl.lines_skipped ?? 0}</dd>
+							<dt>Feeds failed</dt>
+							<dd>{crawl.feeds_failed ?? 0}</dd>
+							<dt>Media failed</dt>
+							<dd>{crawl.media_failed ?? 0}</dd>
+						</>
+					)}
+				</dl>
+			)}
+			{view.state === 'crawled' && (
+				<p class="note">
+					<a href={statusUrl}>The index's status page</a>
+				</p>
+			)}
+		</section>
+	)
+}
+
+function Settings(props: SiteView) {
+	const values = props.settings
+	return (
+		<section id="settings">
+			<h2>Settings</h2>
+			{props.settingsError !== undefined && (
+				<div class="notice warn" role="alert">
+					<p>
+						<strong>The settings were refused.</strong> {props.settingsError}
+					</p>
+				</div>
+			)}
+			<form method="post" action={`/sites/${props.site.slug}/settings`}>
+				<input type="hidden" name="form" value={props.form} />
+				<PublisherFields values={values} />
+				<button type="submit">Save settings</button>
+			</form>
+		</section>
+	)
+}
+
+function PublisherFields(props: { values: SettingsValues }) {
+	const values = props.values
+	return (
+		<>
+			<div class="field">
+				<label for="name">Publisher name</label>
+				<input id="name" name="name" type="text" required value={values.name} />
+				<p class="note">Who publishes this catalogue, as the index shows it.</p>
+			</div>
+			<div class="field">
+				<label for="contact">Contact email</label>
+				<input id="contact" name="contact" type="email" required autocomplete="email" value={values.contact} />
+				<p class="note">Published with the catalogue. Notices about the index no longer reaching your site go here.</p>
+			</div>
+			<div class="field">
+				<label for="license">Licence for your data</label>
+				<select id="license" name="license">
+					<option value="CC0-1.0" selected={values.license === 'CC0-1.0'}>
+						CC0-1.0 (recommended)
+					</option>
+					<option value="CC-BY-4.0" selected={values.license === 'CC-BY-4.0'}>
+						CC-BY-4.0
+					</option>
+					<option value="other" selected={values.license === 'other'}>
+						Another SPDX licence
+					</option>
+				</select>
+			</div>
+			<div class="field">
+				<label for="other">Other SPDX identifier</label>
+				<input id="other" name="other" type="text" autocomplete="off" autocapitalize="none" value={values.other} />
+				<p class="note">Only when you chose another SPDX licence above.</p>
+			</div>
+		</>
 	)
 }
 

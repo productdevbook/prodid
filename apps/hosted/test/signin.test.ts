@@ -37,6 +37,7 @@ beforeEach(() => {
 		accounts: sql,
 		resolveTxt: async () => ({ ok: true, records: [] }),
 		ping: async () => {},
+		indexView: async () => ({ state: 'not-crawled' }),
 		now: () => clock,
 		zone: 'prodid.org',
 		operatorHost: OPERATOR,

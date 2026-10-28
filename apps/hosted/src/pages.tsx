@@ -91,6 +91,7 @@ legend { font-weight: 500; padding: 0 0.25rem; }
 pre.record { margin: 0 0 1rem; padding: 0.75rem; background: var(--sunken); border-radius: 0.375rem; white-space: pre-wrap; overflow-wrap: anywhere; user-select: all; }
 pre.record code { font-size: 0.8125rem; }
 ul.problems { margin: 0 0 0.75rem; padding-left: 1.25rem; font-size: 0.875rem; overflow-wrap: anywhere; }
+h3 { font-size: 0.9375rem; margin: 1.25rem 0 0.375rem; }
 section > h2 { margin-top: 0; padding-top: 1.5rem; border-top: 1px solid var(--line); }
 .turnstile { margin: 1rem 0; min-height: 65px; }
 button { font: inherit; font-weight: 500; cursor: pointer; color: var(--bg); background: var(--ink); border: 1px solid var(--ink); border-radius: 0.375rem; padding: 0.5rem 1rem; }

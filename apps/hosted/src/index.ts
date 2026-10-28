@@ -1,4 +1,5 @@
 import { createApp, reverifyAll, type Services } from './app'
+import { readIndexView } from './crawl'
 import { resolveTxt } from './dns'
 import type { Blobs } from './sites'
 import { d1Sql } from './sql'
@@ -54,6 +55,7 @@ export function productionServices(env: Env): Services {
 			})
 			if (response.status !== 202) throw new Error(`ping answered ${response.status}`)
 		},
+		indexView: (name) => readIndexView(env.SOURCE_URL, name),
 		now: () => new Date(),
 		zone: env.HOSTING_ZONE,
 		operatorHost: env.OPERATOR_HOST,

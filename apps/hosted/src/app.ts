@@ -1,6 +1,7 @@
 import { isNotModified, problem, sha256Hex } from '@prodid/core'
 import { type Context, Hono } from 'hono'
 
+import type { IndexView } from './crawl'
 import type { TxtLookup } from './dns'
 import { checkFeed, MAX_FEED_BYTES } from './feeds'
 import { checkSlug, isFeedName, resolveHost, siteHost, type Target } from './names'
@@ -31,6 +32,8 @@ export interface Services {
 	resolveTxt(name: string): Promise<TxtLookup>
 	/** Asks the index for a crawl through its public ping, like any other publisher. */
 	ping(domains: string[]): Promise<void>
+	/** Reads the index's public status of a name, like any other publisher. */
+	indexView(name: string): Promise<IndexView>
 	now(): Date
 	zone: string
 	operatorHost: string

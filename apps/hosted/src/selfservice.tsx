@@ -4,6 +4,7 @@ import { type Context, Hono } from 'hono'
 import { getCookie } from 'hono/cookie'
 
 import { announce, type App, MAX_FEEDS, reverify, type Services } from './app'
+import { indexName } from './crawl'
 import type { TxtLookup } from './dns'
 import { checkFeed, MAX_FEED_BYTES } from './feeds'
 import { convertMerchant, type DroppedValues, type SkippedRow } from './merchant'
@@ -34,6 +35,7 @@ import {
 	type NewSiteValues,
 	NoSitePage,
 	SitePage,
+	type SettingsValues,
 	type SiteRow,
 	SitesPage,
 	type UploadResult,
@@ -123,11 +125,14 @@ export function selfService(build: (env: Env) => Services): Hono<App> {
 		const account = await signedIn(c)
 		if (account === null) return c.redirect('/', 303)
 		const services = c.get('services')
-		const sites: SiteRow[] = []
-		for (const slug of await ownedSlugs(services.accounts, account.id)) {
-			const site = await readSite(services.blobs, slug)
-			if (site !== null) sites.push({ site, host: siteHost(slug, services.zone) })
-		}
+		const owned = await Promise.all(
+			(await ownedSlugs(services.accounts, account.id)).map(async (slug): Promise<SiteRow | null> => {
+				const site = await readSite(services.blobs, slug)
+				if (site === null) return null
+				return { site, host: siteHost(slug, services.zone), view: await services.indexView(indexName(site, services.zone)) }
+			}),
+		)
+		const sites = owned.filter((row) => row !== null)
 		return c.html(<SitesPage email={account.email} form={account.form} sites={sites} />)
 	})
 
@@ -324,6 +329,33 @@ export function selfService(build: (env: Env) => Services): Hono<App> {
 		return sitePage(c, account, checked, { values: UPLOAD_DEFAULTS, check: { ran: true, outcome, name, records } })
 	})
 
+	app.post('/sites/:slug/settings', async (c) => {
+		const account = await signedIn(c)
+		const form = await checkedForm(c)
+		if (account === null || form === null) return refused(c)
+		const site = await ownedSite(c, account)
+		if (site === null) return noSite(c, account)
+		const services = c.get('services')
+		const settings: SettingsValues = {
+			name: field(form, 'name'),
+			contact: field(form, 'contact'),
+			license: field(form, 'license'),
+			other: field(form, 'other'),
+		}
+		const body = settingsBody(settings.name, settings.contact, licence(settings.license, settings.other), site.domain)
+		const parsed = parseSiteInput(body, services.zone)
+		if (!parsed.ok) return sitePage(c, account, site, { values: UPLOAD_DEFAULTS, settings, settingsError: parsed.detail }, 400)
+		const updated: Site = {
+			...site,
+			publisher: parsed.input.publisher,
+			license: parsed.input.license,
+			updatedAt: services.now().toISOString(),
+		}
+		await writeSite(services.blobs, updated)
+		announce(c, updated)
+		return c.redirect(`/sites/${site.slug}#settings`, 303)
+	})
+
 	app.all('*', async (c) => {
 		const account = await signedIn(c)
 		if (account === null) return c.redirect('/', 303)
@@ -358,10 +390,20 @@ async function sitePage(
 	c: Context<App>,
 	account: SignedIn,
 	site: Site,
-	extras: { values: UploadValues; upload?: UploadResult; check?: DomainCheck; domainError?: string; domainValue?: string },
+	extras: {
+		values: UploadValues
+		upload?: UploadResult
+		check?: DomainCheck
+		domainError?: string
+		domainValue?: string
+		settings?: SettingsValues
+		settingsError?: string
+	},
 	status: 200 | 400 | 409 | 413 | 429 = 200,
 ): Promise<Response> {
 	const services = c.get('services')
+	const name = indexName(site, services.zone)
+	const viewing = services.indexView(name)
 	const feeds: FeedRow[] = await Promise.all(
 		site.feeds.map(async (name) => {
 			const head = await services.blobs.head(feedKey(site.slug, name))
@@ -375,6 +417,10 @@ async function sitePage(
 			site={site}
 			host={siteHost(site.slug, services.zone)}
 			served={siteDocument(site, services.zone) !== null}
+			indexName={name}
+			view={await viewing}
+			settings={extras.settings ?? settingsOf(site)}
+			settingsError={extras.settingsError}
 			feeds={feeds}
 			values={extras.values}
 			upload={extras.upload}
@@ -425,12 +471,22 @@ function field(form: FormData, name: string): string {
 	return typeof value === 'string' ? value.trim() : ''
 }
 
+function settingsOf(site: Site): SettingsValues {
+	const known = site.license === 'CC0-1.0' || site.license === 'CC-BY-4.0'
+	return {
+		name: site.publisher.name,
+		contact: site.publisher.contact ?? '',
+		license: known ? site.license : 'other',
+		other: known ? '' : site.license,
+	}
+}
+
 function licence(choice: string, other: string): string {
 	return choice === 'other' ? other : choice
 }
 
-function settingsBody(name: string, contact: string, license: string): unknown {
-	return { publisher: contact === '' ? { name } : { name, contact }, license }
+function settingsBody(name: string, contact: string, license: string, domain?: string): Record<string, unknown> {
+	return { publisher: contact === '' ? { name } : { name, contact }, license, ...(domain === undefined ? {} : { domain }) }
 }
 
 /**

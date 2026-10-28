@@ -56,6 +56,7 @@ beforeEach(() => {
 		async ping(domains) {
 			pinged.push(domains)
 		},
+		indexView: async () => ({ state: 'not-crawled' }),
 		now: () => new Date('2026-10-28T12:00:00Z'),
 		zone: ZONE,
 		operatorHost: OPERATOR,

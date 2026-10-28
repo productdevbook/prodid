@@ -35,6 +35,8 @@
 		// A reserved slug, so no publisher can ever be served on it.
 		"OPERATOR_HOST": "publish.prodid.org",
 		"PING_URL": "https://prodid.org/ping",
+		// The index's public status page of a name, which the site page shows; appended with the name.
+		"SOURCE_URL": "https://prodid.org/source/",
 		"TURNSTILE_SITE_KEY": "0x4AAAAAAFp-jWzBXQ4rH0O0",
 	},
 	// Both are secrets: `wrangler secret put OPERATOR_TOKEN`, `wrangler secret put TURNSTILE_SECRET_KEY`.

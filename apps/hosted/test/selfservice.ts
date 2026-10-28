@@ -1,6 +1,7 @@
 import { sha256Hex, type TxtRecord } from '@prodid/core'
 
 import { createApp, type Services } from '../src/app'
+import type { IndexView } from '../src/crawl'
 import type { TxtLookup } from '../src/dns'
 import { formToken, randomToken } from '../src/signin'
 import { MemoryBlobs } from './blobs'
@@ -17,6 +18,8 @@ export interface World {
 	txt: Map<string, TxtRecord[] | 'servfail'>
 	lookups: string[]
 	pinged: string[][]
+	views: Map<string, IndexView>
+	viewed: string[]
 	clock: { now: Date }
 }
 
@@ -26,6 +29,8 @@ export function world(): World {
 	const txt = new Map<string, TxtRecord[] | 'servfail'>()
 	const lookups: string[] = []
 	const pinged: string[][] = []
+	const views = new Map<string, IndexView>()
+	const viewed: string[] = []
 	const clock = { now: new Date('2026-10-28T12:00:00.000Z') }
 	const services: Services = {
 		blobs,
@@ -38,6 +43,10 @@ export function world(): World {
 		},
 		async ping(domains) {
 			pinged.push(domains)
+		},
+		async indexView(name) {
+			viewed.push(name)
+			return views.get(name) ?? { state: 'not-crawled' }
 		},
 		now: () => clock.now,
 		zone: 'prodid.org',
@@ -55,7 +64,7 @@ export function world(): World {
 			},
 		},
 	}
-	return { services, blobs, sql, txt, lookups, pinged, clock }
+	return { services, blobs, sql, txt, lookups, pinged, views, viewed, clock }
 }
 
 export function caller(w: World) {
