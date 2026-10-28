@@ -348,6 +348,18 @@ describe.skipIf(!reachable)('the resolver', () => {
 		expect(await json<{ $id: string }>(response)).toMatchObject({ $id: 'https://prodid.org/schemas/v0/org.prodid.entity.json' })
 		expect((await edge!.fetch('/schemas/v0/nothing.json')).status).toBe(404)
 	})
+
+	test('every schema, the dump manifest included, answers the same way', async () => {
+		for (const name of ['dump', 'entity', 'feed', 'item', 'source']) {
+			const file = `org.prodid.${name}.json`
+			const response = await edge!.fetch(`/schemas/v0/${file}`)
+			expect(response.status).toBe(200)
+			expect(response.headers.get('content-type')).toBe('application/schema+json; charset=utf-8')
+			expect(response.headers.get('cache-control')).toBe('public, max-age=3600')
+			expect(response.headers.get('access-control-allow-origin')).toBe('*')
+			expect(await response.json()).toEqual(await Bun.file(new URL(`../../../spec/schemas/${file}`, import.meta.url)).json())
+		}
+	})
 })
 
 describe.skipIf(!reachable)('conditional requests', () => {

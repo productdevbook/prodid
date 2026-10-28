@@ -1,4 +1,5 @@
 import { isOpid, MAX_PING_DOMAINS, parseGtin, parsePingRequest } from '@prodid/core'
+import dumpSchema from '@prodid/spec/schemas/org.prodid.dump.json'
 import entitySchema from '@prodid/spec/schemas/org.prodid.entity.json'
 import feedSchema from '@prodid/spec/schemas/org.prodid.feed.json'
 import itemSchema from '@prodid/spec/schemas/org.prodid.item.json'
@@ -25,6 +26,7 @@ const SCHEMA_CACHE = 'public, max-age=3600'
 // A Map, not an object: `/schemas/v0/__proto__` and `/constructor` are paths a stranger can ask for,
 // and a plain property lookup answers both of them with something.
 const SCHEMAS = new Map<string, unknown>([
+	['org.prodid.dump.json', dumpSchema],
 	['org.prodid.entity.json', entitySchema],
 	['org.prodid.feed.json', feedSchema],
 	['org.prodid.item.json', itemSchema],
