@@ -96,7 +96,7 @@ export function createApp(build: ServicesFactory): Hono<App> {
 				},
 			})
 		}
-		return await respond(c.req.raw, found.entity, () => renderEntity(found.entity), { cacheControl: RESOLVER_CACHE })
+		return await respond(c.req.raw, found.entity, () => renderEntity(found.entity, { history }), { cacheControl: RESOLVER_CACHE })
 	})
 
 	// Further GS1 Digital Link segments (/10/{lot}, /21/{serial}) are accepted and ignored.
@@ -108,7 +108,7 @@ export function createApp(build: ServicesFactory): Hono<App> {
 		const history = c.req.query('history') === '1'
 		const found = await readEntityByGtin(c.get('services').sql, gtin.value, { history })
 		if (!found.found) return problemResponse(c.req.raw, 'unknown-gtin')
-		return await respond(c.req.raw, found.entity, () => renderEntity(found.entity), {
+		return await respond(c.req.raw, found.entity, () => renderEntity(found.entity, { history }), {
 			cacheControl: RESOLVER_CACHE,
 			headers: { 'content-location': `/id/${found.opid}` },
 		})
