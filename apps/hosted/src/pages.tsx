@@ -96,6 +96,11 @@ section > h2 { margin-top: 0; padding-top: 1.5rem; border-top: 1px solid var(--l
 .turnstile { margin: 1rem 0; min-height: 65px; }
 button { font: inherit; font-weight: 500; cursor: pointer; color: var(--bg); background: var(--ink); border: 1px solid var(--ink); border-radius: 0.375rem; padding: 0.5rem 1rem; }
 button.quiet { color: var(--soft); background: transparent; border-color: var(--rule); }
+button.danger { color: var(--bg); background: var(--warn); border-color: var(--warn); }
+.menu { display: flex; align-items: center; gap: 1rem; font-size: 0.875rem; }
+ul.consequences { margin: 0 0 1rem; padding-left: 1.25rem; }
+ul.consequences li { margin-bottom: 0.25rem; }
+ul.history { list-style: none; margin: 0 0 1rem; padding: 0; font-size: 0.875rem; }
 form.inline { display: inline; margin: 0; padding: 0; background: none; border: 0; }
 .note { font-size: 0.875rem; color: var(--soft); margin: 0.75rem 0 0; }
 .notice { padding: 0.75rem 1rem; border-radius: 0.5rem; margin: 0 0 1.5rem; border: 1px solid var(--line); }
@@ -215,14 +220,17 @@ export function InboxPage(props: { email: string }) {
 	)
 }
 
-export function SignOut(props: { form: string }) {
+export function AccountMenu(props: { form: string }) {
 	return (
-		<form method="post" action="/signout" class="inline">
-			<input type="hidden" name="form" value={props.form} />
-			<button type="submit" class="quiet">
-				Sign out
-			</button>
-		</form>
+		<nav class="menu" aria-label="Account">
+			<a href="/account">Account</a>
+			<form method="post" action="/signout" class="inline">
+				<input type="hidden" name="form" value={props.form} />
+				<button type="submit" class="quiet">
+					Sign out
+				</button>
+			</form>
+		</nav>
 	)
 }
 

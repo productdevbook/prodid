@@ -6,6 +6,7 @@ export const LINK_MINUTES = 15
 export const SESSION_DAYS = 30
 export const LINKS_PER_EMAIL = 5
 export const LINKS_PER_CLIENT = 20
+export const SIGN_INS_KEPT = 10
 export const SESSION_COOKIE = '__Host-session'
 export const FORM_COOKIE = '__Host-form'
 
@@ -97,6 +98,14 @@ export async function consumeLink(sql: Sql, token: string, now: Date): Promise<s
 		at,
 	)
 	if (account === null) return null
+	await sql.run('insert into sign_in (account_id, at) values (?, ?)', account.id, at)
+	await sql.run(
+		`delete from sign_in where account_id = ? and rowid not in
+		 (select rowid from sign_in where account_id = ? order by at desc, rowid desc limit ?)`,
+		account.id,
+		account.id,
+		SIGN_INS_KEPT,
+	)
 	const session = randomToken()
 	await sql.run('delete from session where expires_at <= ?', at)
 	await sql.run(
@@ -115,6 +124,27 @@ export async function sessionAccount(sql: Sql, session: string, now: Date): Prom
 		await sha256Hex(session),
 		now.toISOString(),
 	)
+}
+
+export async function signIns(sql: Sql, accountId: string): Promise<Date[]> {
+	const rows = await sql.all<{ at: string }>(
+		'select at from sign_in where account_id = ? order by at desc, rowid desc limit ?',
+		accountId,
+		SIGN_INS_KEPT,
+	)
+	return rows.map((row) => new Date(row.at))
+}
+
+/** Only an account that owns no site, checked in the statement that deletes it; its sessions go with it. */
+export async function deleteAccount(sql: Sql, account: Account): Promise<boolean> {
+	const deleted = await sql.run(
+		'delete from account where id = ? and not exists (select 1 from site where account_id = ? and deleted_at is null)',
+		account.id,
+		account.id,
+	)
+	if (deleted === 0) return false
+	await sql.run('delete from login_token where account_email = ?', account.email)
+	return true
 }
 
 export async function endSession(sql: Sql, session: string): Promise<void> {

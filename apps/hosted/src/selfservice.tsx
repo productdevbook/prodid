@@ -9,12 +9,13 @@ import type { TxtLookup } from './dns'
 import { checkFeed, MAX_FEED_BYTES } from './feeds'
 import { convertMerchant, type DroppedValues, type SkippedRow } from './merchant'
 import { checkSlug, isFeedName, siteHost } from './names'
-import { claimSlug, ownedSlugs, ownsSite, SITES_PER_ACCOUNT, takeCheck, unclaimSlug } from './owners'
+import { claimSlug, holdsDeleted, ownedSlugs, ownsSite, releaseSite, SITES_PER_ACCOUNT, takeCheck, unclaimSlug } from './owners'
 import { InboxPage, RefusedPage, StartPage, type StartProblem } from './pages'
 import {
 	clearedSessionCookie,
 	clientKey,
 	consumeLink,
+	deleteAccount,
 	endSession,
 	FORM_COOKIE,
 	formCookie,
@@ -26,8 +27,11 @@ import {
 	SESSION_COOKIE,
 	sessionAccount,
 	sessionCookie,
+	signIns,
 } from './signin'
 import {
+	AccountDeletedPage,
+	AccountPage,
 	type CreateProblem,
 	type DomainCheck,
 	type FeedRow,
@@ -41,7 +45,7 @@ import {
 	type UploadResult,
 	type UploadValues,
 } from './sitepages'
-import { feedKey, parseSiteInput, readSite, removeFeed, type Site, siteDocument, siteKey, storeFeed, writeSite } from './sites'
+import { deleteSite, feedKey, parseSiteInput, readSite, removeFeed, type Site, siteDocument, siteKey, storeFeed, writeSite } from './sites'
 import { zipStream } from './zip'
 
 const UPLOAD_DEFAULTS: UploadValues = { feed: 'items.ndjson', lang: '', markets: '', media: 'none' }
@@ -50,7 +54,7 @@ const TOO_LARGE = `A feed is at most ${MAX_FEED_BYTES / 1024 / 1024} MiB. Split 
 const FORM_OVERHEAD = 65_536
 
 /** Self-service paths on the operator host; a request to them without `Authorization` is a browser's. */
-export const SELF_SERVICE = /^\/(?:signin(?:\/[^/]+)?|signout|slug-check|sites(?:\/.*)?)?$/
+export const SELF_SERVICE = /^\/(?:signin(?:\/[^/]+)?|signout|slug-check|account(?:\/delete)?|sites(?:\/.*)?)?$/
 
 interface SignedIn {
 	id: string
@@ -134,7 +138,16 @@ export function selfService(build: (env: Env) => Services): Hono<App> {
 			}),
 		)
 		const sites = owned.filter((row) => row !== null)
-		return c.html(<SitesPage email={account.email} form={account.form} sites={sites} />)
+		const deleted = checkSlug(c.req.query('deleted') ?? '')
+		const held = deleted.ok && (await holdsDeleted(services.accounts, account.id, deleted.slug))
+		return c.html(
+			<SitesPage
+				email={account.email}
+				form={account.form}
+				sites={sites}
+				deleted={held ? siteHost(deleted.slug, services.zone) : undefined}
+			/>,
+		)
 	})
 
 	app.get('/sites/new', async (c) => {
@@ -377,6 +390,36 @@ export function selfService(build: (env: Env) => Services): Hono<App> {
 		})
 	})
 
+	app.post('/sites/:slug/delete', async (c) => {
+		const account = await signedIn(c)
+		const form = await checkedForm(c)
+		if (account === null || form === null) return refused(c)
+		const site = await ownedSite(c, account)
+		if (site === null) return noSite(c, account)
+		const confirmed = field(form, 'confirm')
+		if (confirmed !== site.slug) return sitePage(c, account, site, { values: UPLOAD_DEFAULTS, deleteError: confirmed }, 400)
+		const services = c.get('services')
+		await deleteSite(services.blobs, site)
+		await releaseSite(services.accounts, site.slug, services.now())
+		announce(c, site)
+		return c.redirect(`/sites?deleted=${site.slug}`, 303)
+	})
+
+	app.get('/account', async (c) => {
+		const account = await signedIn(c)
+		if (account === null) return c.redirect('/', 303)
+		return accountPage(c, account, 200)
+	})
+
+	app.post('/account/delete', async (c) => {
+		const account = await signedIn(c)
+		const form = await checkedForm(c)
+		if (account === null || form === null) return refused(c)
+		if (!(await deleteAccount(c.get('services').accounts, account))) return accountPage(c, account, 409)
+		c.header('set-cookie', clearedSessionCookie())
+		return c.html(<AccountDeletedPage email={account.email} />)
+	})
+
 	app.all('*', async (c) => {
 		const account = await signedIn(c)
 		if (account === null) return c.redirect('/', 303)
@@ -419,6 +462,7 @@ async function sitePage(
 		domainValue?: string
 		settings?: SettingsValues
 		settingsError?: string
+		deleteError?: string
 	},
 	status: 200 | 400 | 409 | 413 | 429 = 200,
 ): Promise<Response> {
@@ -448,7 +492,17 @@ async function sitePage(
 			check={extras.check}
 			domainError={extras.domainError}
 			domainValue={extras.domainValue}
+			deleteError={extras.deleteError}
 		/>,
+		status,
+	)
+}
+
+async function accountPage(c: Context<App>, account: SignedIn, status: 200 | 409): Promise<Response> {
+	const accounts = c.get('services').accounts
+	const [history, sites] = await Promise.all([signIns(accounts, account.id), ownedSlugs(accounts, account.id)])
+	return c.html(
+		<AccountPage form={account.form} email={account.email} signIns={history} sites={sites.length} refused={status === 409} />,
 		status,
 	)
 }

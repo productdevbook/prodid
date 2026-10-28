@@ -38,6 +38,10 @@ export async function ownsSite(sql: Sql, accountId: string, slug: string): Promi
 	return (await sql.first('select 1 from site where slug = ? and account_id = ? and deleted_at is null', slug, accountId)) !== null
 }
 
+export async function holdsDeleted(sql: Sql, accountId: string, slug: string): Promise<boolean> {
+	return (await sql.first('select 1 from site where slug = ? and account_id = ? and deleted_at is not null', slug, accountId)) !== null
+}
+
 /**
  * Takes a slug for an account in one statement, so two tabs cannot both pass the limit or both take
  * the name. A deleted site's slug stays with its last owner for 30 days; after that anyone may take it.

@@ -208,6 +208,20 @@ describe('sign-in link', () => {
 		expect(await sql.all('select * from session')).toHaveLength(2)
 	})
 
+	test('the account page lists the last ten sign-ins, newest first', async () => {
+		let cookie = ''
+		for (let day = 1; day <= 12; day++) {
+			clock = new Date(`2026-11-${String(day).padStart(2, '0')}T09:30:00.000Z`)
+			cookie = await signIn()
+		}
+		expect(await sql.all('select at from sign_in')).toHaveLength(10)
+		const html = await (await call('/account', { headers: { cookie } })).text()
+		expect(html).toContain('maker@example.com')
+		expect(html).toContain('The last 10, newest first.')
+		const listed = [...html.matchAll(/<li>(2026-11-\d\d 09:30 UTC)<\/li>/g)].map((match) => match[1])
+		expect(listed).toEqual(Array.from({ length: 10 }, (_, index) => `2026-11-${String(12 - index).padStart(2, '0')} 09:30 UTC`))
+	})
+
 	test('a session ends after 30 days', async () => {
 		const cookie = await signIn()
 		clock = new Date('2026-11-27T12:00:00.000Z')

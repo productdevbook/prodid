@@ -6,11 +6,12 @@ describe('accounts database', () => {
 	test('has the tables of chapter 06', async () => {
 		const sql = memorySql()
 		const tables = await sql.all<{ name: string }>("select name from sqlite_master where type = 'table' order by name")
-		expect(tables.map((table) => table.name)).toEqual(['account', 'login_token', 'session', 'site'])
+		expect(tables.map((table) => table.name)).toEqual(['account', 'login_token', 'session', 'sign_in', 'site'])
 		const columns = async (table: string) => (await sql.all<{ name: string }>(`pragma table_info(${table})`)).map((column) => column.name)
 		expect(await columns('account')).toEqual(['id', 'email', 'created_at', 'last_sign_in_at'])
 		expect(await columns('login_token')).toEqual(['hash', 'account_email', 'client', 'expires_at', 'used_at'])
 		expect(await columns('session')).toEqual(['hash', 'account_id', 'created_at', 'expires_at'])
+		expect(await columns('sign_in')).toEqual(['account_id', 'at'])
 		expect(await columns('site')).toEqual(['slug', 'account_id', 'created_at', 'deleted_at', 'checked_at'])
 	})
 

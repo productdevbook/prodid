@@ -7,7 +7,7 @@ import type { FeedProblem } from './feeds'
 import type { DroppedValues, SkippedRow } from './merchant'
 import type { SlugRejection } from './names'
 import { HOLD_DAYS, SITES_PER_ACCOUNT } from './owners'
-import { Layout, SignOut } from './pages'
+import { Layout, AccountMenu } from './pages'
 import type { Site } from './sites'
 import type { VerifyOutcome } from './verify'
 
@@ -55,10 +55,20 @@ function DomainBadge(props: { site: Site }) {
 	return <span class="badge ok">verified</span>
 }
 
-export function SitesPage(props: { email: string; form: string; sites: SiteRow[] }) {
+export function SitesPage(props: { email: string; form: string; sites: SiteRow[]; deleted?: string | undefined }) {
 	const full = props.sites.length >= SITES_PER_ACCOUNT
 	return (
-		<Layout title="Your sites · prodid hosting" header={<SignOut form={props.form} />}>
+		<Layout title="Your sites · prodid hosting" header={<AccountMenu form={props.form} />}>
+			{props.deleted !== undefined && (
+				<div class="notice ok" role="status">
+					<p>
+						<strong>
+							<span class="address">{props.deleted}</span> was deleted.
+						</strong>{' '}
+						Nobody else can take its name for {HOLD_DAYS} days; you can create it again.
+					</p>
+				</div>
+			)}
 			<h1>Your sites</h1>
 			<p class="soft">
 				Signed in as <span class="address">{props.email}</span>.
@@ -138,7 +148,7 @@ export function NewSitePage(props: {
 	const problem = props.problem
 	const slugProblem = problem !== undefined && problem !== 'limit' && problem !== 'settings' ? SLUG_REASONS[problem] : undefined
 	return (
-		<Layout title="New site · prodid hosting" header={<SignOut form={props.form} />}>
+		<Layout title="New site · prodid hosting" header={<AccountMenu form={props.form} />}>
 			<p>
 				<a href="/sites">Your sites</a>
 			</p>
@@ -244,11 +254,12 @@ export interface SiteView {
 	check?: DomainCheck | undefined
 	domainError?: string | undefined
 	domainValue?: string | undefined
+	deleteError?: string | undefined
 }
 
 export function SitePage(props: SiteView) {
 	return (
-		<Layout title={`${props.host} · prodid hosting`} header={<SignOut form={props.form} />}>
+		<Layout title={`${props.host} · prodid hosting`} header={<AccountMenu form={props.form} />}>
 			<p>
 				<a href="/sites">Your sites</a>
 			</p>
@@ -259,6 +270,7 @@ export function SitePage(props: SiteView) {
 			<Domain {...props} />
 			<Settings {...props} />
 			<Export {...props} />
+			<DeleteSite {...props} />
 		</Layout>
 	)
 }
@@ -362,6 +374,54 @@ function Export(props: SiteView) {
 					Download everything
 				</a>
 			</p>
+		</section>
+	)
+}
+
+function DeleteSite(props: SiteView) {
+	const slug = props.site.slug
+	return (
+		<section id="delete">
+			<h2>Delete site</h2>
+			{props.deleteError !== undefined && (
+				<div class="notice warn" role="alert">
+					<p>
+						<strong>Nothing was deleted.</strong> Type <span class="mono">{slug}</span> exactly to confirm.
+					</p>
+				</div>
+			)}
+			<p>Deleting {props.host}:</p>
+			<ul class="consequences">
+				<li>Its document and feeds stop being served at once.</li>
+				<li>The index sees a definite negative on its next crawl, and the source lapses.</li>
+				<li>Its claims are withdrawn after {HOLD_DAYS} days, unless it publishes again.</li>
+				<li>
+					For those {HOLD_DAYS} days nobody else can take the name <span class="mono">{slug}</span>.
+				</li>
+			</ul>
+			<p class="soft">Download everything above first if you want a copy.</p>
+			<form method="post" action={`/sites/${slug}/delete`}>
+				<input type="hidden" name="form" value={props.form} />
+				<div class="field">
+					<label for="confirm">
+						Type <span class="mono">{slug}</span> to confirm
+					</label>
+					<input
+						id="confirm"
+						name="confirm"
+						type="text"
+						required
+						autocomplete="off"
+						autocapitalize="none"
+						spellcheck={false}
+						value={props.deleteError ?? ''}
+						aria-invalid={props.deleteError === undefined ? undefined : 'true'}
+					/>
+				</div>
+				<button type="submit" class="danger">
+					Delete site
+				</button>
+			</form>
 		</section>
 	)
 }
@@ -683,11 +743,85 @@ export function when(date: Date): string {
 
 export function NoSitePage(props: { form: string }) {
 	return (
-		<Layout title="No such site · prodid hosting" header={<SignOut form={props.form} />}>
+		<Layout title="No such site · prodid hosting" header={<AccountMenu form={props.form} />}>
 			<h1>No such site</h1>
 			<p>This account has no site by that name.</p>
 			<p>
 				<a href="/sites">Your sites</a>
+			</p>
+		</Layout>
+	)
+}
+
+export function AccountPage(props: { form: string; email: string; signIns: Date[]; sites: number; refused: boolean }) {
+	return (
+		<Layout title="Account · prodid hosting" header={<AccountMenu form={props.form} />}>
+			<p>
+				<a href="/sites">Your sites</a>
+			</p>
+			<h1>Account</h1>
+			<dl class="facts">
+				<dt>Email</dt>
+				<dd class="address">{props.email}</dd>
+			</dl>
+			<section id="sign-ins">
+				<h2>Sign-ins</h2>
+				{props.signIns.length === 0 ? (
+					<p class="soft">None recorded yet.</p>
+				) : (
+					<>
+						<p class="soft">The last {props.signIns.length === 1 ? 'one' : props.signIns.length}, newest first.</p>
+						<ul class="history">
+							{props.signIns.map((at) => (
+								<li>{when(at)}</li>
+							))}
+						</ul>
+					</>
+				)}
+			</section>
+			<section id="delete">
+				<h2>Delete account</h2>
+				{props.refused && (
+					<div class="notice warn" role="alert">
+						<p>
+							<strong>The account was not deleted.</strong> It owns a site.
+						</p>
+					</div>
+				)}
+				{props.sites > 0 ? (
+					<p>
+						This account owns {props.sites} {props.sites === 1 ? 'site' : 'sites'}. Delete {props.sites === 1 ? 'it' : 'them'} first from{' '}
+						<a href="/sites">your sites</a>; an account that owns a site cannot be deleted.
+					</p>
+				) : (
+					<>
+						<p>
+							Deleting the account signs you out everywhere and removes <span class="address">{props.email}</span> from prodid hosting. The
+							names of sites you deleted stay held for their {HOLD_DAYS} days, no longer for you. Signing in again later starts a new
+							account.
+						</p>
+						<form method="post" action="/account/delete">
+							<input type="hidden" name="form" value={props.form} />
+							<button type="submit" class="danger">
+								Delete account
+							</button>
+						</form>
+					</>
+				)}
+			</section>
+		</Layout>
+	)
+}
+
+export function AccountDeletedPage(props: { email: string }) {
+	return (
+		<Layout title="Account deleted · prodid hosting">
+			<h1>Account deleted</h1>
+			<p>
+				<span class="address">{props.email}</span> is no longer known to prodid hosting, and every session it had has ended.
+			</p>
+			<p>
+				<a href="/">Back to the start</a>
 			</p>
 		</Layout>
 	)
