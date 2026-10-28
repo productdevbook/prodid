@@ -420,7 +420,7 @@ dt{color:var(--soft);padding-right:1rem;font-size:0.875rem}
 .rules li+li{margin-top:0.4rem}
 .lede-line{font-size:1.0625rem}
 .detail code{font-size:0.875rem}
-@media (max-width:30rem){h1{font-size:1.5rem}.names .name+.name{font-size:1.1875rem}table.pairs th:first-child{width:40%}table.data td .chip{margin:0.35rem 0 0}table.data td .chip{display:flex;width:fit-content;max-width:100%}}`
+@media (max-width:30rem){h1{font-size:1.5rem}.names .name+.name{font-size:1.1875rem}table.pairs th:first-child{width:40%}table.data td .chip{margin:0.35rem 0 0}table.data td .chip{display:flex;width:fit-content;max-width:100%}table.data td.mono{font-size:0.875rem;min-width:calc(14ch + 0.75rem)}}`
 
 function page(title: string, body: string, footer = ''): string {
 	return `<!doctype html>
