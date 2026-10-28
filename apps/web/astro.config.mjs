@@ -16,7 +16,7 @@ const SPEC = new URL('../../spec/', import.meta.url)
 const REVIEW = new URL('./spec-review.json', import.meta.url)
 
 /** Copied verbatim into `dist/spec/` so the relative links inside the rendered spec resolve. */
-const PUBLISHED = ['schemas', 'examples', 'fixtures', 'LICENSE', 'README.md']
+const PUBLISHED = ['schemas', 'examples', 'fixtures', 'LICENSE', 'README.md', 'v1-from-v0.md']
 
 /** @type {Record<string, string>} */
 const MEDIA_TYPES = {

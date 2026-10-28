@@ -42,7 +42,7 @@ const routes = [
 
 const feedFields = [
 	{ field: '$type', required: 'yes', note: 'Always org.prodid.feed.' },
-	{ field: 'version', required: 'yes', note: '0 while the specification is a draft.' },
+	{ field: 'version', required: 'yes', note: '1. A document with 0 is accepted by crawls that start before 2027-01-26 00:00 UTC and refused after, as a definite negative.' },
 	{ field: 'publisher.name', required: 'yes', note: 'The name a person should see next to your claims.' },
 	{
 		field: 'publisher.contact',
@@ -289,7 +289,7 @@ const checklist = [
 							lang="json"
 							label=".well-known/prodid.json"
 							badge="application/json"
-							caption="The example from spec/examples/prodid.json, rendered from the file itself."
+							caption="The example from spec/fixtures/v1/examples/prodid.json, rendered from the file itself."
 						/>
 						<div class="table-scroll" role="region" aria-label="Discovery document fields" tabindex="0">
 							<table class="data-table">
@@ -331,13 +331,13 @@ const checklist = [
 						lang="jsonl"
 						label="prodid/items.ndjson"
 						badge="application/x-ndjson"
-						caption="Three variants of one product, from spec/examples/items.ndjson. They share a group, so the index builds one family with three variants from them."
+						caption="Three variants of one product, from spec/fixtures/v1/examples/items.ndjson. They share a group, so the index builds one family with three variants from them."
 					/>
 					<p class="mt-6 max-w-3xl rounded-lg border border-line bg-surface p-5 text-[0.9375rem] leading-relaxed text-soft">
 						<strong class="font-medium text-ink">Feeds live on the same host as the document that lists them.</strong> A
 						discovery document naming a feed on another host is rejected whole, not in part — you lose the whole source,
 						not one feed, and it counts as a definite negative, so it starts the lapse clock below. Serving the JSON from
-						your site and the NDJSON from a separate CDN hostname is a normal thing to want and it is not supported in v0.
+						your site and the NDJSON from a separate CDN hostname is a normal thing to want and it is not supported in v1.
 						Put both on one host.
 					</p>
 					<p class="mt-8 max-w-3xl text-base leading-relaxed text-soft">The first of those lines, laid out to read:</p>
@@ -465,7 +465,7 @@ const checklist = [
 						lang="json"
 						label="acme.prodid.org/.well-known/prodid.json"
 						badge="application/json"
-						caption="From spec/examples/prodid.delegated.json. The only difference from route 1 is the domain field, and here it is mandatory."
+						caption="From spec/fixtures/v1/examples/prodid.delegated.json. The only difference from route 1 is the domain field, and here it is mandatory."
 					/>
 				</div>
 				<p class="text-[0.9375rem] leading-relaxed text-soft">
@@ -745,7 +745,7 @@ const checklist = [
 							class="mt-4"
 							code={examples.source}
 							lang="json"
-							label="spec/examples/source.json"
+							label="spec/fixtures/v1/examples/source.json"
 							badge="application/json"
 						/>
 					</li>
@@ -827,11 +827,11 @@ const checklist = [
 					The rules a record is validated against are in the{' '}
 					<a href="/spec" class="rounded-sm text-accent underline underline-offset-4">specification</a>, the schemas are
 					served at{' '}
-					<a href="/spec/schemas" class="rounded-sm font-mono text-[0.8125rem] text-accent underline underline-offset-4">
-						/spec/schemas</a
+					<a href="/spec/schemas/v1" class="rounded-sm font-mono text-[0.8125rem] text-accent underline underline-offset-4">
+						/spec/schemas/v1</a
 					>, and{' '}
-					<a href="/spec/fixtures" class="rounded-sm font-mono text-[0.8125rem] text-accent underline underline-offset-4">
-						/spec/fixtures</a
+					<a href="/spec/fixtures/v1" class="rounded-sm font-mono text-[0.8125rem] text-accent underline underline-offset-4">
+						/spec/fixtures/v1</a
 					>{' '}
 					holds machine-readable vectors you can run your exporter against before anyone crawls it.
 				</p>

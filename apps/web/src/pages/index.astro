@@ -112,7 +112,7 @@ const heading = 'mt-4 text-2xl font-semibold tracking-tight text-balance sm:text
 		<div>
 			<p class="inline-flex items-center gap-2 rounded-full border border-line bg-surface px-3 py-1.5 text-xs text-soft">
 				<span class="size-2 rounded-full bg-ok" aria-hidden="true"></span>
-				Spec v0 draft · live, no feed crawled yet
+				Spec v1 · live, no feed crawled yet
 			</p>
 			<h1 class="mt-6 text-[2.3rem] leading-[1.06] font-semibold tracking-tight sm:text-[3.4rem]">
 				A barcode is not a product. <span class="text-accent">prodid is.</span>
@@ -374,7 +374,7 @@ const heading = 'mt-4 text-2xl font-semibold tracking-tight text-balance sm:text
 			</summary>
 			<div class="grid gap-4 border-t border-line p-4 sm:p-5 [&>*]:min-w-0">
 				<CodeSample code={request} lang="http" label="Request and response headers" />
-				<CodeSample code={examples.entityItem} lang="json" label="spec/examples/entity.item.json" badge="application/json" scroll />
+				<CodeSample code={examples.entityItem} lang="json" label="spec/fixtures/v1/examples/entity.item.json" badge="application/json" scroll />
 			</div>
 		</details>
 	</section>
@@ -411,11 +411,12 @@ const heading = 'mt-4 text-2xl font-semibold tracking-tight text-balance sm:text
 			</div>
 			<ul class="divide-y divide-line">
 				<li class="grid gap-1 py-5 sm:grid-cols-[8rem_1fr] sm:gap-4">
-					<span class="text-sm font-medium text-warn">Draft</span>
+					<span class="text-sm font-medium text-ok">Stable</span>
 					<p class="text-[0.9375rem] leading-relaxed">
-						<strong class="font-semibold">Specification v0.</strong>{' '}
+						<strong class="font-semibold">Specification v1.</strong>{' '}
 						<span class="text-soft"
-							>The schemas and the resolver’s response may change until v1. <a
+							>It changes only by addition; anything else would be v2. A v0 discovery document is accepted until
+							2027-01-26 00:00 UTC. <a
 								href="/spec"
 								class="rounded-sm text-accent underline underline-offset-4">Read it</a
 							> and <a href={CONTACT.issues} class="rounded-sm text-accent underline underline-offset-4"

@@ -1,6 +1,7 @@
-export const DUMPS = 'https://dumps.prodid.org/v0/'
+export const DUMPS = 'https://dumps.prodid.org/v1/'
+export const V0_DUMPS = 'https://dumps.prodid.org/v0/'
 export const LATEST = `${DUMPS}latest.json`
-export const DUMP_SCHEMA = 'https://prodid.org/schemas/v0/org.prodid.dump.json'
+export const DUMP_SCHEMA = 'https://prodid.org/schemas/v1/org.prodid.dump.json'
 
 const FILE_NAMES = ['sources.ndjson.gz', 'entities.ndjson.gz', 'records.ndjson.gz', 'groupings.ndjson.gz', 'merges.ndjson.gz'] as const
 
@@ -45,8 +46,8 @@ export async function fetchLatestDump(): Promise<LatestDump> {
 	if (!response.ok) throw new DumpManifestError(`/data could not fetch ${LATEST}: HTTP ${response.status}`)
 	const body: unknown = await response.json()
 
-	if (!isObject(body) || body.$type !== 'org.prodid.dump' || body.version !== 0) {
-		throw new DumpManifestError(`${LATEST} is not a v0 org.prodid.dump manifest`)
+	if (!isObject(body) || body.$type !== 'org.prodid.dump' || body.version !== 1) {
+		throw new DumpManifestError(`${LATEST} is not a v1 org.prodid.dump manifest`)
 	}
 	const { snapshot_at: snapshotAt, created_at: createdAt, files, licenses } = body
 	if (!isTime(snapshotAt) || !isTime(createdAt)) throw new DumpManifestError(`${LATEST} has no valid snapshot_at and created_at`)

@@ -135,22 +135,22 @@
 		{
 			"anchor": "dataset-sources",
 			"pages": ["/data"],
-			"sha256": "18234aaa90ebd4c497d48a1a9556fc64f5ba5aba15c6d9f4910f6e4c638e24ba"
+			"sha256": "fdff68ea03b9c94e99abbdd129d5594df136a78e0c2b78ee42bf7e0f0597fb45"
 		},
 		{
 			"anchor": "dumps",
 			"pages": ["/data"],
-			"sha256": "d32c1bf998e065284a0b389f1a87ac0f3fa2b4299bf66a3fe600d62e8767528e"
+			"sha256": "7ed6d92cee772d00185c8355a0de27e4655262253033bcf40ee31d5d0b38ab2e"
 		},
 		{
 			"anchor": "files",
 			"pages": ["/data"],
-			"sha256": "de830edb5c44afa9ebfaa3b80ef186d878512d30c5a93d091fcdc13e9e2960ae"
+			"sha256": "28e5a00b0eddb17aa0cea7cbc20fca06fad3507c0c8ca7a2e4d3bae60f22f1f5"
 		},
 		{
 			"anchor": "what-a-dump-never-holds",
 			"pages": ["/data"],
-			"sha256": "41dbeed45e250c868339e2c0177ad002c564469e4aba1c948987183e20e3302e"
+			"sha256": "324839384978e970ce6c81d1abfe736cdb868b48f5371905f2b8bed1160c717b"
 		},
 		{
 			"anchor": "licences",
@@ -160,7 +160,7 @@
 		{
 			"anchor": "manifest",
 			"pages": ["/data"],
-			"sha256": "6b1bb56545df0d45b4d27d161e811c7e89753588ba2b8723b53c8785849e50a1"
+			"sha256": "5681ca2fc45ba78ad40307c5f1af072c2d3c496c347a0c24b4fc7a7d94136ce6"
 		},
 		{
 			"anchor": "retention",

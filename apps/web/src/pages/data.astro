@@ -2,7 +2,7 @@
 import CodeSample from '@/components/code-sample.astro'
 import PageHeader from '@/components/page-header.astro'
 import Layout from '@/layouts/base.astro'
-import { DUMP_SCHEMA, DUMPS, fetchLatestDump, formatBytes, formatUtc, LATEST, type DumpFileName } from '@/lib/dump'
+import { DUMP_SCHEMA, DUMPS, fetchLatestDump, formatBytes, formatUtc, LATEST, type DumpFileName, V0_DUMPS } from '@/lib/dump'
 
 const DESCRIPTION =
 	'Download the whole prodid index: a nightly dump of every source, entity, record, grouping and merge as gzip NDJSON, under CC0 for what the index makes and each source’s own licence for its claims.'
@@ -54,6 +54,7 @@ const never = [
 	'Why a media hash was blocked.',
 	'Media bytes. A media claim’s media_url addresses the file, and a blocked hash is not served.',
 	'The index’s internal row identifiers. Every line names a source by its name and an entity by its opid.',
+	'The grants of authority and their evidence. A source’s line says authoritative if it was at snapshot_at, but an index loaded from the dump holds no grant until its own operator makes one.',
 ]
 
 const layout = `${DUMPS}<YYYY-MM-DD>/manifest.json
@@ -142,7 +143,9 @@ const link = 'rounded-sm text-accent underline underline-offset-4'
 			<div class="max-w-3xl">
 				<h2 id="layout" class="text-2xl font-semibold tracking-tight">Where dumps are kept</h2>
 				<p class="mt-5 text-base leading-relaxed text-soft sm:text-lg">
-					A dump is a directory named after the UTC date of its snapshot. It holds five data files and a manifest.
+					A dump is a directory named after the UTC date of its snapshot, under the version it is written in.{' '}
+					<code class="chip">v1/</code> holds v1 dumps, whose manifest and whose source and entity lines are v1 documents.
+					It holds five data files and a manifest.
 				</p>
 			</div>
 			<CodeSample class="mt-8 max-w-3xl" code={layout} lang="plaintext" label="dumps.prodid.org" />
@@ -159,11 +162,17 @@ const link = 'rounded-sm text-accent underline underline-offset-4'
 					stay byte for byte as they were.
 				</p>
 				<p class="rounded-lg border border-line bg-surface p-5 text-[0.9375rem] leading-relaxed text-soft">
+					<strong class="font-medium text-ink">v0 dumps.</strong> The v0 dumps written before v1 stay under{' '}
+					<code class="chip break-all">{V0_DUMPS}</code>, under the same
+					retention, and <a href={`${V0_DUMPS}latest.json`} class:list={[link, 'font-mono text-[0.8125rem]']}>v0/latest.json</a>{' '}
+					keeps naming the last of them. They validate against the v0 schemas for good.
+				</p>
+				<p class="rounded-lg border border-line bg-surface p-5 text-[0.9375rem] leading-relaxed text-soft">
 					<strong class="font-medium text-ink">The manifest.</strong> It names each of the five files exactly once, with
 					the SHA-256 and the size of the file as served, compressed, and its number of lines once decompressed. Check each
 					file against its digest before you load it. The schema is{' '}
 					<a href={DUMP_SCHEMA} class:list={[link, 'font-mono text-[0.8125rem] break-all']}>{DUMP_SCHEMA}</a>, with
-					vectors in <a href="/spec/fixtures/dump" class:list={[link, 'font-mono text-[0.8125rem]']}>/spec/fixtures/dump</a>.
+					vectors in <a href="/spec/fixtures/v1/dump" class:list={[link, 'font-mono text-[0.8125rem]']}>/spec/fixtures/v1/dump</a>.
 				</p>
 			</div>
 		</div>
@@ -330,7 +339,7 @@ const link = 'rounded-sm text-accent underline underline-offset-4'
 			<div class="max-w-3xl">
 				<h2 id="load" class="text-2xl font-semibold tracking-tight">Load it into your own index</h2>
 				<p class="mt-5 text-base leading-relaxed text-soft sm:text-lg">
-					<code class="chip">prodid-batch load-dump</code> loads a dump into an empty PostgreSQL 18 database migrated to the
+					<code class="chip">prodid-batch load-dump</code> loads a v0 or v1 dump into an empty PostgreSQL 18 database migrated to the
 					same version, in one transaction. It takes a dump’s dated directory, its <code class="chip">manifest.json</code>,
 					or a <code class="chip">latest.json</code>, local or over HTTPS.
 				</p>
