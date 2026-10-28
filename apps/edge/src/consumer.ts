@@ -5,7 +5,7 @@ import { type CrawlStep, runDiscover, runFeedStep, runFinalize } from './crawl/r
 import { POLICY } from './limits/policy'
 import { runMediaStep } from './media/ingest'
 import { claimDueSources } from './schedule'
-import type { CrawlMessage, MediaDeadLetter, MediaMessage, Services } from './services'
+import type { CrawlDeadLetter, CrawlMessage, MediaDeadLetter, MediaMessage, Services } from './services'
 
 /** A limiter that cannot be reached is the crawler's own limit saying no, not the publisher failing. */
 export class LimiterUnavailable extends Error {}
@@ -109,16 +109,23 @@ export async function consumeMedia(services: Services, message: MediaMessage): P
 	for (const _target of message.targets) await countMediaFailure(services.sql, message.crawl)
 }
 
-/** The dead letter queue's consumer: a structured line an operator can find and re-drive by hand. */
-export function consumeDeadLetter(letter: { reason: string; message: CrawlMessage }): void {
+/**
+ * `prodid-crawl-dlq` holds two shapes: a letter the consumer sent with its reason, and a bare message
+ * the queue moved there after its retries ran out. Either is one structured line an operator can
+ * find and re-drive by hand.
+ */
+export function consumeDeadLetter(body: CrawlDeadLetter | CrawlMessage): void {
+	const letter: CrawlDeadLetter = 'reason' in body ? body : { reason: 'failed on every retry of prodid-crawl', message: body }
+	const message = letter.message
+	const plan = message?.kind === 'discover' ? undefined : message?.plan
 	console.warn(
 		JSON.stringify({
 			event: 'crawl.dead-letter',
 			reason: letter.reason,
-			domain: letter.message.kind === 'discover' ? letter.message.domain : letter.message.plan.domain,
-			step: letter.message.kind,
-			crawl: letter.message.kind === 'discover' ? null : letter.message.plan.crawl,
-			deferrals: letter.message.deferrals ?? 0,
+			domain: (message?.kind === 'discover' ? message.domain : plan?.domain) ?? null,
+			step: message?.kind ?? null,
+			crawl: plan?.crawl ?? null,
+			deferrals: message?.deferrals ?? 0,
 		}),
 	)
 }

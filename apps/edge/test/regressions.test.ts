@@ -1,10 +1,10 @@
-import { afterAll, beforeEach, describe, expect, test } from 'bun:test'
+import { afterAll, beforeEach, describe, expect, spyOn, test } from 'bun:test'
 
 import type { EntityRecord } from '@prodid/core'
 import { claimDueSources, ingestRecord, lapseSweep, prepareRecord, QUEUE_LEASE_MS } from '@prodid/store'
 import { databaseReachable } from '@prodid/store/testing'
 
-import { consumeCrawl } from '../src/consumer'
+import { consumeCrawl, consumeDeadLetter } from '../src/consumer'
 import { runFinalize } from '../src/crawl/run'
 import { POLICY } from '../src/limits/policy'
 import { claimDueSources as enqueueDue } from '../src/schedule'
@@ -345,5 +345,50 @@ describe.skipIf(!reachable)('queues deliver at least once', () => {
 		`
 		expect(rows[0]?.records_seen).toBe(2)
 		expect(rows[0]?.records_changed).toBe(2)
+	})
+})
+
+describe('crawl dead letters', () => {
+	const plan: CrawlPlan = {
+		domain: 'acme.example',
+		source: '1',
+		crawl: '7',
+		host: 'acme.example',
+		via: 'well-known',
+		documentUrl: 'https://acme.example/.well-known/prodid.json',
+		status: 200,
+		feeds: [FEED],
+		zone: 'acme.example',
+		upgrade: null,
+		startedAt: '2026-09-19T08:00:00.000Z',
+	}
+
+	function logged(body: Parameters<typeof consumeDeadLetter>[0]): Record<string, unknown>[] {
+		const warn = spyOn(console, 'warn').mockImplementation(() => {})
+		try {
+			consumeDeadLetter(body)
+			return warn.mock.calls.map((call) => JSON.parse(String(call[0])) as Record<string, unknown>)
+		} finally {
+			warn.mockRestore()
+		}
+	}
+
+	test('a letter the consumer sent is logged with its reason', () => {
+		const reason = "held back by the crawler's own limits 13 times"
+		expect(logged({ reason, message: { kind: 'feed', plan, at: 0, deferrals: 13 } })).toEqual([
+			{ event: 'crawl.dead-letter', reason, domain: 'acme.example', step: 'feed', crawl: '7', deferrals: 13 },
+		])
+	})
+
+	test('a bare message the queue moved there after its retries is logged, not thrown away', () => {
+		const discover = logged({ kind: 'discover', domain: 'acme.example' })
+		expect(discover).toHaveLength(1)
+		expect(discover[0]).toMatchObject({ event: 'crawl.dead-letter', domain: 'acme.example', step: 'discover', crawl: null, deferrals: 0 })
+		expect(discover[0]?.reason).toContain('retry')
+
+		const finalize = logged({ kind: 'finalize', plan, deferrals: 2 })
+		expect(finalize).toEqual([
+			{ event: 'crawl.dead-letter', reason: discover[0]?.reason, domain: 'acme.example', step: 'finalize', crawl: '7', deferrals: 2 },
+		])
 	})
 })

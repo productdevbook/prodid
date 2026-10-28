@@ -1,12 +1,12 @@
 import { createApp } from './app'
 import { consumeCrawl, consumeDeadLetter, consumeMedia, consumeMediaDeadLetter, runScheduled } from './consumer'
-import { type CrawlMessage, type MediaDeadLetter, type MediaMessage, productionServices } from './services'
+import { type CrawlDeadLetter, type CrawlMessage, type MediaDeadLetter, type MediaMessage, productionServices } from './services'
 
 export { RateLimiter } from './limits/durable'
 
 const app = createApp(productionServices)
 
-type QueueBody = CrawlMessage | MediaMessage | MediaDeadLetter | { reason: string; message: CrawlMessage }
+type QueueBody = CrawlMessage | MediaMessage | MediaDeadLetter | CrawlDeadLetter
 
 export default {
 	fetch: app.fetch,
@@ -42,7 +42,7 @@ function dispatch(services: ReturnType<typeof productionServices>, queue: string
 	if (queue === 'prodid-media-ingest') return consumeMedia(services, body as MediaMessage)
 	if (queue === 'prodid-media-dlq') return consumeMediaDeadLetter(body as MediaDeadLetter | MediaMessage)
 	if (queue === 'prodid-crawl-dlq') {
-		consumeDeadLetter(body as { reason: string; message: CrawlMessage })
+		consumeDeadLetter(body as CrawlDeadLetter | CrawlMessage)
 		return Promise.resolve()
 	}
 	return consumeCrawl(services, body as CrawlMessage).then(() => undefined)

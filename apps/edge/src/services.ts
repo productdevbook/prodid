@@ -64,6 +64,11 @@ export interface MediaProducer {
 	send(message: MediaMessage, options?: { delaySeconds?: number }): Promise<void>
 }
 
+export interface CrawlDeadLetter {
+	reason: string
+	message: CrawlMessage
+}
+
 /** Where a crawl goes when it has been held back so long that an operator should see it. */
 export interface DeadLetters {
 	send(message: CrawlMessage, reason: string): Promise<void>
@@ -169,7 +174,7 @@ function mediaProducer(queue: Queue<MediaMessage>): MediaProducer {
 	}
 }
 
-function deadLetters(queue: Queue<{ reason: string; message: CrawlMessage }>): DeadLetters {
+function deadLetters(queue: Queue<CrawlDeadLetter>): DeadLetters {
 	return {
 		async send(message, reason) {
 			await queue.send({ reason, message })
