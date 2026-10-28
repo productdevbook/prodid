@@ -222,3 +222,9 @@ created with the milestones and issues; the default labels stay.
   README would drift from it. `validate.ts` and `v1-from-v0.md` stay out. `exports` opens
   `examples/*` and `fixtures/*` beside `schemas/*.json`. The package stays private at 0.0.0 until
   P-089.
+- The spec's *Conformance* gains *Writing a conformance runner* (P-088): schema choice by `$type`
+  and directory version, `format` asserted, the six rule keywords with their instance paths, the
+  `expected.json` match (path, keyword, the named `params`; other problems allowed) with the Ajv
+  naming mapped for other validators, and the NDJSON, Merchant, Wikidata, TXT, GTIN, brand and v0
+  vectors. The Wikidata vectors are run by `packages/core/test/wikidata.test.ts`, not by
+  `validate.ts`.

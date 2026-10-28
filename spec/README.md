@@ -765,6 +765,7 @@ A daily dump is kept for 7 days. The first dump of each UTC month is kept for go
 | [`fixtures/brand/`](fixtures/brand) | brand normalization |
 | [`fixtures/ndjson/`](fixtures/ndjson) | a feed and the line numbers that must be skipped |
 | [`fixtures/merchant/`](fixtures/merchant) | a Merchant file and the records it must produce |
+| [`fixtures/datasets/wikidata/`](fixtures/datasets/wikidata) | Wikidata entities and what a `dataset:wikidata` import makes of each |
 
 The TXT, GTIN, brand, NDJSON and Merchant vectors hold for v0 and v1 alike, because v1 changed none of those rules; the harness runs the NDJSON and Merchant sets under the item schemas of both versions. v0 is kept beside v1, unchanged: its schemas are the files directly in [`schemas/`](schemas), its examples are [`examples/`](examples), and its vectors are [`fixtures/valid/`](fixtures/valid), [`fixtures/invalid/`](fixtures/invalid) and [`fixtures/dump/`](fixtures/dump), which a reader of v0 documents, a kept v0 dump among them, still checks against.
 
@@ -775,6 +776,66 @@ A TXT vector is `{ "value": [...], "outcome": "delegation" | "ignored" | "malfor
 Two independent implementations — the one in `validate.ts` and the crawler's — agreeing on these vectors is the point of all of them.
 
 The Merchant fixture is derived, not asserted by hand: `bun run validate.ts --emit-merchant` rewrites the expected NDJSON from the reference mapping in the harness, and the check fails whenever the file on disk says something the mapping does not.
+
+### Writing a conformance runner
+
+The vectors are data, so an implementation in any language can run them without `validate.ts`. It needs a JSON parser, a JSON Schema 2020-12 validator and the rules of this text; every vector is a file under `schemas/`, `examples/` or `fixtures/`, and nothing else in this directory is needed. Each schema's `$id` is `https://prodid.org/schemas/v<N>/<file name>`, and the harness fails when one is not, so a runner may load them by `$id`. Each paragraph below is one vector format and what passing it means, exactly as the harness decides it.
+
+**Documents and records.** A file in `fixtures/v1/examples/`, `fixtures/v1/valid/`, `fixtures/v1/invalid/`, `fixtures/v1/dump/valid/` or `fixtures/v1/dump/invalid/` is one JSON document, except `fixtures/v1/examples/items.ndjson`, a feed whose every line is a record. To check one:
+
+1. Parse it. A string escape for a lone surrogate, `"\ud800"`, must come through as that code unit, not as U+FFFD and not as a parse error: the `storable` rule below has to see it.
+2. Pick the schema by the document's `$type`, from the version of the directory the file is in — `schemas/v1/` for everything under `fixtures/v1/` — and never from the document's own `version`, which several invalid fixtures get wrong on purpose. A document with no `$type`, or with one that version has no schema for, fails, in whichever directory it is.
+3. Validate it against that schema, collecting every error rather than stopping at the first, and with `format` asserted rather than only annotated: the schemas use `date-time` (RFC 3339, with an offset), `uri` (absolute, RFC 3986) and `email`.
+4. Apply the rules the schemas cannot state, whatever the schema reported. Each yields a problem with an instance path and a keyword, and no parameters:
+
+| keyword | `$type` | the problem is at | when |
+| --- | --- | --- | --- |
+| `storable` | every one | the string; for a member name, the object that has the member | a string value or a member name, at any depth, contains U+0000 or is not well-formed Unicode |
+| `gtin` | `org.prodid.item` | `/identifiers/<i>/value` | an identifier whose `scheme` is `gtin` has a string `value` that [Which GTINs are identifiers](#which-gtins-are-identifiers) classifies as no GTIN at all |
+| `identifiable` | `org.prodid.item` | `/identifiers` | `identifiers` is a non-empty array and no entry in it has a string `value` that is not blank, an `mpn` counting only when the record's `brand` is a string that [normalizes](#brand-normalization) to something non-empty; whether a `gtin` is valid is the `gtin` rule's business, not this one's |
+| `self-reference` | `org.prodid.entity` | `/parents/<key>`, `/children/<i>` or `/merged_from/<i>` | the value is the document's own `opid` |
+| `order` | `org.prodid.entity` | `/claims/<i>/withdrawn_at` | a claim's `withdrawn_at` is before its `seen_at`, both strings; the harness compares the strings, which for the vectors' UTC times written with `Z` is time order |
+| `order` | `org.prodid.dump` | `/snapshot_at` | `snapshot_at` is a later instant than `created_at` |
+| `digest` | `org.prodid.entity` | `/claims/<i>/value/media_url` | a claim whose `property` is `media` has a value with a string `sha256` and a string `media_url`, and `media_url` does not end in `/` followed by that `sha256` |
+
+A document is valid when neither the schema nor any rule reports a problem. Every example and every file in a `valid/` directory must be valid; in `items.ndjson` every line must be a valid record, and the only empty line allowed is the one after the final newline.
+
+**`expected.json`.** [`fixtures/v1/expected.json`](fixtures/v1/expected.json) covers `fixtures/v1/invalid/`, and [`fixtures/v1/dump/expected.json`](fixtures/v1/dump/expected.json) covers `fixtures/v1/dump/invalid/`. Each is one JSON object; every member name is the name of a file in that `invalid/` directory, and every value names one defect:
+
+```json
+{ "instancePath": "/claims/0", "keyword": "required", "params": { "missingProperty": "source" } }
+```
+
+An invalid fixture passes when it parses, its `$type` has a schema in its version, it yields at least one problem, and at least one of its problems has exactly that `instancePath`, exactly that `keyword`, and, for each member of `params` when there is one, a parameter of the same name with an equal value; parameters `params` does not name are not compared. Other problems may come with the expected one, but a fixture rejected only for other reasons fails. A fixture with no entry fails, and so does an entry with no fixture.
+
+`instancePath` is a JSON Pointer (RFC 6901) to the value the problem is about, `""` for the document itself, with `~` and `/` in member names written `~0` and `~1`. A schema problem is named as the harness's validator, Ajv, names it; any other validator's output maps onto it like this:
+
+- `keyword` is the name of the schema keyword that failed, spelled as JSON Schema spells it; the vectors use `required`, `additionalProperties`, `type`, `enum`, `const`, `pattern`, `format`, `minimum`, `minItems`, `maxItems`, `contains`, `oneOf` and `not`;
+- a value that meets a boolean `false` schema — a member a conditional forbids, as `{ "properties": { "parents": false } }` does — is the keyword `false schema`, at that value;
+- `required` is at the object that lacks the member, with `params.missingProperty` its name, and `additionalProperties` is at the object that has the extra member, not at the member;
+- every other keyword is at the value it applies to: `oneOf` at the value that matched no branch or more than one, `contains`, `minItems` and `maxItems` at the array.
+
+**NDJSON.** [`fixtures/ndjson/expected.json`](fixtures/ndjson/expected.json) names each `.ndjson` file beside it with the line numbers, counted from 1 and ascending, that a reader must skip. Split the file on LF. A line that is empty or only whitespace is not a record and is not skipped; every other line is skipped when it is not JSON, or when it is not a valid `org.prodid.item` by the rules for documents above. The skipped lines must equal the expected list exactly, under the v1 item schema and under the v0 one alike.
+
+**Merchant.** [`fixtures/merchant/expected.json`](fixtures/merchant/expected.json) names each `.csv` file beside it with `ndjson`, the file of records it must produce; `declared`, the `lang`, `markets` and `license` the import declares for the whole file; and `skipped_rows`. The CSV has a header row, separates cells with commas, quotes a cell with `"` and writes a quote inside one as `""`, and has no line break inside a cell. To check it: the declared `license` must be one of the [licences that can be ingested](#licences-that-can-be-ingested); map every row after the header as the [appendix](#appendix-importing-a-merchant-feed) says, check each result as an `org.prodid.item` by the rules for documents above, and keep the valid ones in row order. The rows whose record is invalid, numbered with the header as row 1, must equal `skipped_rows`; there must be as many kept records as the NDJSON file has lines, each equal to its line; and every line of that file must itself be a valid record. All of it holds under the v1 item schema and under the v0 one. The harness compares each line as text, because it wrote the file with its own serializer; a runner in another language compares each line as a JSON value — the same members with equal values, arrays in order — since member order is a serializer's choice.
+
+**Wikidata.** [`fixtures/datasets/wikidata/entities.json`](fixtures/datasets/wikidata/entities.json) is a JSON array of entities as a Wikidata JSON dump writes them, and [`expected.json`](fixtures/datasets/wikidata/expected.json) names every entity's `id` with what an import into the [dataset source](#dataset-sources) `dataset:wikidata` makes of it: `{ "ok": true, "record": { … }, "dropped": [ … ] }`, or `{ "ok": false, "skip": "<reason>" }`. This is one importer's mapping rather than a rule of the protocol, and an implementation that does not import Wikidata has no need to run it. A brand's English label is read off the brand's own entity in the same file, its `labels.en.value` trimmed; a brand whose entity is not in the file has none. Each entity is then mapped in this order, and the first step that fails is its `skip`:
+
+1. It is an item: `type` is `item` and `id` matches `^Q[1-9][0-9]*$`. Otherwise `not-an-item`.
+2. Its GTINs are the string values of its `P3962` statements at best rank: the `preferred` statements when there are any, else the `normal` ones, never the `deprecated`; a statement whose `mainsnak.snaktype` is not `value` carries none. Each value that, trimmed, is a GTIN — digits, of length 8, 12, 13 or 14, not all zeros, with a correct check digit; a restricted number is kept — becomes `{ "scheme": "gtin", "value": <the trimmed value> }`, once per normalized 14-digit form, in statement order. Each one that is not adds `P3962: <the value as written> (<problem>)` to `dropped`, the problem being `format`, `all-zero` or `check-digit`, tested in that order. No GTIN left: `no-gtin`.
+3. Its brands are the `id`s, matching `^Q[1-9][0-9]*$`, of its `P1716` statement values at best rank, each once, in statement order. The first with a non-blank English label becomes `brand`; every other one adds `P1716: <id>` to `dropped`. None with a label: `no-brand`.
+4. Its own English label, trimmed, is `name`. None, or blank: `no-label`.
+5. `{ "$type": "org.prodid.item", "key": <id>, "brand": …, "name": …, "lang": "en", "identifiers": [ … ] }`, with those members only, is checked as an `org.prodid.item`. Invalid: `invalid`.
+
+A mapped entity passes when `record` equals what it maps to, as a JSON value, and `dropped` equals its list in order; a skipped one passes when its reason equals `skip`. The `id`s in the file and the names in `expected.json` must be the same set. These vectors are run by the reference implementation's own tests rather than by `validate.ts`.
+
+**TXT, GTIN and brand.** Each file is one JSON object with exactly the members below and no other; a vector with any other member is itself broken.
+
+- [`fixtures/txt/`](fixtures/txt): `value`, `outcome` and, exactly when `outcome` is `delegation`, `host`, as described above. Every string in `value` is at most 255 bytes, and `host` is a hostname by the discovery document's `domain` rule. Join the strings in order with nothing between them, read the result as [The `_prodid` TXT record](#the-_prodid-txt-record) says, and compare the outcome and, for a delegation, the normalized host.
+- [`fixtures/gtin/`](fixtures/gtin): `value` and `verdict`. Classifying `value` as [Which GTINs are identifiers](#which-gtins-are-identifiers) says gives `verdict`: `gtin`, `rcn` for a restricted number, or `invalid`.
+- [`fixtures/brand/`](fixtures/brand): `input` and `normalized`. [Normalizing](#brand-normalization) `input` gives `normalized`, and normalizing `normalized` gives it back unchanged.
+
+**v0.** The v0 vectors run exactly as the v1 ones do, against the v0 schemas, the files directly in `schemas/`: [`examples/`](examples), [`fixtures/valid/`](fixtures/valid), [`fixtures/invalid/`](fixtures/invalid) with [`fixtures/expected.json`](fixtures/expected.json), and [`fixtures/dump/valid/`](fixtures/dump/valid) and [`fixtures/dump/invalid/`](fixtures/dump/invalid) with [`fixtures/dump/expected.json`](fixtures/dump/expected.json). The rules, the keywords and the meaning of `expected.json` are the same. An implementation runs them when it reads v0 documents: a v0 discovery document before the cut-off in [Versions](#versions), or a kept v0 dump.
 
 ## Appendix: importing a Merchant feed
 
