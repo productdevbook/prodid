@@ -6,3 +6,4 @@ target/
 dist/
 .DS_Store
 .install.lock
+.claude/worktrees/
