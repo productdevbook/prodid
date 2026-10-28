@@ -43,6 +43,12 @@ can run without it.
   connecting over Access: `bunx wrangler hyperdrive create` with `--access-client-id` and
   `--access-client-secret` instead of `--connection-string`. `localConnectionString` in the same
   entry is the dev Postgres of `db/compose.yaml`, used by `wrangler dev`.
+- **Dumps.** `prodid-batch dump` (`apps/batch`) runs nightly at 04:30 UTC next to Postgres, with
+  a direct `DATABASE_URL` and `R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` and
+  `R2_DUMPS_BUCKET=prodid-dumps`: an R2 API token with Object Read & Write on that bucket only. It
+  only reads the index, writes `v0/<YYYY-MM-DD>/` and `v0/latest.json`, and applies the retention
+  itself (7 days, and the first dump of each month for good), so the bucket has no lifecycle rule.
+  prodid.org schedules it as a Kubernetes CronJob beside the database.
 - **Backups** are the operator's. Test them by restoring: bootstrap a throwaway database from the
   backups, compare `count(*)` of every table and `schema_migrations` with production, delete it.
 
@@ -107,6 +113,8 @@ Once per account, in `apps/edge` (Wrangler is a dev dependency of each Worker):
 ```sh
 bunx wrangler r2 bucket create prodid-media
 bunx wrangler r2 bucket create prodid-hosted
+bunx wrangler r2 bucket create prodid-dumps
+bunx wrangler r2 bucket domain add prodid-dumps --domain dumps.prodid.org --zone-id <zone id>
 bunx wrangler queues create prodid-crawl
 bunx wrangler queues create prodid-crawl-dlq
 bunx wrangler queues create prodid-media-ingest
@@ -143,7 +151,9 @@ The table of `ARCHITECTURE.md` (*Routing on prodid.org*):
 | `prodid.org/id/*`, `prodid.org/01/*`, `prodid.org/source/*`, `prodid.org/ping`, `prodid.org/schemas/*` | edge |
 | `*.prodid.org/*` | hosted, a Worker of its own |
 | `media.prodid.org/*` | edge, in front of the `prodid-media` bucket; the bucket has no public domain of its own, or the takedown list could be walked around |
+| `dumps.prodid.org/*` | no Worker: the `prodid-dumps` bucket's public custom domain. The route has no script, so `*.prodid.org/*` does not catch it |
 | everything else on `prodid.org` | web, a static site on Workers Static Assets |
 
 The more specific routes win, so `media.prodid.org/*` reaches edge although `*.prodid.org/*`
-also matches it, and `publish.prodid.org` reaches hosted's operator endpoint.
+also matches it, `dumps.prodid.org` reaches its bucket, and `publish.prodid.org` reaches hosted's
+operator endpoint.
