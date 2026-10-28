@@ -149,6 +149,7 @@ export async function runDiscover(services: Services, domain: string): Promise<C
 		upgrade: upgrade === null ? null : upgrade.id,
 		startedAt: startedAt.toISOString(),
 	}
+	if (discovery.document !== null) plan.contact = discovery.document.publisher.contact ?? null
 	// Retiring a feed withdraws records, which is a change this crawl made.
 	await services.queue.send(nextStep(plan, 0, retired > 0))
 	return { kind: 'continued' }
@@ -247,6 +248,7 @@ export async function runFinalize(services: Services, plan: CrawlPlan, touched =
 		source: plan.source,
 		outcome,
 		httpStatus: statusFor(outcome, plan.status),
+		contact: plan.contact,
 		finishedAt: services.now(),
 	})
 

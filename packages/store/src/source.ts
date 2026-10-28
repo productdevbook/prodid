@@ -92,6 +92,8 @@ export interface FinishCrawlInput {
 	documentUrl?: string | null
 	httpStatus?: number | null
 	error?: string | null
+	/** The accepted document's `publisher.contact`, kept only when the crawl succeeds; absent when the document answered 304. */
+	contact?: string | null | undefined
 	finishedAt: Date
 }
 
@@ -216,7 +218,9 @@ export function finishCrawl(sql: Sql, input: FinishCrawlInput): Promise<void> {
 		switch (classifyOutcome(input.outcome)) {
 			case 'success':
 				await tx`
-					update source set last_crawled_at = ${at}, queued_at = null, failing_since = null, lapsed_at = null
+					update source set
+						last_crawled_at = ${at}, queued_at = null, failing_since = null, lapsed_at = null,
+						contact = case when ${input.contact !== undefined} then ${input.contact ?? null} else contact end
 					where id = ${input.source}
 				`
 				return

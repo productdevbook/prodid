@@ -25,6 +25,8 @@ export interface CrawlPlan {
 	/** The hosted source this crawl moves to the domain once it succeeds. */
 	upgrade: string | null
 	startedAt: string
+	/** The document's `publisher.contact`; absent when it answered 304, so the kept one stands. */
+	contact?: string | null
 }
 
 export type CrawlMessage =

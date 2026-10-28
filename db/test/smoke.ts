@@ -945,8 +945,34 @@ async function merges(sql: Sql): Promise<void> {
 	await accepts('a new merge from the same opid is accepted after the revert', () => merged(sql, a, d, 'new decision'))
 }
 
+async function contacts(sql: Sql, source: string): Promise<void> {
+	const columns = await sql<{ column_name: string; data_type: string; is_nullable: string }[]>`
+    select column_name, data_type, is_nullable from information_schema.columns
+    where table_schema = current_schema() and table_name = 'source' and column_name in ('contact', 'notified_lapse_at')
+    order by column_name
+  `
+	equals(
+		'source.contact is nullable text and source.notified_lapse_at a nullable timestamptz',
+		JSON.stringify(columns.map((column) => [column.column_name, column.data_type, column.is_nullable])),
+		JSON.stringify([
+			['contact', 'text', 'YES'],
+			['notified_lapse_at', 'timestamp with time zone', 'YES'],
+		]),
+	)
+
+	const [fresh] = await sql<{ contact: string | null; notified_lapse_at: Date | null }[]>`
+    select contact, notified_lapse_at from source where id = ${source}
+  `
+	equals('a new source has no contact', fresh?.contact, null)
+	equals('a new source has never been notified', fresh?.notified_lapse_at, null)
+
+	await accepts('a source keeps a contact', () => sql`update source set contact = 'data@acme.example' where id = ${source}`)
+	await accepts('a source keeps no contact', () => sql`update source set contact = null where id = ${source}`)
+}
+
 async function run(sql: Sql): Promise<void> {
 	const source = await sources(sql)
+	await contacts(sql, source)
 	await feeds(sql, source)
 	const proof = await crawls(sql, source)
 	await verification(sql, source, proof)
