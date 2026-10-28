@@ -25,8 +25,9 @@ errors and the media. Normative text: spec *Reading*, *Media › Serving*.
   resolver routes do not answer on `MEDIA_HOST`; anything else is `not-found`. One origin for
   active-content-free bytes, one for documents.
 - **[New]** JSON answers of `/id`, `/01`, `/source` and `/schemas` carry
-  `Access-Control-Allow-Origin: *`, so a web page can read the open record directly. The spec's
-  *The resolver* says so. Media already does.
+  `Access-Control-Allow-Origin: *`, so a web page can read the open record directly: problems,
+  the `304`s and the merged-opid `308` included, HTML answers not. The spec's *The resolver* says
+  so. Media already does.
 - **[New]** `/schemas/v0/org.prodid.dump.json` once chapter 04's dump schema exists.
 
 ## HTML pages

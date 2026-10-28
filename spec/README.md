@@ -434,6 +434,8 @@ A reader fetches `media_url`, which is immutable and always answers the same byt
 
 All three answer `application/json` when the request accepts it and an HTML page otherwise.
 
+The record is open, so a web page on any origin may read it directly. Every JSON answer of `/id`, `/01`, `/source` and `/schemas/v0/` — an entity, a status, a schema, a [problem](#errors), the `304` that revalidates one of them and the `308` a merged `opid` answers — carries `Access-Control-Allow-Origin: *`. HTML answers do not carry it.
+
 `/01/{gtin}` accepts GTIN-8, -12, -13 and -14 and answers the item itself rather than redirecting, so a QR scan costs one round trip; the `Content-Location` header gives the canonical `opid` URL. v0 resolves on the GTIN alone; further GS1 Digital Link path segments such as `/10/{lot}` and `/21/{serial}` are accepted and ignored.
 
 An `opid` that was merged into another answers `308 Permanent Redirect` to `/id/{survivor}`, and the survivor lists it in `merged_from`. Merges are reversible, which is why the redirect is per-request and the losing `opid` keeps resolving forever.
