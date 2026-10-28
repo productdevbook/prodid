@@ -6,6 +6,7 @@ import type { MerchantDeclaration } from '@prodid/core'
 import { DumpError } from '@prodid/store'
 
 import { checkDocument, checkFeed, type CheckResult, formatProblem } from './check'
+import { ImportError, parseDataset, runImport } from './dataset'
 import { bucketEnv, bucketTarget, directoryTarget, DumpCommandError, dumpDatabaseEnv, runDump } from './dump'
 import { LoadDumpError, runLoadDump } from './load'
 import { convertMerchant, type MerchantConversion } from './merchant'
@@ -81,8 +82,19 @@ const USAGE = `prodid-batch <command>
       temporary directory first. A database that is not empty is refused. PRODID_OPERATOR is
       recorded as the decider of the loaded merges. Needs DATABASE_URL and PRODID_OPERATOR.
 
-block-media, merge, unmerge, candidates, dump and load-dump print the database host first;
-block-media, merge, unmerge and load-dump write to it directly.
+  import wikidata <file|url> [--document-url URL]
+      Import a Wikidata JSON dump (plain, gzip or bzip2; e.g.
+      https://dumps.wikimedia.org/wikidatawiki/entities/latest-all.json.gz) as the CC0 source
+      dataset:wikidata. Items with a GTIN (P3962), a brand (P1716) with an English label and an
+      English label of their own become records; the rest are skipped and counted by reason. A URL is
+      downloaded to a temporary file first; the dump is streamed twice, never held in memory. A full
+      import: records of earlier imports it did not see are withdrawn. Prints progress, then records
+      written, skipped by reason, withdrawn, and elapsed time. --document-url is the export's public
+      URL recorded on the import, by default the URL read from, or for a file the latest-all.json.gz
+      URL above. Needs DATABASE_URL.
+
+block-media, merge, unmerge, candidates, dump, load-dump and import print the database host first;
+block-media, merge, unmerge, load-dump and import write to it directly.
 
 site, feed, publish, assign, verify, show, remove-feed and remove-site call the operator endpoint,
 PRODID_OPERATOR_URL (default https://publish.prodid.org), authenticated with PRODID_OPERATOR_TOKEN.`
@@ -98,6 +110,7 @@ const OPTIONS = {
 	name: { type: 'string' },
 	reason: { type: 'string' },
 	limit: { type: 'string' },
+	'document-url': { type: 'string' },
 	help: { type: 'boolean', short: 'h' },
 } as const
 
@@ -202,6 +215,13 @@ async function main(argv: string[]): Promise<void> {
 			await runLoadDump(mergeEnv(process.env), location)
 			return
 		}
+		case 'import': {
+			const dataset = parseDataset(need(rest[0], 'dataset'))
+			const location = need(rest[1], 'file|url')
+			const documentUrl = values['document-url']
+			await runImport(databaseEnv(process.env), dataset, location, documentUrl === undefined ? {} : { documentUrl })
+			return
+		}
 		default:
 			throw new UsageError(`unknown command ${command}`)
 	}
@@ -265,6 +285,7 @@ main(process.argv.slice(2)).catch((error: unknown) => {
 		error instanceof MergeError ||
 		error instanceof DumpCommandError ||
 		error instanceof LoadDumpError ||
+		error instanceof ImportError ||
 		error instanceof DumpError
 	)
 		console.error(error.message)
