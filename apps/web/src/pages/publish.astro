@@ -2,7 +2,7 @@
 import CodeSample from '@/components/code-sample.astro'
 import PageHeader from '@/components/page-header.astro'
 import Layout from '@/layouts/base.astro'
-import { examples, SPEC_STATUS } from '@/lib/spec'
+import { CONTACT, examples, SPEC_STATUS } from '@/lib/spec'
 
 const DESCRIPTION =
 	'How a manufacturer or a software vendor publishes product data to prodid: the discovery document, the NDJSON feed, the one DNS TXT record that holds the identity, and the ping.'
@@ -228,7 +228,7 @@ const checklist = [
 								<p class="font-mono text-xs text-soft">Route {route.n}</p>
 								{!route.ready && (
 									<span class="rounded-full border border-rule px-2 py-0.5 text-[0.65rem] font-semibold tracking-wider text-soft uppercase">
-										Not available yet
+										Operator-assisted
 									</span>
 								)}
 							</div>
@@ -254,7 +254,9 @@ const checklist = [
 			</ol>
 			<p class="mt-6 max-w-3xl text-[0.9375rem] leading-relaxed text-soft">
 				Routes 2 and 3 need the hosted publishing service at <code class="chip">&lt;slug&gt;.prodid.org</code>, which runs
-				but has no self-service sign-up yet: an operator sets each site up. Route 1 is the one you can do on your own.
+				but has no self-service sign-up yet: an operator sets each site up. Ask for one with the{' '}
+				<a href={CONTACT.publish} class="rounded-sm text-accent underline underline-offset-4">Publish my catalogue</a> form.
+				Route 1 is the one you can do on your own.
 			</p>
 		</div>
 	</section>
@@ -425,7 +427,7 @@ const checklist = [
 				<div class="flex flex-wrap items-center gap-3">
 					<p class="font-mono text-xs tracking-[0.18em] text-soft uppercase">Route 2</p>
 					<span class="rounded-full border border-rule px-2.5 py-0.5 text-[0.65rem] font-semibold tracking-wider text-soft uppercase">
-						Not available yet
+						Operator-assisted
 					</span>
 				</div>
 				<h2 id="delegated" class="mt-4 text-2xl font-semibold tracking-tight sm:text-3xl">
@@ -435,7 +437,8 @@ const checklist = [
 					Plenty of manufacturers own a domain and cannot put a file on it. The model is that the feed would be hosted
 					somewhere else and the domain proven with DNS, so the source identity would still be the domain and the trust
 					level still <code class="chip">verified</code>. The hosted service this depends on runs, but an
-					operator sets each site up; there is no self-service sign-up yet.
+					operator sets each site up; there is no self-service sign-up yet. To have one set up, open the{' '}
+					<a href={CONTACT.publish} class="rounded-sm text-accent underline underline-offset-4">Publish my catalogue</a> form.
 				</p>
 			</div>
 
@@ -482,7 +485,7 @@ const checklist = [
 				<div class="flex flex-wrap items-center gap-3">
 					<p class="font-mono text-xs tracking-[0.18em] text-soft uppercase">Route 3</p>
 					<span class="rounded-full border border-rule px-2.5 py-0.5 text-[0.65rem] font-semibold tracking-wider text-soft uppercase">
-						Not available yet
+						Operator-assisted
 					</span>
 				</div>
 				<h2 id="hosted" class="mt-4 text-2xl font-semibold tracking-tight sm:text-3xl">Publish without a domain</h2>
@@ -554,7 +557,9 @@ const checklist = [
 					<code class="chip">opid</code> kept</strong>, with trust rising from <code class="chip">unverified</code> to{' '}
 					<code class="chip">verified</code>. Your <code class="chip">sku</code> identifiers are scoped to the source
 					itself rather than to its name, so they survive the move. Like route 2, a hosted site is set up by an
-					operator for now.
+					operator for now: open the{' '}
+					<a href={CONTACT.publish} class="rounded-sm text-accent underline underline-offset-4">Publish my catalogue</a> form
+					to ask for one.
 				</p>
 			</div>
 		</div>
