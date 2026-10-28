@@ -171,3 +171,8 @@ Normative text: `ARCHITECTURE.md` *Index contract* and *Semantics*.
   the database host, then one line per step (`block:`, `delete:`, `purge:`, each `ok` or
   `failed`). A failed block stops the run; the delete and the purge are each tried whatever the
   other did. Any failure exits 1.
+- A brand owner asks for `authoritative` through the issue form
+  `.github/ISSUE_TEMPLATE/request-authoritative.yml` (label `area:ops`): the domain, which must
+  already be `verified` at `prodid.org/source/<domain>`, the brand as its records name it, the
+  Verified by GS1 lookup URL for one of that brand's GTINs, and an acknowledgement that the issue is
+  public. The lookup URL is the `--evidence` of `grant-authority`.

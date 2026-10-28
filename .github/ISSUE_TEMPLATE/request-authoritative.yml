@@ -1,0 +1,40 @@
+name: Request authoritative trust
+description: Your domain is already a verified source, and you own the brand its records name.
+labels: ['area:ops']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        `authoritative` means control of the domain is proven and ownership of the brand is confirmed. No crawl can prove who owns a brand, so the operator grants it by hand, on evidence: the GS1 company prefix of the GTINs your source publishes under that brand is licensed to the organization that controls your domain, as GS1's public "Verified by GS1" lookup shows. The lookup URL is kept with the grant. See [Trust](https://github.com/productdevbook/prodid/blob/main/spec/README.md#trust).
+
+        A grant names one brand and can be revoked. It holds only while your source stays `verified` and does not lapse; losing either drops it with no operator action. Prove control of the domain first: a source that is not `verified` cannot be granted `authoritative`.
+  - type: input
+    id: domain
+    attributes:
+      label: Domain
+      description: The source's domain. It must already show as `verified` on its status page at prodid.org/source/<domain>.
+      placeholder: example.com
+    validations:
+      required: true
+  - type: input
+    id: brand
+    attributes:
+      label: Brand
+      description: The brand exactly as it appears in your records.
+      placeholder: Example
+    validations:
+      required: true
+  - type: input
+    id: evidence
+    attributes:
+      label: Verified by GS1 lookup
+      description: The URL of a Verified by GS1 lookup for one GTIN your source publishes under that brand, showing the company that holds its prefix.
+    validations:
+      required: true
+  - type: checkboxes
+    id: public
+    attributes:
+      label: This issue is public
+      options:
+        - label: I understand that this issue, the domain, the brand and the lookup URL are public, and that the grant is recorded with that URL as its evidence.
+          required: true
