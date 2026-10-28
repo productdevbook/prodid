@@ -5,48 +5,13 @@ import { acceptDiscovery, type TxtRecord, validateFeed } from '@prodid/core'
 
 import { createApp, reverifyAll, type Services } from '../src/app'
 import type { TxtLookup } from '../src/dns'
-import type { Blobs, StoredObject } from '../src/sites'
+import { MemoryBlobs } from './blobs'
 import { memorySql } from './sql'
 
 const TOKEN = 'operator-secret'
 const ZONE = 'prodid.org'
 const OPERATOR = 'publish.prodid.org'
 const MERCHANT = new URL('../../../spec/fixtures/merchant/', import.meta.url)
-
-class MemoryBlobs implements Blobs {
-	readonly objects = new Map<string, { bytes: Uint8Array<ArrayBuffer>; uploaded: Date; etag: string }>()
-	private version = 0
-
-	async get(key: string): Promise<StoredObject | null> {
-		const object = this.objects.get(key)
-		if (object === undefined) return null
-		return { body: new Blob([object.bytes]).stream(), etag: object.etag, uploaded: object.uploaded, size: object.bytes.byteLength }
-	}
-
-	async text(key: string): Promise<string | null> {
-		const object = this.objects.get(key)
-		return object === undefined ? null : new TextDecoder().decode(object.bytes)
-	}
-
-	async put(key: string, body: ArrayBuffer | string): Promise<void> {
-		const bytes = typeof body === 'string' ? new TextEncoder().encode(body) : new Uint8Array(body.slice(0))
-		this.objects.set(key, {
-			bytes: bytes as Uint8Array<ArrayBuffer>,
-			uploaded: new Date('2026-10-01T00:00:00Z'),
-			etag: `"v${++this.version}"`,
-		})
-	}
-
-	async delete(keys: string[]): Promise<void> {
-		for (const key of keys) this.objects.delete(key)
-	}
-
-	async slugs(): Promise<string[]> {
-		const slugs = new Set<string>()
-		for (const key of this.objects.keys()) slugs.add(key.split('/')[1] ?? '')
-		return [...slugs]
-	}
-}
 
 let blobs: MemoryBlobs
 let txt: Map<string, TxtRecord[] | 'servfail'>
@@ -111,7 +76,8 @@ beforeEach(() => {
 
 describe('operator endpoint', () => {
 	test('answers nobody without the token', async () => {
-		expect((await call(OPERATOR, '/sites/acme')).status).toBe(401)
+		expect((await call(OPERATOR, '/sites/acme', { headers: { authorization: 'Bearer wrong' } })).status).toBe(401)
+		expect((await call(OPERATOR, '/sites/acme', { method: 'PUT', headers: { authorization: 'Basic x' } })).status).toBe(401)
 		await expect(client('wrong').showSite('acme')).rejects.toBeInstanceOf(OperatorError)
 		services.operatorToken = undefined
 		expect((await call(OPERATOR, '/sites/acme', { headers: { authorization: 'Bearer ' } })).status).toBe(401)

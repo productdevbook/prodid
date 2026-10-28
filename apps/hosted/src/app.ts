@@ -4,6 +4,7 @@ import { type Context, Hono } from 'hono'
 import type { TxtLookup } from './dns'
 import { checkFeed, MAX_FEED_BYTES } from './feeds'
 import { checkSlug, isFeedName, resolveHost, siteHost, type Target } from './names'
+import { releaseSite } from './owners'
 import { SELF_SERVICE, selfService } from './selfservice'
 import { type Blobs, deleteSite, documentEtag, feedKey, parseSiteInput, readSite, type Site, siteDocument, writeSite } from './sites'
 import type { Sql } from './sql'
@@ -37,10 +38,6 @@ export interface Turnstile {
 	verify(response: string, address: string | undefined): Promise<boolean>
 }
 
-export interface Lifetime {
-	waitUntil(promise: Promise<unknown>): void
-}
-
 export type App = { Variables: { services: Services; target: Target | { kind: 'self-service' } } }
 
 const DOCUMENT_CACHE = 'public, max-age=60'
@@ -48,22 +45,23 @@ const FEED_CACHE = 'public, max-age=60'
 
 export function createApp(build: (env: Env) => Services): Hono<App> {
 	const app = new Hono<App>()
+	const pages = selfService(build)
 	app.notFound(() => notFound())
 
 	app.use('*', async (c, next) => {
 		const services = build(c.env as Env)
 		const target = resolveHost(c.req.header('host') ?? null, services.zone, services.operatorHost)
 		if (target.kind === 'none') return notFound()
-		const browser = target.kind === 'operator' && c.req.header('authorization') === undefined && SELF_SERVICE.test(c.req.path)
-		if (target.kind === 'operator' && !browser && !(await authorized(c.req.header('authorization'), services.operatorToken))) {
+		if (target.kind === 'operator' && c.req.header('authorization') === undefined && SELF_SERVICE.test(c.req.path)) {
+			return pages.fetch(c.req.raw, c.env, lifetimeOf(c))
+		}
+		if (target.kind === 'operator' && !(await authorized(c.req.header('authorization'), services.operatorToken))) {
 			return new Response(null, { status: 401, headers: { 'www-authenticate': 'Bearer', 'cache-control': 'no-store' } })
 		}
 		c.set('services', services)
-		c.set('target', browser ? { kind: 'self-service' } : target)
+		c.set('target', target)
 		await next()
 	})
-
-	app.route('/', selfService())
 
 	app.use('/sites/*', async (c, next) => {
 		if (c.get('target').kind !== 'operator') return notFound()
@@ -139,6 +137,7 @@ export function createApp(build: (env: Env) => Services): Hono<App> {
 		const now = services.now().toISOString()
 		const site: Site = {
 			slug,
+			...(existing?.owner === undefined ? {} : { owner: existing.owner }),
 			publisher: parsed.input.publisher,
 			license: parsed.input.license,
 			feeds: existing?.feeds ?? [],
@@ -159,6 +158,7 @@ export function createApp(build: (env: Env) => Services): Hono<App> {
 		if (site === null) return operatorError(404, 'no such site')
 		const services = c.get('services')
 		await deleteSite(services.blobs, site)
+		await releaseSite(services.accounts, site.slug, services.now())
 		announce(c, site)
 		return new Response(null, { status: 204 })
 	})
@@ -264,19 +264,22 @@ function announced(site: Site, zone: string): string[] {
 	return names
 }
 
-function announce(c: Context<App>, site: Site): void {
+export function announce(c: Context<App>, site: Site): void {
 	const services = c.get('services')
 	const pinging = services.ping(announced(site, services.zone)).catch((error: unknown) => {
 		console.error('ping failed', site.slug, error)
 	})
-	let lifetime: Lifetime | undefined
-	try {
-		lifetime = c.executionCtx
-	} catch {
-		lifetime = undefined
-	}
+	const lifetime = lifetimeOf(c)
 	if (lifetime === undefined) void pinging
 	else lifetime.waitUntil(pinging)
+}
+
+function lifetimeOf(c: Context<App>): Context<App>['executionCtx'] | undefined {
+	try {
+		return c.executionCtx
+	} catch {
+		return undefined
+	}
 }
 
 function conditional(c: Context<App>): { ifNoneMatch: string | null; ifModifiedSince: string | null } {

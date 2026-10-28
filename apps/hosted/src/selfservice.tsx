@@ -2,8 +2,10 @@
 import { type Context, Hono } from 'hono'
 import { getCookie } from 'hono/cookie'
 
-import type { App } from './app'
-import { InboxPage, RefusedPage, SitesPage, StartPage, type StartProblem } from './pages'
+import { announce, type App, type Services } from './app'
+import { checkSlug, siteHost } from './names'
+import { claimSlug, ownedSlugs, ownsSite, SITES_PER_ACCOUNT, unclaimSlug } from './owners'
+import { InboxPage, RefusedPage, StartPage, type StartProblem } from './pages'
 import {
 	clearedSessionCookie,
 	clientKey,
@@ -20,22 +22,30 @@ import {
 	sessionAccount,
 	sessionCookie,
 } from './signin'
+import { type CreateProblem, NewSitePage, type NewSiteValues, NoSitePage, SitePage, type SiteRow, SitesPage } from './sitepages'
+import { parseSiteInput, readSite, type Site, siteDocument, writeSite } from './sites'
 
 /** Self-service paths on the operator host; a request to them without `Authorization` is a browser's. */
-export const SELF_SERVICE = /^\/(?:signin(?:\/[^/]+)?|signout|sites)?$/
+export const SELF_SERVICE = /^\/(?:signin(?:\/[^/]+)?|signout|slug-check|sites(?:\/.*)?)?$/
 
-export function selfService(): Hono<App> {
+interface SignedIn {
+	id: string
+	email: string
+	cookie: string
+	form: string
+}
+
+export function selfService(build: (env: Env) => Services): Hono<App> {
 	const app = new Hono<App>()
 
-	for (const path of ['/', '/signin', '/signin/:token', '/signout', '/sites']) {
-		app.use(path, async (c, next) => {
-			if (c.get('target').kind !== 'self-service') return c.notFound()
-			c.header('cache-control', 'no-store')
-			c.header('referrer-policy', 'same-origin')
-			c.header('x-frame-options', 'DENY')
-			await next()
-		})
-	}
+	app.use('*', async (c, next) => {
+		c.set('services', build(c.env as Env))
+		c.set('target', { kind: 'self-service' })
+		c.header('cache-control', 'no-store')
+		c.header('referrer-policy', 'same-origin')
+		c.header('x-frame-options', 'DENY')
+		await next()
+	})
 
 	app.get('/', async (c) => {
 		if ((await signedIn(c)) !== null) return c.redirect('/sites', 303)
@@ -83,21 +93,140 @@ export function selfService(): Hono<App> {
 		return c.redirect('/', 303)
 	})
 
+	app.get('/slug-check', (c) => {
+		const result = checkSlug(c.req.query('slug') ?? '')
+		return c.json(result.ok ? { ok: true, reason: null } : { ok: false, reason: result.reason })
+	})
+
 	app.get('/sites', async (c) => {
 		const account = await signedIn(c)
 		if (account === null) return c.redirect('/', 303)
-		return c.html(<SitesPage email={account.email} form={await formToken(account.cookie)} />)
+		const services = c.get('services')
+		const sites: SiteRow[] = []
+		for (const slug of await ownedSlugs(services.accounts, account.id)) {
+			const site = await readSite(services.blobs, slug)
+			if (site !== null) sites.push({ site, host: siteHost(slug, services.zone) })
+		}
+		return c.html(<SitesPage email={account.email} form={account.form} sites={sites} />)
+	})
+
+	app.get('/sites/new', async (c) => {
+		const account = await signedIn(c)
+		if (account === null) return c.redirect('/', 303)
+		const services = c.get('services')
+		const full = (await ownedSlugs(services.accounts, account.id)).length >= SITES_PER_ACCOUNT
+		const values: NewSiteValues = { slug: '', name: '', contact: account.email, license: 'CC0-1.0', other: '' }
+		return c.html(<NewSitePage form={account.form} zone={services.zone} values={values} full={full} />)
+	})
+
+	app.post('/sites', async (c) => {
+		const account = await signedIn(c)
+		const form = await checkedForm(c)
+		if (account === null || form === null) return refused(c)
+		const services = c.get('services')
+		const values: NewSiteValues = {
+			slug: field(form, 'slug'),
+			name: field(form, 'name'),
+			contact: field(form, 'contact'),
+			license: field(form, 'license'),
+			other: field(form, 'other'),
+		}
+		const again = (status: 400 | 409, problem: CreateProblem, detail?: string) =>
+			c.html(
+				<NewSitePage
+					form={account.form}
+					zone={services.zone}
+					values={values}
+					full={problem === 'limit'}
+					problem={problem}
+					detail={detail}
+				/>,
+				status,
+			)
+
+		const slug = checkSlug(values.slug)
+		if (!slug.ok) return again(400, slug.reason)
+		const parsed = parseSiteInput(settingsBody(values.name, values.contact, licence(values.license, values.other)), services.zone)
+		if (!parsed.ok) return again(400, 'settings', parsed.detail)
+		if ((await readSite(services.blobs, slug.slug)) !== null) return again(409, 'taken')
+
+		const claim = await claimSlug(services.accounts, account.id, slug.slug, services.now())
+		if (!claim.ok) return again(409, claim.reason)
+		const site: Site = {
+			slug: slug.slug,
+			owner: account.id,
+			publisher: parsed.input.publisher,
+			license: parsed.input.license,
+			feeds: [],
+			updatedAt: services.now().toISOString(),
+		}
+		try {
+			await writeSite(services.blobs, site)
+		} catch (error) {
+			await unclaimSlug(services.accounts, account.id, slug.slug)
+			throw error
+		}
+		announce(c, site)
+		return c.redirect(`/sites/${site.slug}`, 303)
+	})
+
+	app.get('/sites/:slug', async (c) => {
+		const account = await signedIn(c)
+		if (account === null) return c.redirect('/', 303)
+		const site = await ownedSite(c, account)
+		if (site === null) return noSite(c, account)
+		const services = c.get('services')
+		return c.html(
+			<SitePage
+				form={account.form}
+				site={site}
+				host={siteHost(site.slug, services.zone)}
+				served={siteDocument(site, services.zone) !== null}
+			/>,
+		)
+	})
+
+	app.all('*', async (c) => {
+		const account = await signedIn(c)
+		if (account === null) return c.redirect('/', 303)
+		return noSite(c, account)
 	})
 
 	return app
 }
 
-async function signedIn(c: Context<App>): Promise<{ email: string; cookie: string } | null> {
+async function signedIn(c: Context<App>): Promise<SignedIn | null> {
 	const cookie = getCookie(c, SESSION_COOKIE)
 	if (cookie === undefined) return null
 	const services = c.get('services')
 	const account = await sessionAccount(services.accounts, cookie, services.now())
-	return account === null ? null : { email: account.email, cookie }
+	return account === null ? null : { id: account.id, email: account.email, cookie, form: await formToken(cookie) }
+}
+
+/** Another account's site and no site at all answer the same, so a slug's owner is nobody else's business. */
+async function ownedSite(c: Context<App>, account: SignedIn): Promise<Site | null> {
+	const slug = c.req.param('slug') ?? ''
+	if (!checkSlug(slug).ok) return null
+	const services = c.get('services')
+	if (!(await ownsSite(services.accounts, account.id, slug))) return null
+	return readSite(services.blobs, slug)
+}
+
+function noSite(c: Context<App>, account: SignedIn): Response | Promise<Response> {
+	return c.html(<NoSitePage form={account.form} />, 404)
+}
+
+function field(form: FormData, name: string): string {
+	const value = form.get(name)
+	return typeof value === 'string' ? value.trim() : ''
+}
+
+function licence(choice: string, other: string): string {
+	return choice === 'other' ? other : choice
+}
+
+function settingsBody(name: string, contact: string, license: string): unknown {
+	return { publisher: contact === '' ? { name } : { name, contact }, license }
 }
 
 /**

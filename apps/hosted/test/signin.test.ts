@@ -345,7 +345,7 @@ describe('session', () => {
 
 describe('operator endpoint beside the pages', () => {
 	test('still needs the token', async () => {
-		expect((await call('/sites/acme')).status).toBe(401)
+		expect((await call('/sites/acme', { headers: { authorization: 'Bearer wrong' } })).status).toBe(401)
 		expect((await call('/', { headers: { authorization: 'Bearer wrong' } })).status).toBe(401)
 		expect((await call('/sites', { headers: { authorization: 'Bearer operator-secret' } })).status).toBe(404)
 	})

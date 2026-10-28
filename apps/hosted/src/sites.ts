@@ -20,6 +20,8 @@ export interface Blobs {
 
 export interface Site {
 	slug: string
+	/** The self-service account that owns the site; a site the operator made has none until assigned. */
+	owner?: string
 	publisher: FeedPublisher
 	license: string
 	/** The domain the publisher says it is. Served only once `verified` names it too. */

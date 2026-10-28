@@ -61,7 +61,30 @@ ul.needs li { margin-bottom: 0.25rem; }
 form { margin: 1.5rem 0 0; padding: 0.75rem; background: var(--surface); border: 1px solid var(--line); border-radius: 0.5rem; }
 @media (min-width: 30rem) { form { padding: 1.25rem; } }
 label { display: block; font-weight: 500; margin-bottom: 0.375rem; }
-input[type='email'] { display: block; width: 100%; font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--rule); border-radius: 0.375rem; padding: 0.5rem 0.75rem; }
+input[type='email'], input[type='text'], select { display: block; width: 100%; font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--rule); border-radius: 0.375rem; padding: 0.5rem 0.75rem; }
+input[type='file'] { display: block; width: 100%; font: inherit; font-size: 0.875rem; }
+.field { margin: 0 0 1rem; }
+.field .note { margin: 0.25rem 0 0; }
+.suffixed { display: flex; align-items: center; gap: 0.375rem; }
+.suffixed input { flex: 1; min-width: 0; }
+.suffixed span { color: var(--soft); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.875rem; }
+.field [aria-invalid='true'] { border-color: var(--warn); }
+.state { font-size: 0.875rem; margin: 0.25rem 0 0; min-height: 1.4em; }
+.state.bad { color: var(--warn); }
+.state.good { color: var(--ok); }
+a.button { display: inline-block; text-decoration: none; font-weight: 500; color: var(--bg); background: var(--ink); border: 1px solid var(--ink); border-radius: 0.375rem; padding: 0.5rem 1rem; }
+ul.sites { list-style: none; margin: 1.5rem 0; padding: 0; border-top: 1px solid var(--line); }
+ul.sites li { padding: 0.875rem 0; border-bottom: 1px solid var(--line); }
+ul.sites a { font-weight: 600; overflow-wrap: anywhere; }
+dl.facts { display: grid; grid-template-columns: max-content 1fr; gap: 0.25rem 1rem; margin: 0.25rem 0 0; font-size: 0.875rem; }
+dl.facts dt { color: var(--soft); }
+dl.facts dd { margin: 0; overflow-wrap: anywhere; }
+.badge { display: inline-block; font-size: 0.75rem; font-weight: 600; padding: 0 0.5rem; border-radius: 999px; background: var(--sunken); color: var(--soft); }
+.badge.ok { background: var(--ok-bg); color: var(--ok); }
+.badge.warn { background: var(--warn-bg); color: var(--warn); }
+code, .mono { font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace; font-size: 0.875em; overflow-wrap: anywhere; }
+section { margin: 2.5rem 0 0; }
+section > h2 { margin-top: 0; padding-top: 1.5rem; border-top: 1px solid var(--line); }
 .turnstile { margin: 1rem 0; min-height: 65px; }
 button { font: inherit; font-weight: 500; cursor: pointer; color: var(--bg); background: var(--ink); border: 1px solid var(--ink); border-radius: 0.375rem; padding: 0.5rem 1rem; }
 button.quiet { color: var(--soft); background: transparent; border-color: var(--rule); }
@@ -76,7 +99,7 @@ form.inline { display: inline; margin: 0; padding: 0; background: none; border: 
 footer { border-top: 1px solid var(--line); font-size: 0.875rem; color: var(--soft); padding: 1.25rem 0; }
 `
 
-function Layout(props: { title: string; children: Child; header?: Child }) {
+export function Layout(props: { title: string; children: Child; header?: Child }) {
 	return (
 		<html lang="en">
 			<head>
@@ -184,24 +207,14 @@ export function InboxPage(props: { email: string }) {
 	)
 }
 
-export function SitesPage(props: { email: string; form: string }) {
+export function SignOut(props: { form: string }) {
 	return (
-		<Layout
-			title="Your sites · prodid hosting"
-			header={
-				<form method="post" action="/signout" class="inline">
-					<input type="hidden" name="form" value={props.form} />
-					<button type="submit" class="quiet">
-						Sign out
-					</button>
-				</form>
-			}
-		>
-			<h1>Your sites</h1>
-			<p class="soft">
-				Signed in as <span class="address">{props.email}</span>.
-			</p>
-		</Layout>
+		<form method="post" action="/signout" class="inline">
+			<input type="hidden" name="form" value={props.form} />
+			<button type="submit" class="quiet">
+				Sign out
+			</button>
+		</form>
 	)
 }
 

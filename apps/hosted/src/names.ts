@@ -58,6 +58,7 @@ const RESERVED = new Set([
 	'login',
 	'logout',
 	'my',
+	'new',
 	'pay',
 	'payment',
 	'payments',
