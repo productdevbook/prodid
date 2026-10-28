@@ -1,6 +1,6 @@
 {
 	"$type": "org.prodid.source",
-	"name": "open-food-facts",
+	"name": "dataset:open-food-facts",
 	"kind": "dataset",
 	"trust": "authoritative",
 	"verified_by": "well-known",

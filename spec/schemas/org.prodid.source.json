@@ -9,7 +9,7 @@
 	"properties": {
 		"$type": { "const": "org.prodid.source" },
 		"name": {
-			"description": "The identity: a domain, a slug host, or a dataset id.",
+			"description": "The identity: a domain, a slug host, or dataset:<slug> for a dataset.",
 			"type": "string",
 			"minLength": 1,
 			"maxLength": 253
@@ -48,6 +48,21 @@
 			"then": { "properties": { "trust": { "const": "unverified" } } }
 		},
 		{
+			"if": { "required": ["kind"], "properties": { "kind": { "const": "dataset" } } },
+			"then": {
+				"properties": {
+					"name": {
+						"description": "dataset: and a slug: 3 to 32 lowercase letters, digits and hyphens, a letter or digit at each end, and no -- in the third and fourth places.",
+						"type": "string",
+						"pattern": "^dataset:(?!..--)[a-z0-9][a-z0-9-]{1,30}[a-z0-9]$"
+					},
+					"lapsed": { "const": false },
+					"last_crawl": { "type": "object", "properties": { "via": { "const": "import" } } }
+				}
+			},
+			"else": { "properties": { "last_crawl": { "type": "object", "properties": { "via": { "not": { "const": "import" } } } } } }
+		},
+		{
 			"if": { "required": ["lapsed"], "properties": { "lapsed": { "const": true } } },
 			"then": { "required": ["lapsed_at"], "properties": { "lapsed_at": { "$ref": "#/$defs/timestamp" } } },
 			"else": { "properties": { "lapsed_at": false } }
@@ -57,11 +72,18 @@
 		"timestamp": { "type": "string", "format": "date-time" },
 		"verifiedBy": { "enum": ["well-known", "dns-txt"] },
 		"crawl": {
-			"description": "The last discovery run. A crawl held back by the crawler's own rate limits is rescheduled and is not reported as an outcome.",
+			"description": "The last discovery run, or for a dataset the last import. A crawl held back by the crawler's own rate limits is rescheduled and is not reported as an outcome.",
 			"type": "object",
 			"required": ["at", "outcome"],
 			"additionalProperties": false,
 			"allOf": [
+				{
+					"if": { "required": ["via"], "properties": { "via": { "const": "import" } } },
+					"then": {
+						"required": ["document_url"],
+						"properties": { "document_url": { "type": "string" }, "outcome": { "const": "success" }, "http_status": false }
+					}
+				},
 				{
 					"if": { "required": ["outcome"], "properties": { "outcome": { "const": "success" } } },
 					"then": { "properties": { "http_status": { "enum": [200, 304] }, "feeds_failed": { "const": 0 } } }
@@ -73,9 +95,12 @@
 			],
 			"properties": {
 				"at": { "$ref": "#/$defs/timestamp" },
-				"via": { "enum": ["well-known", "dns-txt"] },
+				"via": {
+					"description": "How the records arrived: through discovery, by .well-known on the domain or by a _prodid TXT record, or, for a dataset and only for one, by an operator's import of its export.",
+					"enum": ["well-known", "dns-txt", "import"]
+				},
 				"document_url": {
-					"description": "The discovery document this crawl asked for. Shown only for the host the source was last verified at, so the status of one source can never report how a host someone else chose answers the crawler.",
+					"description": "The discovery document this crawl asked for. Shown only for the host the source was last verified at, so the status of one source can never report how a host someone else chose answers the crawler. An import always shows it, as the public URL of the export it read: nobody can aim an import at a host.",
 					"type": "string",
 					"format": "uri",
 					"pattern": "^https://"

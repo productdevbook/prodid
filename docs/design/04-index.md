@@ -123,6 +123,11 @@ Normative text: `ARCHITECTURE.md` *Index contract* and *Semantics*.
   `document_url` = the export's public URL.
 - **[Change]** `crawl.via` and the status schema's `via` gain `import`; the spec's *A source's status*
   says so. Migration `0004_dataset_import.sql`.
+- **Spec.** *Dataset sources* and *A source's status*: the name grammar, always `unverified`,
+  never pinged and never lapsed; an import's `last_crawl` carries `via: "import"` and the export's
+  `document_url`, no `http_status`, and `outcome: "success"`, and only a dataset carries `import`.
+  `org.prodid.source` enforces each of these; the dump's record lines omit `feed` for imported
+  records. The `crawl` row of an import that does not finish is not shown as `last_crawl`.
 - **First dataset: Wikidata.** CC0, so its claims add no licence condition to a dump. Key = the QID;
   `name` = the English label; `brand` = the label of the item's brand; identifiers from its GTIN
   property; items with no GTIN or no brand are skipped and counted. No media in v0: Commons files

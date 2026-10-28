@@ -225,6 +225,45 @@
 		"instancePath": "/trust",
 		"keyword": "const"
 	},
+	"source.dataset-lapsed.json": {
+		"instancePath": "/lapsed",
+		"keyword": "const"
+	},
+	"source.dataset-name-no-prefix.json": {
+		"instancePath": "/name",
+		"keyword": "pattern"
+	},
+	"source.dataset-name-reserved-ldh.json": {
+		"instancePath": "/name",
+		"keyword": "pattern"
+	},
+	"source.dataset-name-uppercase.json": {
+		"instancePath": "/name",
+		"keyword": "pattern"
+	},
+	"source.dataset-via-dns-txt.json": {
+		"instancePath": "/last_crawl/via",
+		"keyword": "const"
+	},
+	"source.domain-via-import.json": {
+		"instancePath": "/last_crawl/via",
+		"keyword": "not"
+	},
+	"source.import-not-success.json": {
+		"instancePath": "/last_crawl/outcome",
+		"keyword": "const"
+	},
+	"source.import-with-http-status.json": {
+		"instancePath": "/last_crawl/http_status",
+		"keyword": "false schema"
+	},
+	"source.import-without-document-url.json": {
+		"instancePath": "/last_crawl",
+		"keyword": "required",
+		"params": {
+			"missingProperty": "document_url"
+		}
+	},
 	"source.http-status-out-of-range.json": {
 		"instancePath": "/last_crawl/http_status",
 		"keyword": "minimum"

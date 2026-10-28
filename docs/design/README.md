@@ -84,6 +84,8 @@ first.
 | `domain`, `hosted`, `dataset`, `community` | the source kinds |
 | `authoritative`, `verified`, `unverified` | the trust levels |
 | `well-known`, `dns-txt` | how a source was reached (`via`, `verified_by`) |
+| `import` | how a dataset source's records arrived (`via` only) *[New]* |
+| `dataset:<slug>` | the name of a dataset source *[New]* |
 | `prodid record` | a TXT RR at `_prodid.<domain>` whose first tag is `v=prodid0` |
 | `discovery document` | `https://<host>/.well-known/prodid.json`, type `org.prodid.feed` |
 | `feed` | an NDJSON file of `org.prodid.item` records listed by a discovery document |

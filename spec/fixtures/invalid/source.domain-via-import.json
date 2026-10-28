@@ -1,0 +1,13 @@
+{
+	"$type": "org.prodid.source",
+	"name": "acme.example",
+	"kind": "domain",
+	"trust": "unverified",
+	"lapsed": false,
+	"last_crawl": {
+		"at": "2026-11-03T02:14:55Z",
+		"via": "import",
+		"document_url": "https://acme.example/export.ndjson",
+		"outcome": "success"
+	}
+}

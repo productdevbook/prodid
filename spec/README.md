@@ -230,6 +230,16 @@ A name under the hosting zone is a case of its own: `<slug>.prodid.org` is alway
 
 Sources that are not the brand owner — retailers, registries, open datasets, contributors — publish the same way. Their claims are attributed to them and never overwrite anyone else's.
 
+### Dataset sources
+
+An open dataset that publishes no discovery document of its own enters the index as a source of kind `dataset`: the index's operator imports its public export.
+
+- **Name.** A dataset source is named `dataset:<slug>`. The slug is 3 to 32 lowercase letters, digits and hyphens, begins and ends with a letter or a digit, and has no `--` in its third and fourth places — the grammar of a hosted slug. A hostname cannot contain `:`, so a dataset's name never collides with a domain or a slug host. `/source/dataset:<slug>` answers its status like any other source's.
+- **Trust.** A dataset source is always `unverified`. An import proves nothing about who is speaking: the operator mapped someone else's export into records, and nobody at the dataset took part.
+- **Import.** The export is mapped into [`org.prodid.item`](schemas/org.prodid.item.json) records, and those are ingested exactly as a feed's are: the same [record rules](#feeds), the same claims, identifiers and grouping. A full import withdraws the keys absent from it, as a feed fetched whole does. Each import is reported as the source's `last_crawl`, with `via` set to `import`; [A source's status](#a-sources-status) says what else it carries.
+- **Licence.** The source's `license` is the dataset's own, and every claim the source makes carries it.
+- **No discovery.** A dataset source is never discovered, so it is never pinged and it never lapses. `dataset:<slug>` is not a hostname, and a ping naming it is an `invalid-request` like any other name that is not one.
+
 ### Trust
 
 Trust is a property of the source, not of a claim.
@@ -519,6 +529,8 @@ Two things keep this page from becoming a probe:
 
 It never reports who asked for a crawl, how often anyone asks, or the crawler's internal error text.
 
+`via` says how the last crawl reached the records: `well-known` or `dns-txt` through [discovery](#discovery), or `import` for a [dataset source](#dataset-sources), and `import` for nothing else. An import is not a fetch on anyone's word — the operator runs it against an export of the operator's choosing, and nobody can aim it at a host — so its `document_url` is always shown, as the public URL of the export it read. It has no `http_status`, and its `outcome` is always `success`: an import that does not finish is not reported.
+
 ### Errors
 
 Every error answers `application/problem+json` ([RFC 9457](https://www.rfc-editor.org/rfc/rfc9457)). The status says what kind of failure it is; the `type` says why:
@@ -669,7 +681,7 @@ Every data file is NDJSON compressed with gzip, one JSON object per line. **All 
 
 An `opid` that was merged answers `308` at the resolver, so it has no document of its own to copy. Its line is the document it would answer were it not merged — its own identifiers and claims stay on it, which is what makes a merge reversible — with one more member, `merged_into`, the `opid` of its survivor. Without `merged_into` the line validates as `org.prodid.entity`. `merged_into` is never the line's own `opid`, and names an entity that is not itself merged, because merges do not chain.
 
-A **record** line is one record as the index keeps it. `source` is the source's name; `key` is the record's key in that source; `feed` is the URL of the feed it was read from; `opid` is the item it resolved to; `body` is the [`org.prodid.item`](schemas/org.prodid.item.json) the publisher sent, unchanged; `first_seen` and `last_seen` are when the index first and last read it; `withdrawn_at` is present exactly when the record is withdrawn. Every time is UTC, ISO 8601.
+A **record** line is one record as the index keeps it. `source` is the source's name; `key` is the record's key in that source; `feed` is the URL of the feed it was read from, absent for a record a [dataset import](#dataset-sources) wrote; `opid` is the item it resolved to; `body` is the [`org.prodid.item`](schemas/org.prodid.item.json) the publisher sent, unchanged; `first_seen` and `last_seen` are when the index first and last read it; `withdrawn_at` is present exactly when the record is withdrawn. Every time is UTC, ISO 8601.
 
 A **grouping** line says which entity a source's grouping resolved to: `source` is the source's name, `kind` is `family` or `variant`, and `opid` is that entity. `key` is what the source's records are grouped on, written out rather than digested, so that another implementation can match its own grouping to it:
 
