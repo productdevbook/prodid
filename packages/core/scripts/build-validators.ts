@@ -56,7 +56,9 @@ function toEsm(code: string): string {
 	// import; esbuild (wrangler) does not inside a `"type": "module"` package and hands back the
 	// whole exports object, so unwrap it here.
 	const lines = [...imports].map(([key, name]) => {
-		const [specifier, kind] = key.split('\u0000')
+		const [path, kind] = key.split('\u0000')
+		// ajv and ajv-formats have no `exports` map, so Node's ESM loader needs the file's extension.
+		const specifier = path?.endsWith('.js') ? path : `${path}.js`
 		return kind === 'default'
 			? `import ${name}_module from '${specifier}'\nconst ${name} = ${name}_module.__esModule ? ${name}_module.default : ${name}_module`
 			: `import * as ${name} from '${specifier}'`

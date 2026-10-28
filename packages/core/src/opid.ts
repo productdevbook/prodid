@@ -2,7 +2,7 @@ const ALPHABET = '0123456789abcdefghjkmnpqrstvwxyz'
 const LENGTH = 16
 const BITS_PER_CHAR = 5
 
-export const OPID_PATTERN = /^[0-9a-hjkmnp-tv-z]{16}$/
+export const OPID_PATTERN: RegExp = /^[0-9a-hjkmnp-tv-z]{16}$/
 
 /**
  * 16 Crockford base32 characters, 80 bits. The alphabet is a power of two, so every character

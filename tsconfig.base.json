@@ -17,6 +17,10 @@
 		"noImplicitOverride": true,
 		"exactOptionalPropertyTypes": true,
 		"skipLibCheck": true,
-		"types": []
+		"types": [],
+		// tsc, bun and wrangler's esbuild resolve the workspace's core from source; its `exports` name `dist/` for npm.
+		"paths": {
+			"@prodid/core": ["./packages/core/src/index.ts"]
+		}
 	}
 }

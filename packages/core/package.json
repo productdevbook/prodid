@@ -12,21 +12,28 @@
 		"url": "https://github.com/productdevbook/prodid.git",
 		"directory": "packages/core"
 	},
+	"files": [
+		"dist"
+	],
 	"type": "module",
 	"exports": {
-		".": "./src/index.ts"
+		".": {
+			"types": "./dist/index.d.ts",
+			"default": "./dist/index.js"
+		}
 	},
 	"scripts": {
-		"build": "bun scripts/build-validators.ts",
+		"build": "bun scripts/build-validators.ts && tsdown",
 		"typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.test.json"
 	},
 	"dependencies": {
-		"@prodid/spec": "workspace:*",
 		"ajv": "8.20.0",
 		"ajv-formats": "3.0.1",
 		"tldts": "7.4.13"
 	},
 	"devDependencies": {
-		"esbuild": "0.28.1"
+		"@prodid/spec": "workspace:*",
+		"esbuild": "0.28.1",
+		"tsdown": "0.23.3"
 	}
 }
