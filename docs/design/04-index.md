@@ -176,3 +176,8 @@ Normative text: `ARCHITECTURE.md` *Index contract* and *Semantics*.
   already be `verified` at `prodid.org/source/<domain>`, the brand as its records name it, the
   Verified by GS1 lookup URL for one of that brand's GTINs, and an acknowledgement that the issue is
   public. The lookup URL is the `--evidence` of `grant-authority`.
+- `packages/core/src/datasets/wikidata.ts`: GTIN is P3962 (external-id) and brand is P1716
+  (wikibase-item), confirmed on wikidata.org; statements are read at best rank (preferred, else
+  normal, never deprecated); name is the trimmed English label only; key is the QID, lang en; skips
+  are counted as `not-an-item`, `no-gtin`, `no-brand`, `no-label`, `invalid`; fixtures in
+  `spec/fixtures/datasets/wikidata/`.

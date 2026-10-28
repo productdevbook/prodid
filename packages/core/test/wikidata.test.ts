@@ -9,7 +9,7 @@ import {
 	type WikidataResult,
 } from '../src/datasets/wikidata'
 
-const FIXTURES = new URL('fixtures/wikidata/', import.meta.url)
+const FIXTURES = new URL('../../../spec/fixtures/datasets/wikidata/', import.meta.url)
 const entities = (await Bun.file(new URL('entities.json', FIXTURES)).json()) as { id: string }[]
 const expected = (await Bun.file(new URL('expected.json', FIXTURES)).json()) as Record<string, Record<string, unknown>>
 
