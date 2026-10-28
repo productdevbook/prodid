@@ -2,6 +2,7 @@
 	"name": "@prodid/spec",
 	"version": "0.0.0",
 	"private": true,
+	"description": "The prodid specification: JSON Schemas, examples and conformance vectors.",
 	"homepage": "https://prodid.org",
 	"bugs": {
 		"url": "https://github.com/productdevbook/prodid/issues"
@@ -12,9 +13,16 @@
 		"url": "https://github.com/productdevbook/prodid.git",
 		"directory": "spec"
 	},
+	"files": [
+		"schemas",
+		"examples",
+		"fixtures"
+	],
 	"type": "module",
 	"exports": {
 		"./schemas/*.json": "./schemas/*.json",
+		"./examples/*": "./examples/*",
+		"./fixtures/*": "./fixtures/*",
 		"./package.json": "./package.json"
 	},
 	"scripts": {

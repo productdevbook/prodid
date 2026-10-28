@@ -216,3 +216,9 @@ created with the milestones and issues; the default labels stay.
   security link. `docs/operating.md` keeps the operator's hosting commands for the exceptions
   self-service does not cover, with `prodid-batch assign` to hand a CLI-made site to its
   publisher's account.
+- `@prodid/spec` (P-087) packs `schemas/` (v0 and v1), `examples/` and `fixtures/`, every
+  `expected.json` with them; npm adds `README.md`, `LICENSE` and `package.json`. The package
+  README is `spec/README.md` itself: the vectors' outcomes are defined by that text, and a second
+  README would drift from it. `validate.ts` and `v1-from-v0.md` stay out. `exports` opens
+  `examples/*` and `fixtures/*` beside `schemas/*.json`. The package stays private at 0.0.0 until
+  P-089.
