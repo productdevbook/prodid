@@ -15,4 +15,5 @@ export const examples = {
 	source: source.trimEnd(),
 }
 
-export const SPEC_STATUS = 'Spec v0 draft · reference implementation live'
+export const SPEC_STATUS =
+	'Spec v0 draft. The index and the hosted publisher run on prodid.org. Hosting is operator-assisted. No catalogue is published yet.'

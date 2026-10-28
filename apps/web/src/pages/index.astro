@@ -1,7 +1,7 @@
 ---
 import CodeSample from '@/components/code-sample.astro'
 import Layout from '@/layouts/base.astro'
-import { examples } from '@/lib/spec'
+import { examples, SPEC_STATUS } from '@/lib/spec'
 
 const DESCRIPTION =
 	'prodid gives every physical product a permanent open identifier. GTIN, MPN and every other code resolve to it, and every fact is a claim attributed to its source.'
@@ -407,6 +407,7 @@ const heading = 'mt-4 text-2xl font-semibold tracking-tight text-balance sm:text
 			<div>
 				<p class={eyebrow}>Status</p>
 				<h2 id="status" class={heading}>Where this actually stands.</h2>
+				<p class="mt-5 text-[0.9375rem] leading-relaxed text-soft">{SPEC_STATUS}</p>
 			</div>
 			<ul class="divide-y divide-line">
 				<li class="grid gap-1 py-5 sm:grid-cols-[8rem_1fr] sm:gap-4">
@@ -422,12 +423,12 @@ const heading = 'mt-4 text-2xl font-semibold tracking-tight text-balance sm:text
 					</p>
 				</li>
 				<li class="grid gap-1 py-5 sm:grid-cols-[8rem_1fr] sm:gap-4">
-					<span class="text-sm font-medium text-ok">Live</span>
+					<span class="text-sm font-medium text-soft">Empty</span>
 					<p class="text-[0.9375rem] leading-relaxed">
-						<strong class="font-semibold">Resolver, crawler and hosted publishing.</strong>{' '}
+						<strong class="font-semibold">The index holds no records yet.</strong>{' '}
 						<span class="text-soft"
-							>They run on prodid.org, and the index is empty: <code class="chip">prodid.org/01/…</code> answers 404 for every
-							code until the first publisher pings.</span
+							><code class="chip">prodid.org/01/…</code> answers 404 for every code until the first catalogue is
+							published.</span
 						>
 					</p>
 				</li>

@@ -2,7 +2,7 @@
 import CodeSample from '@/components/code-sample.astro'
 import PageHeader from '@/components/page-header.astro'
 import Layout from '@/layouts/base.astro'
-import { examples } from '@/lib/spec'
+import { examples, SPEC_STATUS } from '@/lib/spec'
 
 const DESCRIPTION =
 	'How a manufacturer or a software vendor publishes product data to prodid: the discovery document, the NDJSON feed, the one DNS TXT record that holds the identity, and the ping.'
@@ -503,8 +503,9 @@ const checklist = [
 					<a href="/spec#appendix-importing-a-merchant-feed" class="rounded-sm text-accent underline underline-offset-4">
 						Importing a Merchant feed</a
 					>{' '}
-					is worth reading before you export, even though nothing imports it for you yet. Four things in it decide what your
-					spreadsheet has to look like:
+					is worth reading before you export: the operator converts your file with exactly that mapping (<code class="chip"
+						>prodid-batch merchant</code
+					>). Four things in it decide what your spreadsheet has to look like:
 				</p>
 				<ul class="mt-5 grid gap-4 [&>*]:min-w-0">
 					<li class="border-l-2 border-rule pl-5 text-[0.9375rem] leading-relaxed text-soft">
@@ -793,9 +794,8 @@ const checklist = [
 					holds machine-readable vectors you can run your exporter against before anyone crawls it.
 				</p>
 				<p class="mt-6 rounded-lg border border-line bg-surface p-5 text-[0.9375rem] leading-relaxed text-soft">
-					<strong class="font-medium text-ink">Status:</strong> the specification is a v0 draft and the index is not
-					running yet, so nothing published today is crawled today. The file formats on this page are what will be read
-					when it is, and they are worth generating now.
+					<strong class="font-medium text-ink">Status:</strong> {SPEC_STATUS} The file formats on this page are the ones the
+					index reads when you ping it.
 				</p>
 			</div>
 		</div>
