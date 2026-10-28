@@ -7,6 +7,25 @@ const DAY = 86_400_000
 
 export type Claim = { ok: true } | { ok: false; reason: 'limit' | 'taken' | 'held' }
 
+export const CHECK_SECONDS = 60
+
+/**
+ * Takes the site's one domain check of the minute, in the statement that checks it is free.
+ * Answers 0 when taken, or how many seconds remain until the next one.
+ */
+export async function takeCheck(sql: Sql, slug: string, now: Date): Promise<number> {
+	const changed = await sql.run(
+		'update site set checked_at = ? where slug = ? and deleted_at is null and (checked_at is null or checked_at <= ?)',
+		now.toISOString(),
+		slug,
+		new Date(now.getTime() - CHECK_SECONDS * 1000).toISOString(),
+	)
+	if (changed === 1) return 0
+	const row = await sql.first<{ checked_at: string | null }>('select checked_at from site where slug = ?', slug)
+	const since = row === null || row.checked_at === null ? 0 : now.getTime() - Date.parse(row.checked_at)
+	return Math.max(1, Math.ceil(CHECK_SECONDS - since / 1000))
+}
+
 export async function ownedSlugs(sql: Sql, accountId: string): Promise<string[]> {
 	const rows = await sql.all<{ slug: string }>(
 		'select slug from site where account_id = ? and deleted_at is null order by created_at, slug',

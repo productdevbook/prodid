@@ -11,7 +11,7 @@ describe('accounts database', () => {
 		expect(await columns('account')).toEqual(['id', 'email', 'created_at', 'last_sign_in_at'])
 		expect(await columns('login_token')).toEqual(['hash', 'account_email', 'client', 'expires_at', 'used_at'])
 		expect(await columns('session')).toEqual(['hash', 'account_id', 'created_at', 'expires_at'])
-		expect(await columns('site')).toEqual(['slug', 'account_id', 'created_at', 'deleted_at'])
+		expect(await columns('site')).toEqual(['slug', 'account_id', 'created_at', 'deleted_at', 'checked_at'])
 	})
 
 	test('keeps one account per email', async () => {

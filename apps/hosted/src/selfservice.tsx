@@ -1,13 +1,14 @@
-import { isIngestibleLicence, type MerchantDeclaration } from '@prodid/core'
+import { isIngestibleLicence, joinTxtRecord, type MerchantDeclaration, TXT_PREFIX, txtName } from '@prodid/core'
 /** @jsxImportSource hono/jsx */
 import { type Context, Hono } from 'hono'
 import { getCookie } from 'hono/cookie'
 
-import { announce, type App, MAX_FEEDS, type Services } from './app'
+import { announce, type App, MAX_FEEDS, reverify, type Services } from './app'
+import type { TxtLookup } from './dns'
 import { checkFeed, MAX_FEED_BYTES } from './feeds'
 import { convertMerchant, type DroppedValues, type SkippedRow } from './merchant'
 import { checkSlug, isFeedName, siteHost } from './names'
-import { claimSlug, ownedSlugs, ownsSite, SITES_PER_ACCOUNT, unclaimSlug } from './owners'
+import { claimSlug, ownedSlugs, ownsSite, SITES_PER_ACCOUNT, takeCheck, unclaimSlug } from './owners'
 import { InboxPage, RefusedPage, StartPage, type StartProblem } from './pages'
 import {
 	clearedSessionCookie,
@@ -27,6 +28,7 @@ import {
 } from './signin'
 import {
 	type CreateProblem,
+	type DomainCheck,
 	type FeedRow,
 	NewSitePage,
 	type NewSiteValues,
@@ -271,6 +273,57 @@ export function selfService(build: (env: Env) => Services): Hono<App> {
 		return c.redirect(`/sites/${site.slug}#feeds`, 303)
 	})
 
+	app.post('/sites/:slug/domain', async (c) => {
+		const account = await signedIn(c)
+		const form = await checkedForm(c)
+		if (account === null || form === null) return refused(c)
+		const site = await ownedSite(c, account)
+		if (site === null) return noSite(c, account)
+		const services = c.get('services')
+
+		if (field(form, 'action') === 'remove') {
+			const { domain: _domain, verified: _verified, verifiedAt: _verifiedAt, ...rest } = site
+			await writeSite(services.blobs, { ...rest, updatedAt: services.now().toISOString() })
+			announce(c, site)
+			return c.redirect(`/sites/${site.slug}#domain`, 303)
+		}
+
+		const written = field(form, 'domain')
+		const parsed = parseSiteInput({ publisher: site.publisher, license: site.license, domain: written }, services.zone)
+		if (!parsed.ok || parsed.input.domain === undefined) {
+			const domainError = parsed.ok ? 'Enter a domain name.' : domainProblem(parsed.detail)
+			return sitePage(c, account, site, { values: UPLOAD_DEFAULTS, domainError, domainValue: written }, 400)
+		}
+		const domain = parsed.input.domain
+		const { verified: _verified, verifiedAt: _verifiedAt, ...rest } = site
+		const updated: Site = site.verified === domain ? { ...site, domain } : { ...rest, domain }
+		await writeSite(services.blobs, { ...updated, updatedAt: services.now().toISOString() })
+		announce(c, updated)
+		return c.redirect(`/sites/${site.slug}#domain`, 303)
+	})
+
+	app.post('/sites/:slug/verify', async (c) => {
+		const account = await signedIn(c)
+		const form = await checkedForm(c)
+		if (account === null || form === null) return refused(c)
+		const site = await ownedSite(c, account)
+		if (site === null) return noSite(c, account)
+		const services = c.get('services')
+		if (site.domain === undefined) return c.redirect(`/sites/${site.slug}#domain`, 303)
+
+		const wait = await takeCheck(services.accounts, site.slug, services.now())
+		if (wait > 0) return sitePage(c, account, site, { values: UPLOAD_DEFAULTS, check: { ran: false, wait } }, 429)
+		const name = txtName(site.domain) ?? `${TXT_PREFIX}${site.domain}`
+		let answer: TxtLookup | undefined
+		const { site: checked, outcome } = await reverify(services, site, async (lookup) => {
+			answer = await services.resolveTxt(lookup)
+			return answer
+		})
+		if (checked !== site) announce(c, checked)
+		const records = answer?.ok === true ? answer.records.map(joinTxtRecord) : null
+		return sitePage(c, account, checked, { values: UPLOAD_DEFAULTS, check: { ran: true, outcome, name, records } })
+	})
+
 	app.all('*', async (c) => {
 		const account = await signedIn(c)
 		if (account === null) return c.redirect('/', 303)
@@ -305,8 +358,8 @@ async function sitePage(
 	c: Context<App>,
 	account: SignedIn,
 	site: Site,
-	extras: { values: UploadValues; upload?: UploadResult },
-	status: 200 | 400 | 409 | 413 = 200,
+	extras: { values: UploadValues; upload?: UploadResult; check?: DomainCheck; domainError?: string; domainValue?: string },
+	status: 200 | 400 | 409 | 413 | 429 = 200,
 ): Promise<Response> {
 	const services = c.get('services')
 	const feeds: FeedRow[] = await Promise.all(
@@ -325,9 +378,18 @@ async function sitePage(
 			feeds={feeds}
 			values={extras.values}
 			upload={extras.upload}
+			check={extras.check}
+			domainError={extras.domainError}
+			domainValue={extras.domainValue}
 		/>,
 		status,
 	)
+}
+
+function domainProblem(detail: string): string {
+	if (detail === 'domain is inside the hosting zone') return 'A name under the hosting zone is already this site; use a domain of your own.'
+	if (detail === 'domain is not a domain name') return 'Enter a domain name such as example.com, without https:// or a path.'
+	return detail
 }
 
 function refusedUpload(error: string): UploadResult {

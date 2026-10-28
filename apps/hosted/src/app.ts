@@ -20,7 +20,7 @@ import {
 	writeSite,
 } from './sites'
 import type { Sql } from './sql'
-import { verifySite } from './verify'
+import { verifySite, type VerifyOutcome } from './verify'
 
 /** A document can list at most this many feeds; the crawler rejects one listing more, whole. */
 export const MAX_FEEDS = 100
@@ -239,11 +239,12 @@ export async function reverifyAll(services: Services): Promise<string[]> {
 	return changed
 }
 
-async function reverify(
+export async function reverify(
 	services: Services,
 	site: Site,
-): Promise<{ site: Site; outcome: Awaited<ReturnType<typeof verifySite>>['outcome'] }> {
-	const result = await verifySite(site, services.zone, (name) => services.resolveTxt(name), services.now())
+	lookup: (name: string) => Promise<TxtLookup> = (name) => services.resolveTxt(name),
+): Promise<{ site: Site; outcome: VerifyOutcome }> {
+	const result = await verifySite(site, services.zone, lookup, services.now())
 	if (result.site.verified === site.verified) return { site, outcome: result.outcome }
 	const updated = { ...result.site, updatedAt: services.now().toISOString() }
 	await writeSite(services.blobs, updated)

@@ -1,5 +1,5 @@
 /** @jsxImportSource hono/jsx */
-import { INGESTIBLE_LICENCES } from '@prodid/core'
+import { INGESTIBLE_LICENCES, TXT_PREFIX, TXT_VERSION } from '@prodid/core'
 
 import { MAX_FEEDS } from './app'
 import type { FeedProblem } from './feeds'
@@ -8,6 +8,7 @@ import type { SlugRejection } from './names'
 import { HOLD_DAYS, SITES_PER_ACCOUNT } from './owners'
 import { Layout, SignOut } from './pages'
 import type { Site } from './sites'
+import type { VerifyOutcome } from './verify'
 
 export const LICENCES = ['CC0-1.0', 'CC-BY-4.0'] as const
 
@@ -231,6 +232,8 @@ export interface UploadValues {
 	media: string
 }
 
+export type DomainCheck = { ran: true; outcome: VerifyOutcome; name: string; records: string[] | null } | { ran: false; wait: number }
+
 export interface SiteView {
 	form: string
 	site: Site
@@ -239,6 +242,9 @@ export interface SiteView {
 	feeds: FeedRow[]
 	upload?: UploadResult | undefined
 	values: UploadValues
+	check?: DomainCheck | undefined
+	domainError?: string | undefined
+	domainValue?: string | undefined
 }
 
 export function SitePage(props: SiteView) {
@@ -262,6 +268,7 @@ export function SitePage(props: SiteView) {
 			</section>
 			<Feeds {...props} />
 			<Upload {...props} />
+			<Domain {...props} />
 		</Layout>
 	)
 }
@@ -408,6 +415,128 @@ function Upload(props: SiteView) {
 				</fieldset>
 				<button type="submit">Upload</button>
 			</form>
+		</section>
+	)
+}
+
+export function txtRecordLine(domain: string, host: string): string {
+	return `${TXT_PREFIX}${domain}  TXT  "v=${TXT_VERSION}; host=${host}"`
+}
+
+function outcomeText(outcome: VerifyOutcome, host: string): string {
+	switch (outcome.state) {
+		case 'verified':
+			return `Verified: ${outcome.domain} delegates to ${host}, and the document now names it.`
+		case 'lookup-failed':
+			return `The DNS lookup failed (${outcome.reason}). Nothing was changed; try again in a minute.`
+		case 'no-domain':
+			return 'This site has no domain.'
+		case 'not-delegated':
+			if (outcome.reason === 'no-record') return 'No prodid record yet. Add the record above, then check again.'
+			if (outcome.reason.startsWith('record names ')) return `The ${outcome.reason}, not ${host}.`
+			return `The record was not accepted (${outcome.reason}).`
+	}
+}
+
+function CheckOutcome(props: { check: DomainCheck; host: string }) {
+	const check = props.check
+	if (!check.ran) {
+		return (
+			<div class="notice warn" role="alert">
+				<p>
+					<strong>Checked less than a minute ago.</strong> Try again in {check.wait} {check.wait === 1 ? 'second' : 'seconds'}.
+				</p>
+			</div>
+		)
+	}
+	return (
+		<div class={check.outcome.state === 'verified' ? 'notice ok' : 'notice warn'} role="status">
+			<p>
+				<strong>{outcomeText(check.outcome, props.host)}</strong>
+			</p>
+			{check.records !== null && (
+				<>
+					<p>
+						TXT values found at <span class="mono">{check.name}</span>:{check.records.length === 0 && ' none.'}
+					</p>
+					{check.records.length > 0 && (
+						<ul class="problems">
+							{check.records.map((record) => (
+								<li class="mono">{record}</li>
+							))}
+						</ul>
+					)}
+				</>
+			)}
+		</div>
+	)
+}
+
+function Domain(props: SiteView) {
+	const domain = props.site.domain
+	const action = `/sites/${props.site.slug}/domain`
+	return (
+		<section id="domain">
+			<h2>Domain</h2>
+			{props.domainError !== undefined && (
+				<div class="notice warn" role="alert">
+					<p>
+						<strong>That domain cannot be used.</strong> {props.domainError}
+					</p>
+				</div>
+			)}
+			{domain === undefined ? (
+				<p class="soft">
+					With your own domain the source is yours: the index lists your products under it, proven by one DNS record. Nothing you published
+					here is lost.
+				</p>
+			) : (
+				<>
+					<p>
+						<span class="address">{domain}</span> <DomainBadge site={props.site} />
+					</p>
+					<p>Add this record at your DNS provider:</p>
+					<pre class="record">
+						<code>{txtRecordLine(domain, props.host)}</code>
+					</pre>
+					{props.check !== undefined && <CheckOutcome check={props.check} host={props.host} />}
+					<form method="post" action={`/sites/${props.site.slug}/verify`} class="inline">
+						<input type="hidden" name="form" value={props.form} />
+						<button type="submit">Check now</button>
+					</form>
+				</>
+			)}
+			<form method="post" action={action}>
+				<input type="hidden" name="form" value={props.form} />
+				<div class="field">
+					<label for="domain-name">{domain === undefined ? 'Domain' : 'Another domain'}</label>
+					<input
+						id="domain-name"
+						name="domain"
+						type="text"
+						required
+						autocomplete="off"
+						autocapitalize="none"
+						spellcheck={false}
+						placeholder="example.com"
+						value={props.domainValue ?? ''}
+					/>
+				</div>
+				<button type="submit" name="action" value="save">
+					Save domain
+				</button>
+			</form>
+			{domain !== undefined && (
+				<>
+					<p class="note">Removing the domain turns the site back into {props.host} alone, unverified.</p>
+					<form method="post" action={action} class="inline">
+						<input type="hidden" name="form" value={props.form} />
+						<button type="submit" name="action" value="remove" class="quiet">
+							Remove domain
+						</button>
+					</form>
+				</>
+			)}
 		</section>
 	)
 }
