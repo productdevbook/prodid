@@ -669,7 +669,7 @@ https://dumps.prodid.org/v0/<YYYY-MM-DD>/manifest.json
 https://dumps.prodid.org/v0/latest.json
 ```
 
-A dump is a directory named after the UTC date of its `snapshot_at`. It holds five data files and a [manifest](schemas/org.prodid.dump.json) ([example](examples/dump.json)). `latest.json` is a copy of the newest dump's `manifest.json`, and it is written last, after every file of that dump and its manifest are in place: a reader that starts from `latest.json` never finds a manifest naming a file that is not there yet, and finds the directory from the manifest's own `snapshot_at`.
+A dump is a directory named after the UTC date of its `snapshot_at`. It holds five data files and a [manifest](schemas/org.prodid.dump.json) ([example](fixtures/dump/valid/manifest.json)). `latest.json` is a copy of the newest dump's `manifest.json`, and it is written last, after every file of that dump and its manifest are in place: a reader that starts from `latest.json` never finds a manifest naming a file that is not there yet, and finds the directory from the manifest's own `snapshot_at`.
 
 ### Files
 
