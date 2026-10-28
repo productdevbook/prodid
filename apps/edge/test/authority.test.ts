@@ -52,6 +52,7 @@ describe.skipIf(!reachable)('authority grants', () => {
 			evidence: EVIDENCE,
 			decided_by: 'operator',
 			revoked_at: null,
+			revoked_reason: null,
 		})
 		expect(await trust()).toEqual({ status: 'authoritative', claims: ['authoritative'] })
 		const [stored] = await edge!.sql<{ trust: string }[]>`select trust from source where name = 'acme.example'`
@@ -70,24 +71,48 @@ describe.skipIf(!reachable)('authority grants', () => {
 		const one = await grant('Arçelik')
 		const two = await grant('Beko')
 		edge!.clock.advance(HOUR)
-		const revoked = await revokeAuthority(edge!.sql, { id: one.grant.id, now: edge!.clock.now() })
-		expect(revoked).toEqual({ ...one.grant, revoked_at: edge!.clock.now() })
+		const revoked = await revokeAuthority(edge!.sql, { id: one.grant.id, reason: '  prefix licensed elsewhere ', now: edge!.clock.now() })
+		expect(revoked).toEqual({ ...one.grant, revoked_at: edge!.clock.now(), revoked_reason: 'prefix licensed elsewhere' })
 		expect(await trust()).toEqual({ status: 'authoritative', claims: ['authoritative'] })
 
 		edge!.clock.advance(HOUR)
-		await revokeAuthority(edge!.sql, { id: two.grant.id, now: edge!.clock.now() })
+		await revokeAuthority(edge!.sql, { id: two.grant.id, reason: 'owner asked', now: edge!.clock.now() })
 		expect(await trust()).toEqual({ status: 'verified', claims: ['verified'] })
 
 		edge!.clock.advance(HOUR)
-		expect(await revokeAuthority(edge!.sql, { id: one.grant.id, now: edge!.clock.now() })).toEqual(revoked)
-		expect(await revokeAuthority(edge!.sql, { id: '999999', now: edge!.clock.now() })).toBeNull()
-		expect(await revokeAuthority(edge!.sql, { id: 'nope', now: edge!.clock.now() })).toBeNull()
+		expect(await revokeAuthority(edge!.sql, { id: one.grant.id, reason: 'a second reason', now: edge!.clock.now() })).toEqual(revoked)
+		expect(await revokeAuthority(edge!.sql, { id: '999999', reason: 'gone', now: edge!.clock.now() })).toBeNull()
+		expect(await revokeAuthority(edge!.sql, { id: 'nope', reason: 'gone', now: edge!.clock.now() })).toBeNull()
 
 		const again = await grant('Arçelik')
 		expect(again.created).toBe(true)
 		expect(again.grant.id).not.toBe(one.grant.id)
 		expect(await trust()).toEqual({ status: 'authoritative', claims: ['authoritative'] })
 		expect((await listAuthority(edge!.sql, 'acme.example')).map((entry) => entry.revoked_at === null)).toEqual([false, false, true])
+	})
+
+	test('a revocation needs a reason of at most 500 characters, and leaves the grant alone without one', async () => {
+		const { grant: granted } = await grant()
+		const now = edge!.clock.now()
+		await expect(revokeAuthority(edge!.sql, { id: granted.id, reason: ' \n ', now })).rejects.toThrow(RangeError)
+		await expect(revokeAuthority(edge!.sql, { id: granted.id, reason: '🔒'.repeat(501), now })).rejects.toThrow(RangeError)
+		expect(await listAuthority(edge!.sql, 'acme.example')).toEqual([granted])
+
+		const reason = '🔒'.repeat(500)
+		expect((await revokeAuthority(edge!.sql, { id: granted.id, reason, now }))?.revoked_reason).toBe(reason)
+	})
+
+	test('the database keeps a reason exactly while a grant is revoked', async () => {
+		const { grant: granted } = await grant()
+		await expect(edge!.sql`update authority set revoked_at = ${granted.decided_at} where id = ${granted.id}::bigint`).rejects.toThrow(
+			/authority_revoked_reason/,
+		)
+		await expect(edge!.sql`update authority set revoked_reason = 'why' where id = ${granted.id}::bigint`).rejects.toThrow(
+			/authority_revoked_reason/,
+		)
+		await expect(
+			edge!.sql`update authority set revoked_at = ${granted.decided_at}, revoked_reason = '' where id = ${granted.id}::bigint`,
+		).rejects.toThrow(/authority_revoked_reason/)
 	})
 
 	test('a lapse drops the source to verified with no operator action, and recovering restores it', async () => {

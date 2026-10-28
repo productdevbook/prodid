@@ -12,6 +12,7 @@ export interface AuthorityGrant {
 	decided_by: string
 	decided_at: Date
 	revoked_at: Date | null
+	revoked_reason: string | null
 }
 
 export interface GrantInput {
@@ -24,7 +25,9 @@ export interface GrantInput {
 	now: Date
 }
 
-const GRANT_COLUMNS = `a.id::text, s.name as source, a.brand, a.evidence, a.decided_by, a.decided_at, a.revoked_at`
+const REASON_MAX = 500
+
+const GRANT_COLUMNS = `a.id::text, s.name as source, a.brand, a.evidence, a.decided_by, a.decided_at, a.revoked_at, a.revoked_reason`
 
 /**
  * Grants a verified domain `authoritative` for one brand. A brand it already holds an unrevoked grant
@@ -60,10 +63,19 @@ export async function grantAuthority(sql: Sql, input: GrantInput): Promise<{ gra
 	})) as { grant: AuthorityGrant; created: boolean }
 }
 
-/** Revokes one grant. A grant that is already revoked keeps its first `revoked_at`; an unknown id is null. */
-export async function revokeAuthority(sql: Sql, input: { id: string; now: Date }): Promise<AuthorityGrant | null> {
+/**
+ * Revokes one grant, for a reason. A grant that is already revoked keeps its first `revoked_at` and
+ * `revoked_reason`; an unknown id is null.
+ */
+export async function revokeAuthority(sql: Sql, input: { id: string; reason: string; now: Date }): Promise<AuthorityGrant | null> {
+	const reason = input.reason.trim()
+	if (reason === '') throw new RangeError('a revocation gives a reason')
+	if ([...reason].length > REASON_MAX) throw new RangeError(`a revocation reason is at most ${REASON_MAX} characters`)
 	if (!/^[0-9]+$/.test(input.id)) return null
-	await sql`update authority set revoked_at = ${input.now} where id = ${input.id}::bigint and revoked_at is null`
+	await sql`
+		update authority set revoked_at = ${input.now}, revoked_reason = ${reason}
+		where id = ${input.id}::bigint and revoked_at is null
+	`
 	const [grant] = await sql<AuthorityGrant[]>`
 		select ${sql.unsafe(GRANT_COLUMNS)} from authority a join source s on s.id = a.source where a.id = ${input.id}::bigint
 	`
