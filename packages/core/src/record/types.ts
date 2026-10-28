@@ -115,3 +115,26 @@ export interface SourceRecord {
 	license?: string
 	last_crawl?: CrawlStatus
 }
+
+export type DumpFileName = 'sources.ndjson.gz' | 'entities.ndjson.gz' | 'records.ndjson.gz' | 'groupings.ndjson.gz' | 'merges.ndjson.gz'
+
+export interface DumpFile {
+	name: DumpFileName
+	sha256: string
+	bytes: number
+	lines: number
+}
+
+export interface DumpLicenses {
+	index: 'CC0-1.0'
+	claims: 'source'
+}
+
+export interface DumpManifest {
+	$type: 'org.prodid.dump'
+	version: 0
+	created_at: string
+	snapshot_at: string
+	files: DumpFile[]
+	licenses: DumpLicenses
+}

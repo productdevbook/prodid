@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 
+import dumpSchema from '@prodid/spec/schemas/org.prodid.dump.json'
 import entitySchema from '@prodid/spec/schemas/org.prodid.entity.json'
 import feedSchema from '@prodid/spec/schemas/org.prodid.feed.json'
 import itemSchema from '@prodid/spec/schemas/org.prodid.item.json'
@@ -8,6 +9,9 @@ import sourceSchema from '@prodid/spec/schemas/org.prodid.source.json'
 import type {
 	ClaimSource,
 	CrawlStatus,
+	DumpFile,
+	DumpLicenses,
+	DumpManifest,
 	EntityClaim,
 	EntityIdentifier,
 	EntityRecord,
@@ -129,6 +133,24 @@ const crawl: Required<CrawlStatus> = {
 	feeds_failed: 0,
 }
 
+const dumpFile: Required<DumpFile> = {
+	name: 'sources.ndjson.gz',
+	sha256: '4f1c2a9e8b7d6c5e0f3a2b1c9d8e7f6a5b4c3d2e1f0a9b8c7d6e5f4a3b2c1d0e',
+	bytes: 18233,
+	lines: 412,
+}
+
+const dumpLicenses: Required<DumpLicenses> = { index: 'CC0-1.0', claims: 'source' }
+
+const dump: Required<DumpManifest> = {
+	$type: 'org.prodid.dump',
+	version: 0,
+	created_at: '2026-11-02T04:41:27Z',
+	snapshot_at: '2026-11-02T04:30:02Z',
+	files: [dumpFile],
+	licenses: dumpLicenses,
+}
+
 const MIRRORS: { name: string; sample: object; properties: object }[] = [
 	{ name: 'ItemRecord', sample: item, properties: itemSchema.properties },
 	{ name: 'RecordIdentifier', sample: recordIdentifier, properties: itemSchema.$defs.identifier.properties },
@@ -143,6 +165,9 @@ const MIRRORS: { name: string; sample: object; properties: object }[] = [
 	{ name: 'ClaimSource', sample: claimSource, properties: entitySchema.$defs.source.properties },
 	{ name: 'SourceRecord', sample: source, properties: sourceSchema.properties },
 	{ name: 'CrawlStatus', sample: crawl, properties: sourceSchema.$defs.crawl.properties },
+	{ name: 'DumpManifest', sample: dump, properties: dumpSchema.properties },
+	{ name: 'DumpFile', sample: dumpFile, properties: dumpSchema.$defs.file.properties },
+	{ name: 'DumpLicenses', sample: dumpLicenses, properties: dumpSchema.properties.licenses.properties },
 ]
 
 describe('the exported types name exactly what the schemas declare', () => {

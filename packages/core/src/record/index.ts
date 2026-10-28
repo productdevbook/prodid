@@ -1,7 +1,8 @@
 import { parseGtin } from '../gtin'
 import { normalizeIdentifier } from '../identifier'
-import type { EntityClaim, EntityRecord, FeedRecord, ItemRecord, SourceRecord } from './types'
+import type { DumpManifest, EntityClaim, EntityRecord, FeedRecord, ItemRecord, SourceRecord } from './types'
 import {
+	dump as dumpSchema,
 	entity as entitySchema,
 	feed as feedSchema,
 	item as itemSchema,
@@ -15,6 +16,10 @@ export type {
 	CrawlOutcome,
 	CrawlStatus,
 	CrawlVia,
+	DumpFile,
+	DumpFileName,
+	DumpLicenses,
+	DumpManifest,
 	EntityClaim,
 	EntityIdentifier,
 	EntityKind,
@@ -112,6 +117,15 @@ function mediaValue(claim: EntityClaim): { sha256: string; media_url: string } |
 
 export function validateSource(value: unknown): ValidationResult<SourceRecord> {
 	return run(sourceSchema, value)
+}
+
+export function validateDump(value: unknown): ValidationResult<DumpManifest> {
+	const result = run(dumpSchema, value)
+	if (!result.ok) return result
+	if (Date.parse(result.value.snapshot_at) > Date.parse(result.value.created_at)) {
+		return { ok: false, errors: [{ path: '/snapshot_at', keyword: 'order', message: 'must not be after created_at' }] }
+	}
+	return result
 }
 
 function run<T>(validate: SchemaValidator<T>, value: unknown): ValidationResult<T> {

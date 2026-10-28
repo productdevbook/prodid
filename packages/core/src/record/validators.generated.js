@@ -5186,3 +5186,779 @@ validate27.errors = vErrors;
 return errors === 0;
 }
 validate27.evaluated = {"props":true,"dynamicProps":false,"dynamicItems":false};
+
+export const dump = validate30;
+const schema63 = {"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://prodid.org/schemas/v0/org.prodid.dump.json","title":"org.prodid.dump","description":"The manifest of one dump: when its snapshot was taken, the five data files it consists of with their digests and sizes, and the licences its contents are under. Served as manifest.json in the dump's directory, and copied to latest.json once every file of the newest dump is in place.","type":"object","required":["$type","version","created_at","snapshot_at","files","licenses"],"additionalProperties":false,"properties":{"$type":{"const":"org.prodid.dump"},"version":{"const":0},"created_at":{"description":"When the manifest was written, after every file. Never before snapshot_at.","$ref":"#/$defs/timestamp"},"snapshot_at":{"description":"The moment of the one snapshot every file was read from. The dump's directory is named after its UTC date.","$ref":"#/$defs/timestamp"},"files":{"description":"Each of the five data files exactly once. The manifest does not list itself.","type":"array","minItems":5,"maxItems":5,"items":{"$ref":"#/$defs/file"},"allOf":[{"contains":{"type":"object","required":["name"],"properties":{"name":{"const":"sources.ndjson.gz"}}}},{"contains":{"type":"object","required":["name"],"properties":{"name":{"const":"entities.ndjson.gz"}}}},{"contains":{"type":"object","required":["name"],"properties":{"name":{"const":"records.ndjson.gz"}}}},{"contains":{"type":"object","required":["name"],"properties":{"name":{"const":"groupings.ndjson.gz"}}}},{"contains":{"type":"object","required":["name"],"properties":{"name":{"const":"merges.ndjson.gz"}}}}]},"licenses":{"description":"What the dump's contents may be used under.","type":"object","required":["index","claims"],"additionalProperties":false,"properties":{"index":{"description":"The licence of everything the index itself makes: opids, identifier mappings, the family and variant hierarchy, groupings and merges.","const":"CC0-1.0"},"claims":{"description":"Every claim and every record is under the licence its own source declares, the license of that source's line in sources.ndjson.gz.","const":"source"}}}},"$defs":{"timestamp":{"type":"string","format":"date-time"},"file":{"type":"object","required":["name","sha256","bytes","lines"],"additionalProperties":false,"properties":{"name":{"description":"The file's name inside the dump's directory.","enum":["sources.ndjson.gz","entities.ndjson.gz","records.ndjson.gz","groupings.ndjson.gz","merges.ndjson.gz"]},"sha256":{"description":"SHA-256 of the file as served, compressed, in lowercase hex.","type":"string","pattern":"^[0-9a-f]{64}$"},"bytes":{"description":"The size of the file as served, compressed.","type":"integer","minimum":1},"lines":{"description":"The number of NDJSON lines once decompressed, one per source, entity, record, grouping or merge.","type":"integer","minimum":0}}}}};
+const schema64 = {"type":"string","format":"date-time"};
+const schema66 = {"type":"object","required":["name","sha256","bytes","lines"],"additionalProperties":false,"properties":{"name":{"description":"The file's name inside the dump's directory.","enum":["sources.ndjson.gz","entities.ndjson.gz","records.ndjson.gz","groupings.ndjson.gz","merges.ndjson.gz"]},"sha256":{"description":"SHA-256 of the file as served, compressed, in lowercase hex.","type":"string","pattern":"^[0-9a-f]{64}$"},"bytes":{"description":"The size of the file as served, compressed.","type":"integer","minimum":1},"lines":{"description":"The number of NDJSON lines once decompressed, one per source, entity, record, grouping or merge.","type":"integer","minimum":0}}};
+
+function validate30(data, {instancePath="", parentData, parentDataProperty, rootData=data, dynamicAnchors={}}={}){
+/*# sourceURL="https://prodid.org/schemas/v0/org.prodid.dump.json" */;
+let vErrors = null;
+let errors = 0;
+const evaluated0 = validate30.evaluated;
+if(evaluated0.dynamicProps){
+evaluated0.props = undefined;
+}
+if(evaluated0.dynamicItems){
+evaluated0.items = undefined;
+}
+if(data && typeof data == "object" && !Array.isArray(data)){
+if(data.$type === undefined){
+const err0 = {instancePath,schemaPath:"#/required",keyword:"required",params:{missingProperty: "$type"},message:"must have required property '"+"$type"+"'"};
+if(vErrors === null){
+vErrors = [err0];
+}
+else {
+vErrors.push(err0);
+}
+errors++;
+}
+if(data.version === undefined){
+const err1 = {instancePath,schemaPath:"#/required",keyword:"required",params:{missingProperty: "version"},message:"must have required property '"+"version"+"'"};
+if(vErrors === null){
+vErrors = [err1];
+}
+else {
+vErrors.push(err1);
+}
+errors++;
+}
+if(data.created_at === undefined){
+const err2 = {instancePath,schemaPath:"#/required",keyword:"required",params:{missingProperty: "created_at"},message:"must have required property '"+"created_at"+"'"};
+if(vErrors === null){
+vErrors = [err2];
+}
+else {
+vErrors.push(err2);
+}
+errors++;
+}
+if(data.snapshot_at === undefined){
+const err3 = {instancePath,schemaPath:"#/required",keyword:"required",params:{missingProperty: "snapshot_at"},message:"must have required property '"+"snapshot_at"+"'"};
+if(vErrors === null){
+vErrors = [err3];
+}
+else {
+vErrors.push(err3);
+}
+errors++;
+}
+if(data.files === undefined){
+const err4 = {instancePath,schemaPath:"#/required",keyword:"required",params:{missingProperty: "files"},message:"must have required property '"+"files"+"'"};
+if(vErrors === null){
+vErrors = [err4];
+}
+else {
+vErrors.push(err4);
+}
+errors++;
+}
+if(data.licenses === undefined){
+const err5 = {instancePath,schemaPath:"#/required",keyword:"required",params:{missingProperty: "licenses"},message:"must have required property '"+"licenses"+"'"};
+if(vErrors === null){
+vErrors = [err5];
+}
+else {
+vErrors.push(err5);
+}
+errors++;
+}
+for(const key0 in data){
+if(!((((((key0 === "$type") || (key0 === "version")) || (key0 === "created_at")) || (key0 === "snapshot_at")) || (key0 === "files")) || (key0 === "licenses"))){
+const err6 = {instancePath,schemaPath:"#/additionalProperties",keyword:"additionalProperties",params:{additionalProperty: key0},message:"must NOT have additional properties"};
+if(vErrors === null){
+vErrors = [err6];
+}
+else {
+vErrors.push(err6);
+}
+errors++;
+}
+}
+if(data.$type !== undefined){
+if("org.prodid.dump" !== data.$type){
+const err7 = {instancePath:instancePath+"/$type",schemaPath:"#/properties/%24type/const",keyword:"const",params:{allowedValue: "org.prodid.dump"},message:"must be equal to constant"};
+if(vErrors === null){
+vErrors = [err7];
+}
+else {
+vErrors.push(err7);
+}
+errors++;
+}
+}
+if(data.version !== undefined){
+if(0 !== data.version){
+const err8 = {instancePath:instancePath+"/version",schemaPath:"#/properties/version/const",keyword:"const",params:{allowedValue: 0},message:"must be equal to constant"};
+if(vErrors === null){
+vErrors = [err8];
+}
+else {
+vErrors.push(err8);
+}
+errors++;
+}
+}
+if(data.created_at !== undefined){
+let data2 = data.created_at;
+if(typeof data2 === "string"){
+if(!(formats8.validate(data2))){
+const err9 = {instancePath:instancePath+"/created_at",schemaPath:"#/$defs/timestamp/format",keyword:"format",params:{format: "date-time"},message:"must match format \""+"date-time"+"\""};
+if(vErrors === null){
+vErrors = [err9];
+}
+else {
+vErrors.push(err9);
+}
+errors++;
+}
+}
+else {
+const err10 = {instancePath:instancePath+"/created_at",schemaPath:"#/$defs/timestamp/type",keyword:"type",params:{type: "string"},message:"must be string"};
+if(vErrors === null){
+vErrors = [err10];
+}
+else {
+vErrors.push(err10);
+}
+errors++;
+}
+}
+if(data.snapshot_at !== undefined){
+let data3 = data.snapshot_at;
+if(typeof data3 === "string"){
+if(!(formats8.validate(data3))){
+const err11 = {instancePath:instancePath+"/snapshot_at",schemaPath:"#/$defs/timestamp/format",keyword:"format",params:{format: "date-time"},message:"must match format \""+"date-time"+"\""};
+if(vErrors === null){
+vErrors = [err11];
+}
+else {
+vErrors.push(err11);
+}
+errors++;
+}
+}
+else {
+const err12 = {instancePath:instancePath+"/snapshot_at",schemaPath:"#/$defs/timestamp/type",keyword:"type",params:{type: "string"},message:"must be string"};
+if(vErrors === null){
+vErrors = [err12];
+}
+else {
+vErrors.push(err12);
+}
+errors++;
+}
+}
+if(data.files !== undefined){
+let data4 = data.files;
+if(Array.isArray(data4)){
+const _errs13 = errors;
+const len0 = data4.length;
+for(let i0=0; i0<len0; i0++){
+let data5 = data4[i0];
+const _errs14 = errors;
+if(data5 && typeof data5 == "object" && !Array.isArray(data5)){
+if(data5.name === undefined){
+const err13 = {instancePath:instancePath+"/files/" + i0,schemaPath:"#/properties/files/allOf/0/contains/required",keyword:"required",params:{missingProperty: "name"},message:"must have required property '"+"name"+"'"};
+if(vErrors === null){
+vErrors = [err13];
+}
+else {
+vErrors.push(err13);
+}
+errors++;
+}
+if(data5.name !== undefined){
+if("sources.ndjson.gz" !== data5.name){
+const err14 = {instancePath:instancePath+"/files/" + i0+"/name",schemaPath:"#/properties/files/allOf/0/contains/properties/name/const",keyword:"const",params:{allowedValue: "sources.ndjson.gz"},message:"must be equal to constant"};
+if(vErrors === null){
+vErrors = [err14];
+}
+else {
+vErrors.push(err14);
+}
+errors++;
+}
+}
+}
+else {
+const err15 = {instancePath:instancePath+"/files/" + i0,schemaPath:"#/properties/files/allOf/0/contains/type",keyword:"type",params:{type: "object"},message:"must be object"};
+if(vErrors === null){
+vErrors = [err15];
+}
+else {
+vErrors.push(err15);
+}
+errors++;
+}
+var valid4 = _errs14 === errors;
+if(valid4){
+break;
+}
+}
+if(!valid4){
+const err16 = {instancePath:instancePath+"/files",schemaPath:"#/properties/files/allOf/0/contains",keyword:"contains",params:{minContains: 1},message:"must contain at least 1 valid item(s)"};
+if(vErrors === null){
+vErrors = [err16];
+}
+else {
+vErrors.push(err16);
+}
+errors++;
+}
+else {
+errors = _errs13;
+if(vErrors !== null){
+if(_errs13){
+vErrors.length = _errs13;
+}
+else {
+vErrors = null;
+}
+}
+}
+}
+if(Array.isArray(data4)){
+const _errs18 = errors;
+const len1 = data4.length;
+for(let i1=0; i1<len1; i1++){
+let data7 = data4[i1];
+const _errs19 = errors;
+if(data7 && typeof data7 == "object" && !Array.isArray(data7)){
+if(data7.name === undefined){
+const err17 = {instancePath:instancePath+"/files/" + i1,schemaPath:"#/properties/files/allOf/1/contains/required",keyword:"required",params:{missingProperty: "name"},message:"must have required property '"+"name"+"'"};
+if(vErrors === null){
+vErrors = [err17];
+}
+else {
+vErrors.push(err17);
+}
+errors++;
+}
+if(data7.name !== undefined){
+if("entities.ndjson.gz" !== data7.name){
+const err18 = {instancePath:instancePath+"/files/" + i1+"/name",schemaPath:"#/properties/files/allOf/1/contains/properties/name/const",keyword:"const",params:{allowedValue: "entities.ndjson.gz"},message:"must be equal to constant"};
+if(vErrors === null){
+vErrors = [err18];
+}
+else {
+vErrors.push(err18);
+}
+errors++;
+}
+}
+}
+else {
+const err19 = {instancePath:instancePath+"/files/" + i1,schemaPath:"#/properties/files/allOf/1/contains/type",keyword:"type",params:{type: "object"},message:"must be object"};
+if(vErrors === null){
+vErrors = [err19];
+}
+else {
+vErrors.push(err19);
+}
+errors++;
+}
+var valid6 = _errs19 === errors;
+if(valid6){
+break;
+}
+}
+if(!valid6){
+const err20 = {instancePath:instancePath+"/files",schemaPath:"#/properties/files/allOf/1/contains",keyword:"contains",params:{minContains: 1},message:"must contain at least 1 valid item(s)"};
+if(vErrors === null){
+vErrors = [err20];
+}
+else {
+vErrors.push(err20);
+}
+errors++;
+}
+else {
+errors = _errs18;
+if(vErrors !== null){
+if(_errs18){
+vErrors.length = _errs18;
+}
+else {
+vErrors = null;
+}
+}
+}
+}
+if(Array.isArray(data4)){
+const _errs23 = errors;
+const len2 = data4.length;
+for(let i2=0; i2<len2; i2++){
+let data9 = data4[i2];
+const _errs24 = errors;
+if(data9 && typeof data9 == "object" && !Array.isArray(data9)){
+if(data9.name === undefined){
+const err21 = {instancePath:instancePath+"/files/" + i2,schemaPath:"#/properties/files/allOf/2/contains/required",keyword:"required",params:{missingProperty: "name"},message:"must have required property '"+"name"+"'"};
+if(vErrors === null){
+vErrors = [err21];
+}
+else {
+vErrors.push(err21);
+}
+errors++;
+}
+if(data9.name !== undefined){
+if("records.ndjson.gz" !== data9.name){
+const err22 = {instancePath:instancePath+"/files/" + i2+"/name",schemaPath:"#/properties/files/allOf/2/contains/properties/name/const",keyword:"const",params:{allowedValue: "records.ndjson.gz"},message:"must be equal to constant"};
+if(vErrors === null){
+vErrors = [err22];
+}
+else {
+vErrors.push(err22);
+}
+errors++;
+}
+}
+}
+else {
+const err23 = {instancePath:instancePath+"/files/" + i2,schemaPath:"#/properties/files/allOf/2/contains/type",keyword:"type",params:{type: "object"},message:"must be object"};
+if(vErrors === null){
+vErrors = [err23];
+}
+else {
+vErrors.push(err23);
+}
+errors++;
+}
+var valid8 = _errs24 === errors;
+if(valid8){
+break;
+}
+}
+if(!valid8){
+const err24 = {instancePath:instancePath+"/files",schemaPath:"#/properties/files/allOf/2/contains",keyword:"contains",params:{minContains: 1},message:"must contain at least 1 valid item(s)"};
+if(vErrors === null){
+vErrors = [err24];
+}
+else {
+vErrors.push(err24);
+}
+errors++;
+}
+else {
+errors = _errs23;
+if(vErrors !== null){
+if(_errs23){
+vErrors.length = _errs23;
+}
+else {
+vErrors = null;
+}
+}
+}
+}
+if(Array.isArray(data4)){
+const _errs28 = errors;
+const len3 = data4.length;
+for(let i3=0; i3<len3; i3++){
+let data11 = data4[i3];
+const _errs29 = errors;
+if(data11 && typeof data11 == "object" && !Array.isArray(data11)){
+if(data11.name === undefined){
+const err25 = {instancePath:instancePath+"/files/" + i3,schemaPath:"#/properties/files/allOf/3/contains/required",keyword:"required",params:{missingProperty: "name"},message:"must have required property '"+"name"+"'"};
+if(vErrors === null){
+vErrors = [err25];
+}
+else {
+vErrors.push(err25);
+}
+errors++;
+}
+if(data11.name !== undefined){
+if("groupings.ndjson.gz" !== data11.name){
+const err26 = {instancePath:instancePath+"/files/" + i3+"/name",schemaPath:"#/properties/files/allOf/3/contains/properties/name/const",keyword:"const",params:{allowedValue: "groupings.ndjson.gz"},message:"must be equal to constant"};
+if(vErrors === null){
+vErrors = [err26];
+}
+else {
+vErrors.push(err26);
+}
+errors++;
+}
+}
+}
+else {
+const err27 = {instancePath:instancePath+"/files/" + i3,schemaPath:"#/properties/files/allOf/3/contains/type",keyword:"type",params:{type: "object"},message:"must be object"};
+if(vErrors === null){
+vErrors = [err27];
+}
+else {
+vErrors.push(err27);
+}
+errors++;
+}
+var valid10 = _errs29 === errors;
+if(valid10){
+break;
+}
+}
+if(!valid10){
+const err28 = {instancePath:instancePath+"/files",schemaPath:"#/properties/files/allOf/3/contains",keyword:"contains",params:{minContains: 1},message:"must contain at least 1 valid item(s)"};
+if(vErrors === null){
+vErrors = [err28];
+}
+else {
+vErrors.push(err28);
+}
+errors++;
+}
+else {
+errors = _errs28;
+if(vErrors !== null){
+if(_errs28){
+vErrors.length = _errs28;
+}
+else {
+vErrors = null;
+}
+}
+}
+}
+if(Array.isArray(data4)){
+const _errs33 = errors;
+const len4 = data4.length;
+for(let i4=0; i4<len4; i4++){
+let data13 = data4[i4];
+const _errs34 = errors;
+if(data13 && typeof data13 == "object" && !Array.isArray(data13)){
+if(data13.name === undefined){
+const err29 = {instancePath:instancePath+"/files/" + i4,schemaPath:"#/properties/files/allOf/4/contains/required",keyword:"required",params:{missingProperty: "name"},message:"must have required property '"+"name"+"'"};
+if(vErrors === null){
+vErrors = [err29];
+}
+else {
+vErrors.push(err29);
+}
+errors++;
+}
+if(data13.name !== undefined){
+if("merges.ndjson.gz" !== data13.name){
+const err30 = {instancePath:instancePath+"/files/" + i4+"/name",schemaPath:"#/properties/files/allOf/4/contains/properties/name/const",keyword:"const",params:{allowedValue: "merges.ndjson.gz"},message:"must be equal to constant"};
+if(vErrors === null){
+vErrors = [err30];
+}
+else {
+vErrors.push(err30);
+}
+errors++;
+}
+}
+}
+else {
+const err31 = {instancePath:instancePath+"/files/" + i4,schemaPath:"#/properties/files/allOf/4/contains/type",keyword:"type",params:{type: "object"},message:"must be object"};
+if(vErrors === null){
+vErrors = [err31];
+}
+else {
+vErrors.push(err31);
+}
+errors++;
+}
+var valid12 = _errs34 === errors;
+if(valid12){
+break;
+}
+}
+if(!valid12){
+const err32 = {instancePath:instancePath+"/files",schemaPath:"#/properties/files/allOf/4/contains",keyword:"contains",params:{minContains: 1},message:"must contain at least 1 valid item(s)"};
+if(vErrors === null){
+vErrors = [err32];
+}
+else {
+vErrors.push(err32);
+}
+errors++;
+}
+else {
+errors = _errs33;
+if(vErrors !== null){
+if(_errs33){
+vErrors.length = _errs33;
+}
+else {
+vErrors = null;
+}
+}
+}
+}
+if(Array.isArray(data4)){
+if(data4.length > 5){
+const err33 = {instancePath:instancePath+"/files",schemaPath:"#/properties/files/maxItems",keyword:"maxItems",params:{limit: 5},message:"must NOT have more than 5 items"};
+if(vErrors === null){
+vErrors = [err33];
+}
+else {
+vErrors.push(err33);
+}
+errors++;
+}
+if(data4.length < 5){
+const err34 = {instancePath:instancePath+"/files",schemaPath:"#/properties/files/minItems",keyword:"minItems",params:{limit: 5},message:"must NOT have fewer than 5 items"};
+if(vErrors === null){
+vErrors = [err34];
+}
+else {
+vErrors.push(err34);
+}
+errors++;
+}
+const len5 = data4.length;
+for(let i5=0; i5<len5; i5++){
+let data15 = data4[i5];
+if(data15 && typeof data15 == "object" && !Array.isArray(data15)){
+if(data15.name === undefined){
+const err35 = {instancePath:instancePath+"/files/" + i5,schemaPath:"#/$defs/file/required",keyword:"required",params:{missingProperty: "name"},message:"must have required property '"+"name"+"'"};
+if(vErrors === null){
+vErrors = [err35];
+}
+else {
+vErrors.push(err35);
+}
+errors++;
+}
+if(data15.sha256 === undefined){
+const err36 = {instancePath:instancePath+"/files/" + i5,schemaPath:"#/$defs/file/required",keyword:"required",params:{missingProperty: "sha256"},message:"must have required property '"+"sha256"+"'"};
+if(vErrors === null){
+vErrors = [err36];
+}
+else {
+vErrors.push(err36);
+}
+errors++;
+}
+if(data15.bytes === undefined){
+const err37 = {instancePath:instancePath+"/files/" + i5,schemaPath:"#/$defs/file/required",keyword:"required",params:{missingProperty: "bytes"},message:"must have required property '"+"bytes"+"'"};
+if(vErrors === null){
+vErrors = [err37];
+}
+else {
+vErrors.push(err37);
+}
+errors++;
+}
+if(data15.lines === undefined){
+const err38 = {instancePath:instancePath+"/files/" + i5,schemaPath:"#/$defs/file/required",keyword:"required",params:{missingProperty: "lines"},message:"must have required property '"+"lines"+"'"};
+if(vErrors === null){
+vErrors = [err38];
+}
+else {
+vErrors.push(err38);
+}
+errors++;
+}
+for(const key1 in data15){
+if(!((((key1 === "name") || (key1 === "sha256")) || (key1 === "bytes")) || (key1 === "lines"))){
+const err39 = {instancePath:instancePath+"/files/" + i5,schemaPath:"#/$defs/file/additionalProperties",keyword:"additionalProperties",params:{additionalProperty: key1},message:"must NOT have additional properties"};
+if(vErrors === null){
+vErrors = [err39];
+}
+else {
+vErrors.push(err39);
+}
+errors++;
+}
+}
+if(data15.name !== undefined){
+let data16 = data15.name;
+if(!(((((data16 === "sources.ndjson.gz") || (data16 === "entities.ndjson.gz")) || (data16 === "records.ndjson.gz")) || (data16 === "groupings.ndjson.gz")) || (data16 === "merges.ndjson.gz"))){
+const err40 = {instancePath:instancePath+"/files/" + i5+"/name",schemaPath:"#/$defs/file/properties/name/enum",keyword:"enum",params:{allowedValues: schema66.properties.name.enum},message:"must be equal to one of the allowed values"};
+if(vErrors === null){
+vErrors = [err40];
+}
+else {
+vErrors.push(err40);
+}
+errors++;
+}
+}
+if(data15.sha256 !== undefined){
+let data17 = data15.sha256;
+if(typeof data17 === "string"){
+if(!pattern29.test(data17)){
+const err41 = {instancePath:instancePath+"/files/" + i5+"/sha256",schemaPath:"#/$defs/file/properties/sha256/pattern",keyword:"pattern",params:{pattern: "^[0-9a-f]{64}$"},message:"must match pattern \""+"^[0-9a-f]{64}$"+"\""};
+if(vErrors === null){
+vErrors = [err41];
+}
+else {
+vErrors.push(err41);
+}
+errors++;
+}
+}
+else {
+const err42 = {instancePath:instancePath+"/files/" + i5+"/sha256",schemaPath:"#/$defs/file/properties/sha256/type",keyword:"type",params:{type: "string"},message:"must be string"};
+if(vErrors === null){
+vErrors = [err42];
+}
+else {
+vErrors.push(err42);
+}
+errors++;
+}
+}
+if(data15.bytes !== undefined){
+let data18 = data15.bytes;
+if(!(((typeof data18 == "number") && (!(data18 % 1) && !isNaN(data18))) && (isFinite(data18)))){
+const err43 = {instancePath:instancePath+"/files/" + i5+"/bytes",schemaPath:"#/$defs/file/properties/bytes/type",keyword:"type",params:{type: "integer"},message:"must be integer"};
+if(vErrors === null){
+vErrors = [err43];
+}
+else {
+vErrors.push(err43);
+}
+errors++;
+}
+if((typeof data18 == "number") && (isFinite(data18))){
+if(data18 < 1 || isNaN(data18)){
+const err44 = {instancePath:instancePath+"/files/" + i5+"/bytes",schemaPath:"#/$defs/file/properties/bytes/minimum",keyword:"minimum",params:{comparison: ">=", limit: 1},message:"must be >= 1"};
+if(vErrors === null){
+vErrors = [err44];
+}
+else {
+vErrors.push(err44);
+}
+errors++;
+}
+}
+}
+if(data15.lines !== undefined){
+let data19 = data15.lines;
+if(!(((typeof data19 == "number") && (!(data19 % 1) && !isNaN(data19))) && (isFinite(data19)))){
+const err45 = {instancePath:instancePath+"/files/" + i5+"/lines",schemaPath:"#/$defs/file/properties/lines/type",keyword:"type",params:{type: "integer"},message:"must be integer"};
+if(vErrors === null){
+vErrors = [err45];
+}
+else {
+vErrors.push(err45);
+}
+errors++;
+}
+if((typeof data19 == "number") && (isFinite(data19))){
+if(data19 < 0 || isNaN(data19)){
+const err46 = {instancePath:instancePath+"/files/" + i5+"/lines",schemaPath:"#/$defs/file/properties/lines/minimum",keyword:"minimum",params:{comparison: ">=", limit: 0},message:"must be >= 0"};
+if(vErrors === null){
+vErrors = [err46];
+}
+else {
+vErrors.push(err46);
+}
+errors++;
+}
+}
+}
+}
+else {
+const err47 = {instancePath:instancePath+"/files/" + i5,schemaPath:"#/$defs/file/type",keyword:"type",params:{type: "object"},message:"must be object"};
+if(vErrors === null){
+vErrors = [err47];
+}
+else {
+vErrors.push(err47);
+}
+errors++;
+}
+}
+}
+else {
+const err48 = {instancePath:instancePath+"/files",schemaPath:"#/properties/files/type",keyword:"type",params:{type: "array"},message:"must be array"};
+if(vErrors === null){
+vErrors = [err48];
+}
+else {
+vErrors.push(err48);
+}
+errors++;
+}
+}
+if(data.licenses !== undefined){
+let data20 = data.licenses;
+if(data20 && typeof data20 == "object" && !Array.isArray(data20)){
+if(data20.index === undefined){
+const err49 = {instancePath:instancePath+"/licenses",schemaPath:"#/properties/licenses/required",keyword:"required",params:{missingProperty: "index"},message:"must have required property '"+"index"+"'"};
+if(vErrors === null){
+vErrors = [err49];
+}
+else {
+vErrors.push(err49);
+}
+errors++;
+}
+if(data20.claims === undefined){
+const err50 = {instancePath:instancePath+"/licenses",schemaPath:"#/properties/licenses/required",keyword:"required",params:{missingProperty: "claims"},message:"must have required property '"+"claims"+"'"};
+if(vErrors === null){
+vErrors = [err50];
+}
+else {
+vErrors.push(err50);
+}
+errors++;
+}
+for(const key2 in data20){
+if(!((key2 === "index") || (key2 === "claims"))){
+const err51 = {instancePath:instancePath+"/licenses",schemaPath:"#/properties/licenses/additionalProperties",keyword:"additionalProperties",params:{additionalProperty: key2},message:"must NOT have additional properties"};
+if(vErrors === null){
+vErrors = [err51];
+}
+else {
+vErrors.push(err51);
+}
+errors++;
+}
+}
+if(data20.index !== undefined){
+if("CC0-1.0" !== data20.index){
+const err52 = {instancePath:instancePath+"/licenses/index",schemaPath:"#/properties/licenses/properties/index/const",keyword:"const",params:{allowedValue: "CC0-1.0"},message:"must be equal to constant"};
+if(vErrors === null){
+vErrors = [err52];
+}
+else {
+vErrors.push(err52);
+}
+errors++;
+}
+}
+if(data20.claims !== undefined){
+if("source" !== data20.claims){
+const err53 = {instancePath:instancePath+"/licenses/claims",schemaPath:"#/properties/licenses/properties/claims/const",keyword:"const",params:{allowedValue: "source"},message:"must be equal to constant"};
+if(vErrors === null){
+vErrors = [err53];
+}
+else {
+vErrors.push(err53);
+}
+errors++;
+}
+}
+}
+else {
+const err54 = {instancePath:instancePath+"/licenses",schemaPath:"#/properties/licenses/type",keyword:"type",params:{type: "object"},message:"must be object"};
+if(vErrors === null){
+vErrors = [err54];
+}
+else {
+vErrors.push(err54);
+}
+errors++;
+}
+}
+}
+else {
+const err55 = {instancePath,schemaPath:"#/type",keyword:"type",params:{type: "object"},message:"must be object"};
+if(vErrors === null){
+vErrors = [err55];
+}
+else {
+vErrors.push(err55);
+}
+errors++;
+}
+validate30.errors = vErrors;
+return errors === 0;
+}
+validate30.evaluated = {"props":true,"dynamicProps":false,"dynamicItems":false};

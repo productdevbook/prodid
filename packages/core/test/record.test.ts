@@ -1,7 +1,15 @@
 import { describe, expect, test } from 'bun:test'
 
 import { canonicalHash } from '../src/canonical'
-import { type CrawlStatus, validateEntity, validateFeed, validateItem, validateSource, type ValidationResult } from '../src/record/index'
+import {
+	type CrawlStatus,
+	validateDump,
+	validateEntity,
+	validateFeed,
+	validateItem,
+	validateSource,
+	type ValidationResult,
+} from '../src/record/index'
 
 const SPEC = new URL('../../../spec/', import.meta.url)
 const GENERATED = new URL('../src/record/validators.generated.js', import.meta.url)
@@ -98,6 +106,48 @@ describe('the record validators', () => {
 	})
 })
 
+const dumpValid = await fixtures('fixtures/dump/valid/')
+const dumpInvalid = await fixtures('fixtures/dump/invalid/')
+const dumpExpected = (await Bun.file(new URL('fixtures/dump/expected.json', SPEC)).json()) as Record<
+	string,
+	{ instancePath: string; keyword: string }
+>
+
+describe('validateDump', () => {
+	test('the spec ships dump fixtures on both sides, each refusal with its reason', () => {
+		expect(dumpValid.length).toBeGreaterThan(0)
+		expect(dumpInvalid.length).toBeGreaterThan(0)
+		expect(Object.keys(dumpExpected).sort()).toEqual(dumpInvalid)
+	})
+
+	test.each(dumpValid)('accepts fixtures/dump/valid/%s', async (name) => {
+		const result = validateDump(await Bun.file(new URL(`fixtures/dump/valid/${name}`, SPEC)).json())
+		expect(result.ok ? [] : result.errors).toEqual([])
+	})
+
+	test.each(dumpInvalid)('refuses fixtures/dump/invalid/%s for the reason the spec expects', async (name) => {
+		const result = validateDump(await Bun.file(new URL(`fixtures/dump/invalid/${name}`, SPEC)).json())
+		expect(result.ok).toBe(false)
+		if (result.ok) return
+		const want = dumpExpected[name]
+		if (want === undefined) return
+		expect(result.errors).toContainEqual(
+			expect.objectContaining({ path: want.instancePath === '' ? '/' : want.instancePath, keyword: want.keyword }),
+		)
+	})
+
+	test('takes a manifest written the moment its snapshot was taken', async () => {
+		const manifest = await Bun.file(new URL('fixtures/dump/valid/manifest.json', SPEC)).json()
+		expect(validateDump({ ...manifest, created_at: manifest.snapshot_at }).ok).toBe(true)
+	})
+
+	test('compares the two times as instants, not as text', async () => {
+		const manifest = await Bun.file(new URL('fixtures/dump/valid/manifest.json', SPEC)).json()
+		expect(validateDump({ ...manifest, snapshot_at: '2026-11-02T06:30:02+02:00' }).ok).toBe(true)
+		expect(validateDump({ ...manifest, snapshot_at: '2026-11-02T04:30:02-02:00' }).ok).toBe(false)
+	})
+})
+
 describe('validateEntity and validateSource', () => {
 	const claim = {
 		property: 'brand',
@@ -184,7 +234,8 @@ describe('the validators run where eval is forbidden', () => {
 				!validateItem({ $type: 'org.prodid.item' }).ok &&
 				!validateFeed({ $type: 'org.prodid.feed', version: 3 }).ok &&
 				!validateEntity({ $type: 'org.prodid.entity', kind: 'family' }).ok &&
-				!validateSource({ $type: 'org.prodid.source', trust: 'verified' }).ok
+				!validateSource({ $type: 'org.prodid.source', trust: 'verified' }).ok &&
+				!validateDump({ $type: 'org.prodid.dump', version: 1 }).ok
 		} finally {
 			host.Function = realFunction
 			host.eval = realEval

@@ -43,4 +43,10 @@ describe('the record validators bundled the way wrangler bundles a Worker', () =
 		const result = record.validateItem({ ...item, brand: 'x'.repeat(257) })
 		expect(result.ok).toBe(false)
 	})
+
+	test('validate a dump manifest', async () => {
+		const manifest = await Bun.file(new URL('../fixtures/dump/valid/manifest.json', SPEC)).json()
+		expect(record.validateDump(manifest).ok).toBe(true)
+		expect(record.validateDump({ ...manifest, files: manifest.files.slice(1) }).ok).toBe(false)
+	})
 })

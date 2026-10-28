@@ -1,3 +1,4 @@
+import dumpSchema from '@prodid/spec/schemas/org.prodid.dump.json'
 import entitySchema from '@prodid/spec/schemas/org.prodid.entity.json'
 import feedSchema from '@prodid/spec/schemas/org.prodid.feed.json'
 import itemSchema from '@prodid/spec/schemas/org.prodid.item.json'
@@ -27,9 +28,16 @@ ajv.addSchema(itemSchema)
 ajv.addSchema(feedSchema)
 ajv.addSchema(entitySchema)
 ajv.addSchema(sourceSchema)
+ajv.addSchema(dumpSchema)
 
 const source = toEsm(
-	standaloneCode(ajv, { item: itemSchema.$id, feed: feedSchema.$id, entity: entitySchema.$id, source: sourceSchema.$id }),
+	standaloneCode(ajv, {
+		item: itemSchema.$id,
+		feed: feedSchema.$id,
+		entity: entitySchema.$id,
+		source: sourceSchema.$id,
+		dump: dumpSchema.$id,
+	}),
 )
 
 if (/\brequire\s*\(/.test(source)) throw new Error('generated validators still contain require()')
@@ -64,7 +72,7 @@ function toEsm(code: string): string {
 
 function declarations(): string {
 	return `${BANNER}
-import type { EntityRecord, FeedRecord, ItemRecord, SourceRecord } from './types'
+import type { DumpManifest, EntityRecord, FeedRecord, ItemRecord, SourceRecord } from './types'
 
 export interface SchemaError {
 	instancePath: string
@@ -83,5 +91,6 @@ export declare const item: SchemaValidator<ItemRecord>
 export declare const feed: SchemaValidator<FeedRecord>
 export declare const entity: SchemaValidator<EntityRecord>
 export declare const source: SchemaValidator<SourceRecord>
+export declare const dump: SchemaValidator<DumpManifest>
 `
 }
