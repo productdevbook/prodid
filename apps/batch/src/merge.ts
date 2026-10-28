@@ -1,5 +1,5 @@
 import { isOpid } from '@prodid/core'
-import { createClient, mergeEntities, revertMerge, type Sql } from '@prodid/store'
+import { createClient, DEFAULT_CANDIDATE_LIMIT, findMergeCandidates, mergeEntities, revertMerge, type Sql } from '@prodid/store'
 
 export const MAX_REASON = 500
 
@@ -33,6 +33,13 @@ export function parseReason(value: string): string {
 	const length = [...reason].length
 	if (length > MAX_REASON) throw new MergeError(`--reason is ${length} characters, at most ${MAX_REASON}`)
 	return reason
+}
+
+export function parseLimit(value: string | undefined): number {
+	if (value === undefined) return DEFAULT_CANDIDATE_LIMIT
+	const limit = /^\d+$/.test(value) ? Number(value) : Number.NaN
+	if (!Number.isSafeInteger(limit) || limit < 1) throw new MergeError(`--limit ${value} is not a positive integer`)
+	return limit
 }
 
 export interface MergeCommand {
@@ -96,6 +103,21 @@ export async function runUnmerge(databaseUrl: string, input: { from: string; now
 		log(`unmerged: ${input.from} from ${survivor}`)
 		log(`${input.from} resolves to ${input.from}`)
 		log(`${survivor} resolves to ${survivor}`)
+	})
+}
+
+export async function runCandidates(databaseUrl: string, input: { limit: number }, options: RunOptions = {}): Promise<void> {
+	const log = options.log ?? console.log
+	log(`database: ${new URL(databaseUrl).host}`)
+
+	await withDatabase(databaseUrl, async (sql) => {
+		const candidates = await findMergeCandidates(sql, { limit: input.limit })
+		for (const { a, b, brand, name } of candidates) {
+			log([a.opid, a.source, b.opid, b.source, JSON.stringify(brand), JSON.stringify(name)].join('\t'))
+		}
+		log(
+			`${candidates.length} ${candidates.length === 1 ? 'pair' : 'pairs'}${candidates.length === input.limit ? `, the limit; raise --limit for more` : ''}`,
+		)
 	})
 }
 

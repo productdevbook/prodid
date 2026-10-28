@@ -6,7 +6,7 @@ import type { MerchantDeclaration } from '@prodid/core'
 
 import { checkDocument, checkFeed, type CheckResult, formatProblem } from './check'
 import { convertMerchant, type MerchantConversion } from './merchant'
-import { databaseEnv, MergeError, mergeEnv, parseOpid, parseReason, runMerge, runUnmerge } from './merge'
+import { databaseEnv, MergeError, mergeEnv, parseLimit, parseOpid, parseReason, runCandidates, runMerge, runUnmerge } from './merge'
 import { OperatorClient, OperatorError, type SiteSettings } from './operator'
 import { parseDigest, runBlockMedia, TakedownError, takedownEnv } from './takedown'
 
@@ -55,7 +55,14 @@ const USAGE = `prodid-batch <command>
       Revert the active merge of <from-opid>, so it resolves on its own again with everything it
       held. Prints what now resolves where. Needs DATABASE_URL.
 
-block-media, merge and unmerge print the database host first and write to it directly.
+  candidates [--limit 100]
+      List items from different sources that share a normalized brand and an identical name and
+      have no conflicting GTIN, one tab-separated line per pair: both opids, each with its source,
+      then the brand and name as JSON strings. It only reads; merging stays a human decision.
+      Needs DATABASE_URL.
+
+block-media, merge, unmerge and candidates print the database host first; all but candidates write
+to it directly.
 
 site, feed, publish, assign, verify, show, remove-feed and remove-site call the operator endpoint,
 PRODID_OPERATOR_URL (default https://publish.prodid.org), authenticated with PRODID_OPERATOR_TOKEN.`
@@ -70,6 +77,7 @@ const OPTIONS = {
 	domain: { type: 'string' },
 	name: { type: 'string' },
 	reason: { type: 'string' },
+	limit: { type: 'string' },
 	help: { type: 'boolean', short: 'h' },
 } as const
 
@@ -156,6 +164,11 @@ async function main(argv: string[]): Promise<void> {
 		case 'unmerge': {
 			const from = parseOpid(need(rest[0], 'from-opid'))
 			await runUnmerge(databaseEnv(process.env), { from, now: new Date() })
+			return
+		}
+		case 'candidates': {
+			const limit = parseLimit(values.limit)
+			await runCandidates(databaseEnv(process.env), { limit })
 			return
 		}
 		default:
