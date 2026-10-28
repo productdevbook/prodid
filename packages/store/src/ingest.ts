@@ -137,14 +137,14 @@ async function ingestOnce(
 			if (family === null) {
 				family = mintOpid()
 				await insertEntity(tx, family, 'family', null, now)
-				await insertGrouping(tx, source, 'family', prepared.familyKey, family)
+				await insertGrouping(tx, source, 'family', prepared, family)
 			}
 			variant = mintOpid()
 			await insertEntity(tx, variant, 'variant', family, now)
-			await insertGrouping(tx, source, 'variant', prepared.variantKey, variant)
+			await insertGrouping(tx, source, 'variant', prepared, variant)
 		} else if (mapped.family === null) {
 			// The variant's own family is the truth; the unmapped family key adopts it.
-			await insertGrouping(tx, source, 'family', prepared.familyKey, await parentOf(tx, variant))
+			await insertGrouping(tx, source, 'family', prepared, await parentOf(tx, variant))
 		}
 		opid = mintOpid()
 		await insertEntity(tx, opid, 'item', variant, now)
@@ -153,8 +153,8 @@ async function ingestOnce(
 		// adopts them, and a mapping that disagrees leaves the item exactly where it is.
 		const variant = items.find((match) => match.target === opid)?.parent ?? null
 		if (variant !== null) {
-			if (mapped.variant === null) await insertGrouping(tx, source, 'variant', prepared.variantKey, variant)
-			if (mapped.family === null) await insertGrouping(tx, source, 'family', prepared.familyKey, await parentOf(tx, variant))
+			if (mapped.variant === null) await insertGrouping(tx, source, 'variant', prepared, variant)
+			if (mapped.family === null) await insertGrouping(tx, source, 'family', prepared, await parentOf(tx, variant))
 		}
 	}
 
@@ -237,8 +237,19 @@ async function insertEntity(tx: TransactionSql, opid: string, kind: EntityKind, 
  * the conflict and re-reading the winner's opid would leave that entity behind forever, and entities
  * are never deleted.
  */
-async function insertGrouping(tx: TransactionSql, source: string, kind: 'family' | 'variant', key: string, opid: string): Promise<void> {
-	await tx`insert into grouping (source, kind, key, opid) values (${source}, ${kind}, ${key}, ${opid})`
+async function insertGrouping(
+	tx: TransactionSql,
+	source: string,
+	kind: 'family' | 'variant',
+	prepared: PreparedRecord,
+	opid: string,
+): Promise<void> {
+	const key = kind === 'family' ? prepared.familyKey : prepared.variantKey
+	const written = canonicalize(prepared.writtenKeys[kind])
+	await tx`
+		insert into grouping (source, kind, key, written_key, opid)
+		values (${source}, ${kind}, ${key}, ${written}::text::jsonb, ${opid})
+	`
 }
 
 async function insertIdentifiers(

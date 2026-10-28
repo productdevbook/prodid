@@ -1,6 +1,7 @@
-import { type EntityRecord, groupingDigests, type ItemRecord, type SourceRecord } from '@prodid/core'
+import type { EntityRecord, ItemRecord, SourceRecord } from '@prodid/core'
 
 import type { Sql, TransactionSql } from './client'
+import type { FamilyKey, VariantKey } from './prepare'
 import { buildEntities, type EntityRow, readSourceStatusPage } from './read'
 
 export type DumpFile = 'sources.ndjson.gz' | 'entities.ndjson.gz' | 'records.ndjson.gz' | 'groupings.ndjson.gz' | 'merges.ndjson.gz'
@@ -27,12 +28,7 @@ export interface RecordLine {
 	withdrawn_at?: string
 }
 
-export type FamilyKey = { group: string } | { key: string }
-
-export interface VariantKey {
-	family: FamilyKey
-	variant: Record<string, string>
-}
+export type { FamilyKey, VariantKey } from './prepare'
 
 export type GroupingLine =
 	| { source: string; kind: 'family'; key: FamilyKey; opid: string }
@@ -52,6 +48,8 @@ export interface DumpSnapshot {
 	entities(): AsyncGenerator<EntityLine>
 	records(): AsyncGenerator<RecordLine>
 	groupings(): AsyncGenerator<GroupingLine>
+	/** Groupings older than their written-out key that no record still produces: left out of `groupings()`, counted here. */
+	groupingsWithoutKey(): Promise<number>
 	merges(): AsyncGenerator<MergeLine>
 }
 
@@ -67,16 +65,14 @@ export async function readSnapshot<T>(sql: Sql, run: (snapshot: DumpSnapshot) =>
 	return (await sql.begin('isolation level repeatable read', async (tx) => {
 		// The first statement takes the snapshot, so its own timestamp is the snapshot's.
 		const [taken] = await tx<{ at: Date }[]>`select statement_timestamp() as at`
-		let keys: Promise<void> | null = null
 		return await run({
 			snapshotAt: taken!.at,
 			sources: () => sources(tx, page),
 			entities: () => entities(tx, page),
 			records: () => records(tx, page),
-			groupings: () => {
-				keys ??= writeGroupingKeys(tx, page)
-				return groupings(tx, keys, page)
-			},
+			groupings: () => groupings(tx, page),
+			groupingsWithoutKey: async () =>
+				(await tx<{ count: number }[]>`select count(*)::int as count from grouping where written_key is null`)[0]!.count,
 			merges: () => merges(tx, page),
 		})
 	})) as T
@@ -165,16 +161,15 @@ interface GroupingRow {
 	opid: string
 }
 
-async function* groupings(tx: TransactionSql, keys: Promise<void>, page: number): AsyncGenerator<GroupingLine> {
-	await keys
+async function* groupings(tx: TransactionSql, page: number): AsyncGenerator<GroupingLine> {
 	let after: { source: string; kind: string; key: string } | null = null
 	for (;;) {
 		const rows: GroupingRow[] = await tx<GroupingRow[]>`
-			select g.source::text, s.name as source_name, g.kind, g.key, w.written, g.opid
+			select g.source::text, s.name as source_name, g.kind, g.key, g.written_key::text as written, g.opid
 			from grouping g
 			join source s on s.id = g.source
-			join dump_grouping_key w on w.source = g.source and w.kind = g.kind and w.key = g.key
-			${after === null ? tx`` : tx`where (g.source, g.kind, g.key) > (${after.source}::bigint, ${after.kind}, ${after.key})`}
+			where g.written_key is not null
+				${after === null ? tx`` : tx`and (g.source, g.kind, g.key) > (${after.source}::bigint, ${after.kind}, ${after.key})`}
 			order by g.source, g.kind, g.key
 			limit ${page}
 		`
@@ -185,54 +180,6 @@ async function* groupings(tx: TransactionSql, keys: Promise<void>, page: number)
 		const last = rows.at(-1)!
 		after = { source: last.source, kind: last.kind, key: last.key }
 	}
-}
-
-/**
- * `grouping.key` is a digest of a key that embeds the internal source id, so it cannot be written
- * out by itself. Every record names its own grouping keys, so the records are read once and each
- * digest they produce is paired with the key written out; the pairs stay in the database, not here.
- */
-async function writeGroupingKeys(tx: TransactionSql, page: number): Promise<void> {
-	await tx`
-		create temporary table dump_grouping_key (
-			source bigint not null,
-			kind text not null,
-			key text not null,
-			written text not null,
-			primary key (source, kind, key)
-		) on commit drop
-	`
-	for await (const rows of recordRows(tx, page)) {
-		const pairs = await Promise.all(
-			rows.map(async (row) => {
-				const body = JSON.parse(row.body) as ItemRecord
-				const digests = await groupingDigests(body, { source: row.source })
-				const keys = writtenKeys(body)
-				return [
-					{ source: row.source, kind: 'family', key: digests.family, written: JSON.stringify(keys.family) },
-					{ source: row.source, kind: 'variant', key: digests.variant, written: JSON.stringify(keys.variant) },
-				]
-			}),
-		)
-		const flat = pairs.flat()
-		if (flat.length === 0) continue
-		await tx`
-			insert into dump_grouping_key (source, kind, key, written)
-			select * from unnest(
-				${flat.map((pair) => pair.source)}::bigint[],
-				${flat.map((pair) => pair.kind)}::text[],
-				${flat.map((pair) => pair.key)}::text[],
-				${flat.map((pair) => pair.written)}::text[]
-			)
-			on conflict do nothing
-		`
-	}
-}
-
-/** What a record is grouped on, written out the way the spec's grouping line carries it. */
-function writtenKeys(record: ItemRecord): { family: FamilyKey; variant: VariantKey } {
-	const family: FamilyKey = record.group === undefined ? { key: record.key } : { group: record.group }
-	return { family, variant: { family, variant: record.variant ?? {} } }
 }
 
 async function* merges(tx: TransactionSql, page: number): AsyncGenerator<MergeLine> {

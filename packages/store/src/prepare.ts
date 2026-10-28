@@ -29,6 +29,26 @@ export interface PreparedRecord {
 	media: MediaEntry[]
 	familyKey: string
 	variantKey: string
+	/** What `familyKey` and `variantKey` digest, written out without the source id, as a dump's grouping line carries it. */
+	writtenKeys: WrittenKeys
+}
+
+export type FamilyKey = { group: string } | { key: string }
+
+export interface VariantKey {
+	family: FamilyKey
+	variant: Record<string, string>
+}
+
+export interface WrittenKeys {
+	family: FamilyKey
+	variant: VariantKey
+}
+
+/** What a record is grouped on, written out the way the spec's grouping line carries it. */
+export function writtenKeys(record: ItemRecord): WrittenKeys {
+	const family: FamilyKey = record.group === undefined ? { key: record.key } : { group: record.group }
+	return { family, variant: { family, variant: record.variant ?? {} } }
 }
 
 /** How many media entries of one record are ingested. */
@@ -72,6 +92,7 @@ export async function prepareRecord(record: ItemRecord, source: string): Promise
 				media: derived.media.slice(0, MAX_MEDIA_ENTRIES),
 				familyKey: digests.family,
 				variantKey: digests.variant,
+				writtenKeys: writtenKeys(record),
 			},
 		}
 	} catch (error) {

@@ -383,3 +383,56 @@ describe.skipIf(!reachable)('loading a dump', () => {
 		}
 	})
 })
+
+describe.skipIf(!reachable)('a grouping no record produces any more', () => {
+	const KEY = 'tj-navy-m'
+	const old = { family: { group: 'trail-jacket' }, variant: { family: { group: 'trail-jacket' }, variant: { color: 'Navy' } } }
+	const regrouped = { family: { group: 'jackets' }, variant: { family: { group: 'jackets' }, variant: { color: 'Navy' } } }
+
+	beforeAll(async () => {
+		await edge!.reset()
+		edge!.net.document('acme.example', document({ feeds: [ACME_FEED] }))
+		edge!.net.feed(ACME_FEED, [item({ key: KEY, group: 'trail-jacket', variant: { color: 'Navy' }, gtin: GTINS.navy })])
+		expect((await edge!.crawl('acme.example')).kind).toBe('done')
+		edge!.clock.advance(HOUR)
+		edge!.net.feed(ACME_FEED, [item({ key: KEY, group: 'jackets', variant: { color: 'Navy' }, gtin: GTINS.navy })])
+		expect((await edge!.crawl('acme.example')).kind).toBe('done')
+	})
+
+	test('keeps its line in the dump, and a load and a dump again give it back', async () => {
+		const dump = await readSnapshot(edge!.sql, collectSnapshot)
+		const navy = dump.entities.find((line) => line.kind === 'item')!
+		const keys = dump.groupings.map((line) => ({ kind: line.kind, key: line.key, opid: line.opid }))
+		expect(keys).toHaveLength(4)
+		for (const keyed of [old, regrouped]) {
+			expect(keys).toContainEqual({ kind: 'family', key: keyed.family, opid: navy.parents!.family! })
+			expect(keys).toContainEqual({ kind: 'variant', key: keyed.variant, opid: navy.parents!.variant! })
+		}
+		expect(dump.records.map((line) => line.body.group)).toEqual(['jackets'])
+		const written = await edge!.sql<{ type: string }[]>`select distinct jsonb_typeof(written_key) as type from grouping`
+		expect(written.map((row) => row.type)).toEqual(['object'])
+
+		const target = await startEdge({ at: new Date(edge!.clock.now().getTime() + HOUR) })
+		try {
+			expect((await loadDump(target.sql, linesOf(dump), { operator: 'test' })).groupings).toBe(4)
+			const again = await readSnapshot(target.sql, collectSnapshot)
+			expect({ ...again, snapshotAt: null }).toEqual({ ...dump, snapshotAt: null })
+			const [stored] = await target.sql<{ count: number }[]>`select count(*)::int as count from grouping where written_key is not null`
+			expect(stored!.count).toBe(4)
+		} finally {
+			await target.stop()
+		}
+	})
+
+	test('a row older than its written key is left out of the dump and counted', async () => {
+		await edge!.sql`
+			update grouping set written_key = null where kind = 'variant' and written_key->'family' = '{"group":"trail-jacket"}'::jsonb
+		`
+		const { lines, missing } = await readSnapshot(edge!.sql, async (snapshot) => ({
+			lines: await collect(snapshot.groupings()),
+			missing: await snapshot.groupingsWithoutKey(),
+		}))
+		expect(lines).toHaveLength(3)
+		expect(missing).toBe(1)
+	})
+})

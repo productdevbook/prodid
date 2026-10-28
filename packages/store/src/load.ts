@@ -12,8 +12,8 @@ import {
 } from '@prodid/core'
 
 import type { Sql, TransactionSql } from './client'
-import { DUMP_PAGE, type DumpFile, type FamilyKey } from './dump'
-import { prepareRecord } from './prepare'
+import { DUMP_PAGE, type DumpFile } from './dump'
+import { type FamilyKey, prepareRecord, type VariantKey } from './prepare'
 import type { CrawlOutcome } from './source'
 
 /** The parsed lines of each dump file, read in the order the files are listed here. */
@@ -150,7 +150,7 @@ async function stagingTables(tx: TransactionSql): Promise<void> {
 			source bigint not null, scheme text not null, scope text not null, value text not null, first_seen timestamptz not null
 		) on commit drop;
 		create temporary table dump_grouping (
-			source bigint not null, kind text not null, key text not null, opid text not null
+			source bigint not null, kind text not null, key text not null, written text not null, opid text not null
 		) on commit drop;
 		create temporary table dump_merge (
 			n int not null, from_opid text not null, into_opid text not null, decided_at timestamptz not null, reverted_at timestamptz
@@ -453,7 +453,7 @@ function familyKey(value: unknown, line: number): FamilyKey {
  * The digest is core's, of the key a record with this grouping would produce: core reads only the
  * grouping members of a record, so a record carrying nothing else derives exactly that key.
  */
-function groupedRecord(kind: unknown, key: unknown, line: number): ItemRecord {
+function groupedRecord(kind: unknown, key: unknown, line: number): { record: ItemRecord; written: FamilyKey | VariantKey } {
 	let family: FamilyKey
 	let variant: Record<string, string> | undefined
 	if (kind === 'family') {
@@ -472,7 +472,7 @@ function groupedRecord(kind: unknown, key: unknown, line: number): ItemRecord {
 	const record: ItemRecord = { $type: 'org.prodid.item', key: 'key' in family ? family.key : '', brand: '', name: '', identifiers: [] }
 	if ('group' in family) record.group = family.group
 	if (variant !== undefined) record.variant = variant
-	return record
+	return { record, written: variant === undefined ? family : { family, variant } }
 }
 
 async function stageGroupings(tx: TransactionSql, lines: Numbered[], ids: ReadonlyMap<string, string>): Promise<void> {
@@ -480,17 +480,18 @@ async function stageGroupings(tx: TransactionSql, lines: Numbered[], ids: Readon
 		lines.map(async ({ line, value }) => {
 			if (!isObject(value)) throw new LineError(line, 'not an object')
 			const source = sourceId(ids, value.source, line)
-			const record = groupedRecord(value.kind, value.key, line)
+			const { record, written } = groupedRecord(value.kind, value.key, line)
 			const digests = await groupingDigests(record, { source })
 			const kind = value.kind as 'family' | 'variant'
-			return { source, kind, key: digests[kind], opid: opidOf(value.opid, line, 'opid') }
+			return { source, kind, key: digests[kind], written: canonicalize(written), opid: opidOf(value.opid, line, 'opid') }
 		}),
 	)
 	await tx`
-		insert into dump_grouping (source, kind, key, opid)
+		insert into dump_grouping (source, kind, key, written, opid)
 		select * from unnest(
 			${rows.map((row) => row.source)}::bigint[], ${rows.map((row) => row.kind)}::text[],
-			${rows.map((row) => row.key)}::text[], ${rows.map((row) => row.opid)}::text[]
+			${rows.map((row) => row.key)}::text[], ${rows.map((row) => row.written)}::text[],
+			${rows.map((row) => row.opid)}::text[]
 		)
 	`
 }
@@ -663,5 +664,5 @@ async function settle(tx: TransactionSql, operator: string, now: Date): Promise<
 		select opid, property, value::jsonb, lang, source, record_key, seen_at, withdrawn_at from dump_own_claim order by n
 	`
 
-	await tx`insert into grouping (source, kind, key, opid) select source, kind, key, opid from dump_grouping`
+	await tx`insert into grouping (source, kind, key, written_key, opid) select source, kind, key, written::jsonb, opid from dump_grouping`
 }
