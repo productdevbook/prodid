@@ -1,13 +1,14 @@
 # Operating prodid.org
 
 What the operator does by hand: the hosting that self-service does not cover, taking a file down,
-reading the dead letters, and answering a publisher whose source lapsed. Every command here is
-`prodid-batch` (`apps/batch/src/cli.ts`; from the repository root, `bun apps/batch/src/cli.ts`) or
-plain `curl` against public URLs. The outputs shown were produced by running each command against
-a local stack (the hosted Worker under `wrangler dev`, the dev Postgres) or, for the public URLs,
-against production; values that differ per run are written `<…>`.
+granting and revoking `authoritative`, reading the dead letters, and answering a publisher whose
+source lapsed. Every command here is `prodid-batch` (`apps/batch/src/cli.ts`; from the repository
+root, `bun apps/batch/src/cli.ts`) or plain `curl` against public URLs. The outputs shown were
+produced by running each command against a local stack (the hosted Worker under `wrangler dev`,
+the dev Postgres) or, for the public URLs, against production; values that differ per run are
+written `<…>`.
 
-Design: [04 · Index](design/04-index.md) (takedown) and
+Design: [04 · Index](design/04-index.md) (takedown, authoritative brands) and
 [06 · Hosted publisher and operator](design/06-hosted-and-operator.md) (hosting, the CLI).
 
 ## The CLI
@@ -66,8 +67,48 @@ prodid-batch <command>
       then the brand and name as JSON strings. It only reads; merging stays a human decision.
       Needs DATABASE_URL.
 
-block-media, merge, unmerge and candidates print the database host first; all but candidates write
-to it directly.
+  grant-authority <source> <brand> --evidence URL
+      Grant a verified domain source authoritative trust for one brand, on the https URL of the
+      Verified by GS1 lookup that shows the brand's GTIN prefix is licensed to the domain's owner.
+      Prints the grant id, the brand as normalized, and the source's trust afterwards; a brand the
+      source already holds is not granted twice. PRODID_OPERATOR is recorded as the decider. Needs
+      DATABASE_URL and PRODID_OPERATOR; never the operator token.
+
+  revoke-authority <id> --reason TEXT
+      Revoke a grant by the id grant-authority printed; the source drops to verified once it holds
+      no other grant. The reason is at most 500 characters; a second revoke keeps the first time
+      and reason. Prints the source's trust afterwards. Needs DATABASE_URL.
+
+  dump [--out DIR]
+      Write a full dump of the index from one snapshot: the five gzip NDJSON files under
+      v0/<YYYY-MM-DD>/, then manifest.json, then v0/latest.json, each line counted and digested as
+      it is written. Then removes the dated dumps retention no longer keeps: the last 7 days and the
+      first dump of each month stay. A date that already has a manifest is refused. Prints lines,
+      bytes and elapsed time per file. Writes to R2 over S3 multipart, needing R2_ENDPOINT,
+      R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY and R2_DUMPS_BUCKET, or with --out to the same layout
+      under DIR. Needs DATABASE_URL; it only reads the index.
+
+  load-dump <dir|url>
+      Load a dump into an empty index migrated to the same version, in one transaction. <dir|url>
+      is a dump's dated directory, its manifest.json, or a latest.json, local or over HTTPS (e.g.
+      https://dumps.prodid.org/v0/latest.json). Every file is checked against the manifest's
+      sha256, bytes and lines before anything is written; a remote dump is downloaded to a
+      temporary directory first. A database that is not empty is refused. PRODID_OPERATOR is
+      recorded as the decider of the loaded merges. Needs DATABASE_URL and PRODID_OPERATOR.
+
+  import wikidata <file|url> [--document-url URL]
+      Import a Wikidata JSON dump (plain, gzip or bzip2; e.g.
+      https://dumps.wikimedia.org/wikidatawiki/entities/latest-all.json.gz) as the CC0 source
+      dataset:wikidata. Items with a GTIN (P3962), a brand (P1716) with an English label and an
+      English label of their own become records; the rest are skipped and counted by reason. A URL is
+      downloaded to a temporary file first; the dump is streamed twice, never held in memory. A full
+      import: records of earlier imports it did not see are withdrawn. Prints progress, then records
+      written, skipped by reason, withdrawn, and elapsed time. --document-url is the export's public
+      URL recorded on the import, by default the URL read from, or for a file the latest-all.json.gz
+      URL above. Needs DATABASE_URL.
+
+block-media, merge, unmerge, candidates, grant-authority, revoke-authority, dump, load-dump and
+import print the database host first; all but candidates and dump write to it directly.
 
 site, feed, publish, assign, verify, show, remove-feed and remove-site call the operator endpoint,
 PRODID_OPERATOR_URL (default https://publish.prodid.org), authenticated with PRODID_OPERATOR_TOKEN.
@@ -79,8 +120,9 @@ Two sets of credentials, never mixed:
   hosted Worker). Without it: `PRODID_OPERATOR_TOKEN is not set`, exit 1. With a wrong one:
   `operator endpoint answered 401: no body`, exit 1.
 - **Index**: `DATABASE_URL` on a direct connection to Postgres, for `block-media`, `merge`,
-  `unmerge` and `candidates`; the R2 S3 API keys and a Cloudflare API token with Cache Purge, for
-  `block-media` only.
+  `unmerge`, `candidates`, `grant-authority` and `revoke-authority`; `PRODID_OPERATOR`, the
+  operator's GitHub login, recorded as the decider of a merge or a grant; the R2 S3 API keys and a
+  Cloudflare API token with Cache Purge, for `block-media` only.
 
 Secrets live outside the repository. Export them in the shell from the operator's own store; never
 paste them into an issue, a log or a command line that is saved.
@@ -356,6 +398,97 @@ A served file answers `HTTP/2 200` with `cache-control: public, max-age=31536000
 blocked one answers `410` with `application/problem+json` (`…/problem/blocked-media`). Browsers
 that already cached the file keep it; nothing reaches them. Answer the issue with the `curl -I`
 status line. When the whole hosted site is the problem, remove it as above.
+
+## Granting authoritative
+
+From a "Request authoritative trust" issue (`.github/ISSUE_TEMPLATE/request-authoritative.yml`,
+label `area:ops`). It gives the domain, the brand as its records name it, and the URL of a
+Verified by GS1 lookup for one GTIN the source publishes under that brand. The rule is *Trust* in
+the [specification](../spec/README.md#trust): the GS1 company prefix of that brand's GTINs is
+licensed to the organization that controls the domain.
+
+1. The source is `verified` and not lapsed:
+
+   ```sh
+   curl -s https://prodid.org/source/<domain>
+   ```
+
+   It shows `"kind":"domain"`, `"trust":"verified"` and `"lapsed":false`. Anything else: answer that
+   control of the domain has to be proven first, as the issue form says, and close the issue. The command refuses an unverified source anyway; a lapsed one would be granted but stays
+   `verified` until it recovers.
+2. The source publishes that brand: an entity of one of its GTINs names it.
+
+   ```sh
+   curl -s -H 'Accept: application/json' https://prodid.org/01/<gtin>
+   ```
+
+   A claim with `"property":"brand"` and `"source":{"name":"<domain>",…}` carries the brand.
+3. The evidence holds. Open the lookup URL: it is `https://` on GS1's own site, the GTIN in it is
+   the one from step 2, and the company it names as holding the prefix is the organization behind
+   the domain (its website is that domain, or the domain's public owner is that company). If it
+   does not, or the issue gives something other than a GS1 lookup, ask for one and leave the issue
+   open; do not grant on anything else.
+4. Grant, with the index credentials and `PRODID_OPERATOR` exported:
+
+   ```sh
+   prodid-batch grant-authority <domain> "<brand>" --evidence "<lookup URL>"
+   ```
+
+   ```
+   database: <host>:<port>
+   grant: <id>
+   source: acme.example
+   brand: "arçelik"
+   evidence: https://www.gs1.org/services/verified-by-gs1/results?gtin=04006381333931
+   decided: <time> by <login>
+   trust: authoritative
+   ```
+
+   The first line is the database it writes to; the run does not pause there, so check that
+   `DATABASE_URL` is production before you start. `brand` is stored normalized, which is how the
+   index compares brands. A brand the source already holds an unrevoked grant for prints
+   `grant: <id>, already held` with that grant's own evidence and decider, and writes nothing.
+   `trust` is the source's status afterwards; `verified, lapsed since <time>` means the grant is
+   written but has no effect until the source recovers.
+5. Check it from outside: `curl -s https://prodid.org/source/<domain>` shows
+   `"trust":"authoritative"`, and every claim of the source carries it.
+6. Answer the issue with the grant id and the status line, and close it. The id is what a later
+   revoke needs; the issue is where it is kept.
+
+Refusals, exit 1: before anything is read, `DATABASE_URL is not set`, `PRODID_OPERATOR is not set`,
+`missing brand`, `the brand is empty`, `missing --evidence`, `--evidence <url> is not an https URL`;
+after the database line, `no source is named <domain>` and
+`<domain> is not a verified domain, so it cannot be granted authority` (a source that is unverified,
+or not a domain).
+
+### Revoking
+
+When the evidence no longer holds (the prefix is licensed to someone else, the brand was sold) or
+the owner asks, find the grant id in the issue that granted it, then:
+
+```sh
+prodid-batch revoke-authority <id> --reason "<why, for the operator's record>"
+```
+
+```
+database: <host>:<port>
+revoked: <id>
+source: acme.example
+brand: "arçelik"
+evidence: https://www.gs1.org/services/verified-by-gs1/results?gtin=04006381333931
+decided: <time> by <login>
+revoked at: <time>, "prefix licensed to another company"
+trust: verified
+```
+
+The source drops to `verified` at once unless it holds a grant for another brand, in which case
+`trust` still says `authoritative`. Running it again prints `revoked: <id>, already revoked` and
+keeps the first time and reason. A revoked brand can be granted again, as a new grant with a new
+id. Losing verification or lapsing drops `authoritative` by itself; that needs no revoke.
+
+Refusals, exit 1: `DATABASE_URL is not set`, `missing --reason`, `--reason is empty`,
+`--reason is <n> characters, at most 500`, `<value> is not a grant id`; after the database line,
+`no grant has id <id>`. Comment the revoke and its reason on the granting issue.
 
 ## Reading dead letters
 

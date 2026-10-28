@@ -5,6 +5,7 @@ import { parseArgs } from 'node:util'
 import type { MerchantDeclaration } from '@prodid/core'
 import { DumpError } from '@prodid/store'
 
+import { AuthorityError, parseBrand, parseEvidence, parseGrantId, runGrantAuthority, runRevokeAuthority } from './authority'
 import { checkDocument, checkFeed, type CheckResult, formatProblem } from './check'
 import { ImportError, parseDataset, runImport } from './dataset'
 import { bucketEnv, bucketTarget, directoryTarget, DumpCommandError, dumpDatabaseEnv, runDump } from './dump'
@@ -65,6 +66,18 @@ const USAGE = `prodid-batch <command>
       then the brand and name as JSON strings. It only reads; merging stays a human decision.
       Needs DATABASE_URL.
 
+  grant-authority <source> <brand> --evidence URL
+      Grant a verified domain source authoritative trust for one brand, on the https URL of the
+      Verified by GS1 lookup that shows the brand's GTIN prefix is licensed to the domain's owner.
+      Prints the grant id, the brand as normalized, and the source's trust afterwards; a brand the
+      source already holds is not granted twice. PRODID_OPERATOR is recorded as the decider. Needs
+      DATABASE_URL and PRODID_OPERATOR; never the operator token.
+
+  revoke-authority <id> --reason TEXT
+      Revoke a grant by the id grant-authority printed; the source drops to verified once it holds
+      no other grant. The reason is at most 500 characters; a second revoke keeps the first time
+      and reason. Prints the source's trust afterwards. Needs DATABASE_URL.
+
   dump [--out DIR]
       Write a full dump of the index from one snapshot: the five gzip NDJSON files under
       v0/<YYYY-MM-DD>/, then manifest.json, then v0/latest.json, each line counted and digested as
@@ -93,8 +106,8 @@ const USAGE = `prodid-batch <command>
       URL recorded on the import, by default the URL read from, or for a file the latest-all.json.gz
       URL above. Needs DATABASE_URL.
 
-block-media, merge, unmerge, candidates, dump, load-dump and import print the database host first;
-block-media, merge, unmerge, load-dump and import write to it directly.
+block-media, merge, unmerge, candidates, grant-authority, revoke-authority, dump, load-dump and
+import print the database host first; all but candidates and dump write to it directly.
 
 site, feed, publish, assign, verify, show, remove-feed and remove-site call the operator endpoint,
 PRODID_OPERATOR_URL (default https://publish.prodid.org), authenticated with PRODID_OPERATOR_TOKEN.`
@@ -110,6 +123,7 @@ const OPTIONS = {
 	name: { type: 'string' },
 	reason: { type: 'string' },
 	limit: { type: 'string' },
+	evidence: { type: 'string' },
 	'document-url': { type: 'string' },
 	help: { type: 'boolean', short: 'h' },
 } as const
@@ -204,6 +218,19 @@ async function main(argv: string[]): Promise<void> {
 			await runCandidates(databaseEnv(process.env), { limit })
 			return
 		}
+		case 'grant-authority': {
+			const source = need(rest[0], 'source')
+			const brand = parseBrand(need(rest[1], 'brand'))
+			const evidence = parseEvidence(need(values.evidence, '--evidence'))
+			await runGrantAuthority(mergeEnv(process.env), { source, brand, evidence, now: new Date() })
+			return
+		}
+		case 'revoke-authority': {
+			const id = parseGrantId(need(rest[0], 'id'))
+			const reason = parseReason(need(values.reason, '--reason'))
+			await runRevokeAuthority(databaseEnv(process.env), { id, reason, now: new Date() })
+			return
+		}
 		case 'dump': {
 			const databaseUrl = dumpDatabaseEnv(process.env)
 			const target = values.out === undefined ? bucketTarget(bucketEnv(process.env)) : directoryTarget(values.out)
@@ -283,6 +310,7 @@ main(process.argv.slice(2)).catch((error: unknown) => {
 		error instanceof OperatorError ||
 		error instanceof TakedownError ||
 		error instanceof MergeError ||
+		error instanceof AuthorityError ||
 		error instanceof DumpCommandError ||
 		error instanceof LoadDumpError ||
 		error instanceof ImportError ||

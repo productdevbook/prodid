@@ -121,7 +121,7 @@ export async function runCandidates(databaseUrl: string, input: { limit: number 
 	})
 }
 
-async function withDatabase(url: string, work: (sql: Sql) => Promise<void>): Promise<void> {
+export async function withDatabase(url: string, work: (sql: Sql) => Promise<void>): Promise<void> {
 	const sql = createClient(url, { max: 1, onnotice: () => {} })
 	try {
 		await work(sql)
