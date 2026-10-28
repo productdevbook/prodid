@@ -1,5 +1,8 @@
 blank_issues_enabled: false
 contact_links:
+  - name: Publish my catalogue
+    url: https://publish.prodid.org/
+    about: Sign in with your email and host your catalogue at <slug>.prodid.org yourself, from a Merchant file or an NDJSON feed. No issue needed.
   - name: Report a security vulnerability
     url: https://github.com/productdevbook/prodid/security/advisories/new
     about: Privately, through GitHub's private vulnerability reporting, as SECURITY.md describes. Never in a public issue.

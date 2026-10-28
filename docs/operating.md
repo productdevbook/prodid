@@ -1,11 +1,11 @@
 # Operating prodid.org
 
-What the operator does by hand: publish a catalogue someone asked for, take a file down, read the
-dead letters, and answer a publisher whose source lapsed. Every command here is `prodid-batch`
-(`apps/batch/src/cli.ts`; from the repository root, `bun apps/batch/src/cli.ts`) or plain `curl`
-against public URLs. The outputs shown were produced by running each command against a local
-stack (the hosted Worker under `wrangler dev`, the dev Postgres) or, for the public URLs, against
-production; values that differ per run are written `<…>`.
+What the operator does by hand: the hosting that self-service does not cover, taking a file down,
+reading the dead letters, and answering a publisher whose source lapsed. Every command here is
+`prodid-batch` (`apps/batch/src/cli.ts`; from the repository root, `bun apps/batch/src/cli.ts`) or
+plain `curl` against public URLs. The outputs shown were produced by running each command against
+a local stack (the hosted Worker under `wrangler dev`, the dev Postgres) or, for the public URLs,
+against production; values that differ per run are written `<…>`.
 
 Design: [04 · Index](design/04-index.md) (takedown) and
 [06 · Hosted publisher and operator](design/06-hosted-and-operator.md) (hosting, the CLI).
@@ -34,6 +34,10 @@ prodid-batch <command>
           [--lang TAG] [--market CC]... [--name NAME.ndjson]
       merchant, site and feed in one step, then verify when a domain is given.
 
+  assign <slug> <email>
+      Give a site to the self-service account of <email>, made if there is none yet; it then
+      appears in that account's sites at https://publish.prodid.org/sites.
+
   verify <slug>         Re-read the claimed domain's _prodid record.
   show <slug>           Print a site's settings and its served document.
   remove-feed <slug> <name>
@@ -46,7 +50,26 @@ prodid-batch <command>
       DATABASE_URL, R2_ENDPOINT, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_MEDIA_BUCKET,
       CLOUDFLARE_API_TOKEN (Cache Purge) and CLOUDFLARE_ZONE_ID; never the operator token.
 
-site, feed, publish, verify, show, remove-feed and remove-site call the operator endpoint,
+  merge <from-opid> <into-opid> --reason TEXT
+      Merge an entity into another of the same kind; <from-opid> then answers with a 308 to the
+      survivor, which lists it in merged_from. Prints the merge id and the final survivor. The
+      reason is at most 500 characters; PRODID_OPERATOR (e.g. a GitHub login) is recorded as the
+      decider. Needs DATABASE_URL and PRODID_OPERATOR; never the operator token.
+
+  unmerge <from-opid>
+      Revert the active merge of <from-opid>, so it resolves on its own again with everything it
+      held. Prints what now resolves where. Needs DATABASE_URL.
+
+  candidates [--limit 100]
+      List items from different sources that share a normalized brand and an identical name and
+      have no conflicting GTIN, one tab-separated line per pair: both opids, each with its source,
+      then the brand and name as JSON strings. It only reads; merging stays a human decision.
+      Needs DATABASE_URL.
+
+block-media, merge, unmerge and candidates print the database host first; all but candidates write
+to it directly.
+
+site, feed, publish, assign, verify, show, remove-feed and remove-site call the operator endpoint,
 PRODID_OPERATOR_URL (default https://publish.prodid.org), authenticated with PRODID_OPERATOR_TOKEN.
 ```
 
@@ -55,8 +78,9 @@ Two sets of credentials, never mixed:
 - **Hosting**: `PRODID_OPERATOR_TOKEN` (and `PRODID_OPERATOR_URL` only to point at another
   hosted Worker). Without it: `PRODID_OPERATOR_TOKEN is not set`, exit 1. With a wrong one:
   `operator endpoint answered 401: no body`, exit 1.
-- **Index**: `DATABASE_URL` on a direct connection to Postgres, the R2 S3 API keys and a
-  Cloudflare API token with Cache Purge, for `block-media` only.
+- **Index**: `DATABASE_URL` on a direct connection to Postgres, for `block-media`, `merge`,
+  `unmerge` and `candidates`; the R2 S3 API keys and a Cloudflare API token with Cache Purge, for
+  `block-media` only.
 
 Secrets live outside the repository. Export them in the shell from the operator's own store; never
 paste them into an issue, a log or a command line that is saved.
@@ -64,11 +88,23 @@ paste them into an issue, a log or a command line that is saved.
 Every error from the operator endpoint is printed as `operator endpoint answered <status>: <body>`
 and exits 1.
 
-## Onboarding from a "Publish my catalogue" issue
+## Hosting
 
-The issue form gives: slug wanted, publisher name, contact, licence, the file (a Merchant `.csv`
-or `.tsv` with its language and markets, or an NDJSON feed), and optionally a domain. The issue
-is public, and so is the contact: it is written into the site's discovery document.
+Publishers host their catalogue themselves at [publish.prodid.org](https://publish.prodid.org/)
+([06 · Self-service hosting](design/06-hosted-and-operator.md#self-service-hosting)): they sign in
+with their email, claim a slug, upload a Merchant file or an NDJSON feed, add a domain and check
+it, export the site and delete it. Every upload pings the index. The operator is not in that path,
+and there is no issue form for it: a request that still arrives as an issue is answered with the
+link and closed.
+
+The commands below are for the exceptions: a site the operator sets up on a publisher's behalf, a
+site made with the CLI that is to be handed to its publisher's account, and a site that has to be
+changed or removed without its owner. A site the CLI creates has no owner, so nobody can sign in to
+manage it until `assign` ([step 5](#5-giving-the-site-to-its-publisher-assign)) gives it one.
+
+To set one up, have from the publisher: the slug, the publisher name, a contact, the licence, the
+file (a Merchant `.csv` or `.tsv` with its language and markets, or an NDJSON feed), and optionally
+a domain. The contact is public: it is written into the site's discovery document.
 
 ### 1. A Merchant file: `publish`
 
@@ -94,7 +130,7 @@ The first lines go to stderr: each skipped row with its spreadsheet row number a
 whose values were dropped, then the count. The JSON is the stored feed. The feed name is the file's
 stem plus `.ndjson` unless `--name` gives one; publishing again under the same name replaces that
 feed. A file in which no row becomes an item stops with `no row became an item` before anything is
-uploaded. Copy the skipped and dropped lines into your answer on the issue.
+uploaded. Pass the skipped and dropped lines on to the publisher.
 
 The same conversion without uploading, to look first: `prodid-batch merchant feed.csv --license
 CC-BY-4.0 --lang en --market TR --out items.ndjson` prints the same stderr lines and writes the
@@ -121,7 +157,7 @@ broken.ndjson:1: / must have required property 'identifiers'
 broken.ndjson:1: / must NOT have additional properties
 ```
 
-Send those lines back on the issue and stop there. A clean feed is published in two steps; the
+Send those lines to the publisher and stop there. A clean feed is published in two steps; the
 site must exist before its feed (otherwise `operator endpoint answered 404: {"error":"no such
 site"}`):
 
@@ -144,7 +180,7 @@ The hosted Worker validates every line again; a refused upload prints
 `operator endpoint answered 400: {"error":"feed refused","problems":[{"line":1,"error":"…"}]}`.
 
 A slug the rules refuse answers `operator endpoint answered 400: {"error":"slug refused:
-<reason>"}`, for example `slug refused: reserved`. Ask the publisher for another one on the issue.
+<reason>"}`, for example `slug refused: reserved`. Ask the publisher for another one.
 
 ### 2. A domain: the TXT record and `verify`
 
@@ -218,7 +254,7 @@ prodid-batch show acme
 `site` is the stored settings (`domain`, `verified` and `verifiedAt` appear when set); `document`
 is what `https://<slug>.prodid.org/.well-known/prodid.json` serves.
 
-### 4. Confirm the index has it, and answer
+### 4. Confirm the index has it
 
 Every write pings the index. A few minutes later the source's status is public:
 
@@ -232,9 +268,27 @@ curl -s https://prodid.org/source/acme.prodid.org
  "http_status":200,"records_seen":4,"records_changed":4,"lines_skipped":0,"feeds_failed":0,"media_failed":<n>}}
 ```
 
-Until the first successful crawl it answers 404 `unknown-source`. Answer the issue with the site
-host, the status URL, the skipped and dropped rows, and `media_failed` if it is not 0 (images on
-hosts that do not answer, or in a type or licence the index does not ingest). Close the issue.
+Until the first successful crawl it answers 404 `unknown-source`. Tell the publisher the site host,
+the status URL, the skipped and dropped rows, and `media_failed` if it is not 0 (images on hosts
+that do not answer, or in a type or licence the index does not ingest).
+
+### 5. Giving the site to its publisher: `assign`
+
+```sh
+prodid-batch assign acme products@example.com
+```
+
+It prints the same JSON as `show`, with `site.owner` set to the id of that address's account,
+which is made if there is none yet. The publisher then signs in at
+[publish.prodid.org](https://publish.prodid.org/) with that address, finds the site in their
+sites, and from then on uploads, checks the domain, exports and deletes it themselves. Assigning
+restarts the unused-slug clock (a site with no feed is released after 30 days); assigning the same
+address again changes nothing. Refusals, nothing written:
+
+- `operator endpoint answered 409: {"error":"site has another owner"}`: a site is never moved
+  from one account to another this way.
+- `operator endpoint answered 409: {"error":"<email> already owns 5 sites"}`.
+- `operator endpoint answered 400: {"error":"email is not an email address"}`.
 
 ### Removing
 
@@ -353,8 +407,8 @@ curl -s https://prodid.org/source/<name>
 ```
 
 The index does not send the lapse notice yet (chapter 02, *Lapse notification*). Until it does,
-write to the publisher yourself — on their issue for a hosted site, or at the `publisher.contact`
-of their document — and say no more than the status says, in this order:
+write to the publisher yourself, at the `publisher.contact` of their document, and say no more
+than the status says, in this order:
 
 1. the source name and when the lapse started (`lapsed_at`, UTC);
 2. the outcome: `definite-negative` means discovery ended with no acceptable document (no record,
@@ -363,7 +417,8 @@ of their document — and say no more than the status says, in this order:
 3. the day its records and claims will be withdrawn if nothing changes: `lapsed_at` + 30 days;
 4. the status page, `https://prodid.org/source/<name>`;
 5. what to do: put the record, the document or the feed back, then `POST /ping`; for a hosted
-   site, re-run `publish` or `feed`, which pings for them;
+   site, upload the feed again at `https://publish.prodid.org/sites/<slug>`, which pings for
+   them;
 6. why they are hearing from us: the address is the `publisher.contact` of their own document.
 
 Never add the crawler's error text, an HTTP status the status page does not show, who pinged, or

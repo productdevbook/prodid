@@ -172,3 +172,8 @@ created with the milestones and issues; the default labels stay.
   `https://prodid.org/canary/item.png` (`apps/web/public/canary/item.png`, a 256 × 256 PNG). The
   fixture's own images are on `acme.example`, which never resolves, and the index refuses SVG, so
   without the copy no canary image reaches `media.prodid.org`.
+- At M4 the "Publish my catalogue" issue form was removed (P-058). `config.yml` keeps blank issues
+  off and lists two contact links: "Publish my catalogue" to `https://publish.prodid.org/` and the
+  security link. `docs/operating.md` keeps the operator's hosting commands for the exceptions
+  self-service does not cover, with `prodid-batch assign` to hand a CLI-made site to its
+  publisher's account.
