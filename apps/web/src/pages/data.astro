@@ -127,9 +127,7 @@ const link = 'rounded-sm text-accent underline underline-offset-4'
 
 			<div class="mt-8 grid max-w-3xl gap-3 text-[0.9375rem] leading-relaxed text-soft">
 				<p>
-					This dump’s directory is <a href={latest.directory} class:list={[link, 'font-mono text-[0.8125rem] break-all']}>
-						{latest.directory}</a
-					>, and its manifest is{' '}
+					This dump’s directory is <code class="chip break-all">{latest.directory}</code>, and its manifest is{' '}
 					<a href={latest.manifest} class:list={[link, 'font-mono text-[0.8125rem] break-all']}>manifest.json</a>, written
 					at {formatUtc(latest.createdAt)}. Its licences read{' '}
 					<code class="chip">index: {latest.licenses.index}</code> and <code class="chip">claims: {latest.licenses.claims}</code>.

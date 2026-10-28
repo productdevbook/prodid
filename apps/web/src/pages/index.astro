@@ -112,7 +112,7 @@ const heading = 'mt-4 text-2xl font-semibold tracking-tight text-balance sm:text
 		<div>
 			<p class="inline-flex items-center gap-2 rounded-full border border-line bg-surface px-3 py-1.5 text-xs text-soft">
 				<span class="size-2 rounded-full bg-ok" aria-hidden="true"></span>
-				Spec v1 · live, no feed crawled yet
+				Spec v1 · live
 			</p>
 			<h1 class="mt-6 text-[2.3rem] leading-[1.06] font-semibold tracking-tight sm:text-[3.4rem]">
 				A barcode is not a product. <span class="text-accent">prodid is.</span>
@@ -426,14 +426,17 @@ const heading = 'mt-4 text-2xl font-semibold tracking-tight text-balance sm:text
 					</p>
 				</li>
 				<li class="grid gap-1 py-5 sm:grid-cols-[8rem_1fr] sm:gap-4">
-					<span class="text-sm font-medium text-soft">Canary only</span>
+					<span class="text-sm font-medium text-soft">Canary and one dataset</span>
 					<p class="text-[0.9375rem] leading-relaxed">
-						<strong class="font-semibold">No outside catalogue is indexed yet.</strong>{' '}
+						<strong class="font-semibold">No publisher’s catalogue is indexed yet.</strong>{' '}
 						<span class="text-soft"
-							>The only source is the project's own canary, <a
+							>The index holds two sources: the project's own canary, <a
 								href="https://prodid.org/source/canary.prodid.org"
 								class="rounded-sm text-accent underline underline-offset-4">canary.prodid.org</a
-							>, which proves publishing, crawling and resolving end to end.</span
+							>, which proves publishing, crawling and resolving end to end, and <a
+								href="https://prodid.org/source/dataset:wikidata"
+								class="rounded-sm text-accent underline underline-offset-4">dataset:wikidata</a
+							>, a bounded test import of 5 Wikidata items, unverified and under CC0-1.0.</span
 						>
 					</p>
 				</li>
