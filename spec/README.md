@@ -1,6 +1,30 @@
-# prodid spec v0
+# prodid spec v1
 
-Status: draft. Anything here may change until v1.
+Status: v1.0.0, 2026-10-28. Stable: it changes only by addition, as [Versions](#versions) says.
+
+## Versions
+
+This is version 1 of the specification. What changed from v0, and why, is listed in [`v1-from-v0.md`](https://github.com/productdevbook/prodid/blob/main/spec/v1-from-v0.md).
+
+Every document this specification defines says which version it is, and a reader validates it against that version's schema:
+
+| `$type` | document | v0 | v1 |
+| --- | --- | --- | --- |
+| `org.prodid.feed` | discovery document | `"version": 0` | `"version": 1` |
+| `org.prodid.dump` | dump manifest | `"version": 0` | `"version": 1` |
+| `org.prodid.entity` | entity | no `version` | `"version": 1` |
+| `org.prodid.source` | source status | no `version` | `"version": 1` |
+| `org.prodid.item` | feed record | no `version` | no `version` |
+
+A feed record has no version of its own: the v0 and v1 schemas of `org.prodid.item` accept exactly the same records, so a feed reads the same under either. The schemas of each version are served at `https://prodid.org/schemas/v<N>/<$type>.json`, which is also each schema's `$id`. Both versions stay served for good, because other documents and validators hold those URLs as names.
+
+**What the index accepts.** A discovery document may be v1, or v0 until a cut-off: a crawl that starts before **2027-01-26T00:00:00Z**, 90 days after v1.0.0, accepts a v0 document, and every crawl that starts at or after that instant refuses one, exactly as it refuses any document that does not validate. That is a [definite negative](#lapse): the source lapses, its `publisher.contact` is notified, and the 30 days before its claims are withdrawn begin. Moving a document to v1 is one edit, `"version": 0` to `"version": 1`; nothing else in a discovery document, in a feed or in a `_prodid` record changes.
+
+**What the index answers.** An index answers in the version it implements, and an index implementing v1 answers v1: every entity, every source status and every dump manifest carries `"version": 1`, and so does every line of a dump's sources and entities files. There is no version negotiation. The paths `/id`, `/01` and `/source`, the problem types and the media URLs carry no version and do not change. A dump that is kept stays in the version it was written in ([Dumps](#dumps)).
+
+**The `_prodid` record keeps `v=prodid0`.** The tag is the version of the record, not of this specification, and v1 defines the same record as v0, so a domain that delegates has nothing to change. A record version changes only with a record that a reader of the old one could not parse, and never lightly: a reader that does not know a version ignores the record, and a domain whose only record is ignored falls back to `.well-known` on the domain, the weaker proof.
+
+**Within v1.** v1 changes only by addition: a new optional member, a well-known identifier scheme, a problem type, a vector. Every document valid under an earlier v1.x stays valid under a later one and means the same; a document that uses an addition is valid from the v1.x that added it on. The v1 schemas are updated in place under `/schemas/v1/`, and `version` stays `1`. Anything else, a valid document becoming invalid or a member changing its meaning, is v2: new schemas under `/schemas/v2/`, `"version": 2`, and a stated period in which v1 documents are still accepted, as v0's 90 days are here.
 
 ## Identity
 
@@ -107,7 +131,7 @@ A step **succeeds** when all of this holds:
 
 - HTTP 200, after at most the one permitted redirect;
 - a JSON content type: `application/json`, or any `application/…+json`;
-- a body that validates against [`org.prodid.feed`](schemas/org.prodid.feed.json);
+- a body that validates against [`org.prodid.feed`](schemas/org.prodid.feed.json) in a version the index [accepts](#versions);
 - the `domain` rule below.
 
 Anything else is not an answer: a 404, a 200 carrying an HTML fallback page, a single-page app that answers every path, a document served as `text/html`.
@@ -118,7 +142,7 @@ A document whose `domain` names another domain, and to which that domain does no
 
 ### The `_prodid` TXT record
 
-An RR at `_prodid.<domain>` is a **prodid record** when its value, after concatenation, is a tag list whose first tag is `v` with the value `prodid0`. Every other TXT RR at that name — verification tokens, `v=spf1`, a `v=` version this spec does not define — is ignored.
+An RR at `_prodid.<domain>` is a **prodid record** when its value, after concatenation, is a tag list whose first tag is `v` with the value `prodid0`. Every other TXT RR at that name — verification tokens, `v=spf1`, a `v=` version this spec does not define — is ignored. `prodid0` is the version of the record, not of the specification, and v1 [keeps it](#versions).
 
 | prodid records at the name | outcome |
 | --- | --- |
@@ -192,7 +216,7 @@ Machine-readable vectors, one file per case: [`fixtures/txt/`](fixtures/txt).
 
 ### Feeds
 
-The discovery document ([schema](schemas/org.prodid.feed.json), [example](examples/prodid.json), [delegated example](examples/prodid.delegated.json)) lists the feeds, each served from the same host as the document itself. Both hosts are normalized the same way as a delegation's `host` before they are compared. A document listing a feed on any other host, or listing more than 100 feeds, is rejected whole: no feed from it is fetched, and discovery ends with no acceptable document. Serving feeds from a separate CDN hostname is not supported in v0.
+The discovery document ([schema](schemas/org.prodid.feed.json), [example](examples/prodid.json), [delegated example](examples/prodid.delegated.json)) lists the feeds, each served from the same host as the document itself. Both hosts are normalized the same way as a delegation's `host` before they are compared. A document listing a feed on any other host, or listing more than 100 feeds, is rejected whole: no feed from it is fetched, and discovery ends with no acceptable document. Serving feeds from a separate CDN hostname is not supported in v1.
 
 A feed is NDJSON: one [`org.prodid.item`](schemas/org.prodid.item.json) record per line ([one record](examples/item.jacket.json), [a feed](examples/items.ndjson)). The index validates every line and records each field as a claim made by the source domain.
 
@@ -411,7 +435,7 @@ A published record becomes one claim per fact, under these names and no others:
 | `variant.<axis>` | key of `variant` | that axis's value |
 | `properties.<name>` | key of `properties` | that property's value |
 
-`<axis>` and `<name>` are exactly the publisher's own keys, which [`org.prodid.item`](schemas/org.prodid.item.json) already restricts to `^[a-z][A-Za-z0-9]*$`. The two prefixes are not decoration: flattened, a publisher property called `name` or `brand` would collide with the built-in claim of the same name, and a `variant` axis would collide with a `properties` entry of the same name. There is exactly one dot, and v0 defines no other property names.
+`<axis>` and `<name>` are exactly the publisher's own keys, which [`org.prodid.item`](schemas/org.prodid.item.json) already restricts to `^[a-z][A-Za-z0-9]*$`. The two prefixes are not decoration: flattened, a publisher property called `name` or `brand` would collide with the built-in claim of the same name, and a `variant` axis would collide with a `properties` entry of the same name. There is exactly one dot, and v1 defines no other property names.
 
 `markets` and `media` are sets, so each element is its own claim, as the table says: `["TR", "DE"]` is two `markets` claims carrying `"TR"` and `"DE"`. Reordering the list in the feed then changes nothing, and a market added or dropped withdraws exactly one claim instead of rewriting the set.
 
@@ -448,9 +472,9 @@ A reader fetches `media_url`, which is immutable and always answers the same byt
 
 All three answer `application/json` when the request accepts it and an HTML page otherwise.
 
-The record is open, so a web page on any origin may read it directly. Every JSON answer of `/id`, `/01`, `/source` and `/schemas/v0/` — an entity, a status, a schema, a [problem](#errors), the `304` that revalidates one of them and the `308` a merged `opid` answers — carries `Access-Control-Allow-Origin: *`. HTML answers do not carry it.
+The record is open, so a web page on any origin may read it directly. Every JSON answer of `/id`, `/01`, `/source`, `/schemas/v0/` and `/schemas/v1/` — an entity, a status, a schema, a [problem](#errors), the `304` that revalidates one of them and the `308` a merged `opid` answers — carries `Access-Control-Allow-Origin: *`. HTML answers do not carry it.
 
-`/01/{gtin}` accepts GTIN-8, -12, -13 and -14 and answers the item itself rather than redirecting, so a QR scan costs one round trip; the `Content-Location` header gives the canonical `opid` URL. v0 resolves on the GTIN alone; further GS1 Digital Link path segments such as `/10/{lot}` and `/21/{serial}` are accepted and ignored.
+`/01/{gtin}` accepts GTIN-8, -12, -13 and -14 and answers the item itself rather than redirecting, so a QR scan costs one round trip; the `Content-Location` header gives the canonical `opid` URL. v1 resolves on the GTIN alone; further GS1 Digital Link path segments such as `/10/{lot}` and `/21/{serial}` are accepted and ignored.
 
 An `opid` that was merged into another answers `308 Permanent Redirect` to `/id/{survivor}`, and the survivor lists it in `merged_from`. Merges are reversible, which is why the redirect is per-request and the losing `opid` keeps resolving forever.
 
@@ -463,6 +487,7 @@ An `opid` that was merged into another answers `308 Permanent Redirect` to `/id/
 ```json
 {
   "$type": "org.prodid.entity",
+  "version": 1,
   "opid": "kq7m3v9dn2hb4t5x",
   "kind": "item",
   "parents": { "family": "3n7k2q9vdfhb4mta", "variant": "9p2d4kv7mq3nbhxf" },
@@ -502,6 +527,7 @@ The conformance harness checks all three.
 ```json
 {
   "$type": "org.prodid.source",
+  "version": 1,
   "name": "acme.example",
   "kind": "domain",
   "trust": "verified",
@@ -594,7 +620,7 @@ Nothing else is ingested. In particular:
 - **HTML and XHTML are out**, for the same reason and more directly.
 - **Archives are out** — zip, gzip, tar. What is inside is invisible at fetch time, so ingesting one means redistributing something nobody looked at.
 - **Anything executable is out**: binaries, installers, WebAssembly, scripts of every kind.
-- **Office documents are out in v0.** They are macro carriers with a long history of it, and a publisher who wants a spec sheet carried can publish a PDF.
+- **Office documents are out in v1.** They are macro carriers with a long history of it, and a publisher who wants a spec sheet carried can publish a PDF.
 
 The list is short on purpose. Widening it is a spec change, not a configuration one.
 
@@ -665,11 +691,11 @@ It is checked as a string, before the fetch, so a licence we cannot use costs no
 The index is replaceable. Everything it knows that a reader may know is published as a full export, a **dump**, that anyone can download and load into an index of their own.
 
 ```
-https://dumps.prodid.org/v0/<YYYY-MM-DD>/manifest.json
-https://dumps.prodid.org/v0/latest.json
+https://dumps.prodid.org/v1/<YYYY-MM-DD>/manifest.json
+https://dumps.prodid.org/v1/latest.json
 ```
 
-A dump is a directory named after the UTC date of its `snapshot_at`. It holds five data files and a [manifest](schemas/org.prodid.dump.json) ([example](fixtures/dump/valid/manifest.json)). `latest.json` is a copy of the newest dump's `manifest.json`, and it is written last, after every file of that dump and its manifest are in place: a reader that starts from `latest.json` never finds a manifest naming a file that is not there yet, and finds the directory from the manifest's own `snapshot_at`.
+A dump is a directory named after the UTC date of its `snapshot_at`, under the version it is written in: `v1/` holds v1 dumps, whose manifest and whose source and entity lines are v1 documents. The v0 dumps written before v1 stay under `v0/`, under the same retention, and `v0/latest.json` keeps naming the last of them. It holds five data files and a [manifest](schemas/org.prodid.dump.json) ([example](fixtures/dump/valid/manifest.json)). `latest.json` is a copy of the newest dump's `manifest.json`, and it is written last, after every file of that dump and its manifest are in place: a reader that starts from `latest.json` never finds a manifest naming a file that is not there yet, and finds the directory from the manifest's own `snapshot_at`.
 
 ### Files
 
@@ -705,7 +731,8 @@ A dump says no more than the resolver already does, plus the records, groupings 
 - why a merge was made or who decided it;
 - why a media hash was blocked;
 - media bytes. A `media` claim's `media_url` addresses the file, and a blocked hash is not served;
-- the index's internal row identifiers. Every line names a source by its name and an entity by its `opid`.
+- the index's internal row identifiers. Every line names a source by its name and an entity by its `opid`;
+- the grants of [authority](#trust) and their evidence. A source's line says `authoritative` if it was at `snapshot_at`, but an index loaded from the dump holds no grant until its own operator makes one.
 
 ### Licences
 

@@ -69,6 +69,7 @@ design (2026-10-28).
 | 2026-10-28 | Self-service hosting lives in `apps/hosted` on `publish.prodid.org`: email sign-in links, server-rendered pages, accounts in a D1 database of the hosted Worker's own. Chapter 06. |
 | 2026-10-28 | Dumps are written by `apps/batch` to the R2 bucket `prodid-dumps`, served at `dumps.prodid.org`. Chapter 04. |
 | 2026-10-28 | Dataset sources are named `dataset:<slug>`; the first dataset is Wikidata (CC0). Chapter 04. |
+| 2026-10-28 | Spec v1 keeps the TXT version `v=prodid0` and accepts v0 discovery documents for 90 days, until 2027-01-26T00:00:00Z; v0 and v1 schemas are both served for good. Chapter 07. |
 | 2026-10-28 | The repository's own `CLAUDE.md` and `.claude/agents/*.md` are public: they name no host, path or person outside the project. Private operator notes stay in the ops location. |
 
 ## Glossary and canonical IDs

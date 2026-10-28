@@ -158,7 +158,39 @@ created with the milestones and issues; the default labels stay.
 - **[Exists]** The spec is "v0 draft"; nothing is versioned or published to a registry.
 - **[New]** M8 freezes the spec as v1: schemas under `/schemas/v1/`, `$id`s and `version` constants
   changed, the TXT version decided (owner), a migration note from v0, and tags `spec-v1.0.0` and
-  `core-v1.0.0`.
+  `core-v1.0.0`. Written: spec *Versions* and [`spec/v1-from-v0.md`](../../spec/v1-from-v0.md)
+  (P-080). `v=prodid0` is kept; v0 discovery documents are accepted by crawls that start before
+  2027-01-26T00:00:00Z, 90 days after v1.0.0 (2026-10-28), and refused from then on as a definite
+  negative. Both are owner decision #98.
+
+### How v0 and v1 coexist
+
+**[New]**, from M8:
+
+- **Versions in documents.** `org.prodid.feed` and `org.prodid.dump` carry `version` `0` or `1`;
+  `org.prodid.entity` and `org.prodid.source` carry none in v0 and `"version": 1` in v1;
+  `org.prodid.item` carries none in either, and its v0 and v1 schemas accept the same records.
+  `$type` does not change. A reader picks the schema by `version`, never by where the document
+  came from.
+- **Schema URLs.** `https://prodid.org/schemas/v0/<$type>.json` and `…/schemas/v1/<$type>.json`
+  are each schema's `$id` and are served by edge for good, both with CORS. Nothing at `/schemas/v0/`
+  ever changes again.
+- **Repository.** v0 stays where it is, byte for byte: `spec/schemas/*.json`,
+  `spec/examples/`, `spec/fixtures/{valid,invalid,dump}/` and `spec/fixtures/expected.json`. v1
+  sits beside it under `v1/` (P-081). The vector sets whose rules did not change, `txt`, `gtin`,
+  `brand`, `ndjson`, `merchant` and `datasets`, hold for both versions and are not copied.
+- **What core reads (P-082).** Validators for both versions. A discovery document: v1 always, v0
+  only when the crawl started before the cut-off, so the check takes the crawl's start time, not
+  the clock. Dump manifests, entities and statuses: v0 and v1 for good, because a kept v0 dump is
+  never rewritten and must stay loadable. Items: one rule set.
+- **What edge does (P-083).** Crawls both versions until the cut-off and v1 after it; serves
+  `/schemas/v1/*` beside `/schemas/v0/*`; answers v1 entities and statuses. It is deployed before
+  hosted serves v1: a crawler that knows only v0 refuses a v1 document as a definite negative.
+- **What hosted does (P-084).** Builds every served discovery document as v1 at request time, so
+  existing sites switch with the deploy and no operator action.
+- **Dumps.** `prodid-batch dump` writes v1 dumps under `dumps.prodid.org/v1/` with their own
+  `latest.json`; the v0 dumps already written stay under `v0/` and keep the same retention, so the
+  last v0 dailies still expire after 7 days. `prodid-batch load-dump` reads both versions.
 - **[New]** `@prodid/core` on npm (Apache-2.0): compiled ESM and `.d.ts`, the generated validators
   included, published from a tag by GitHub Actions with npm provenance; semver from 1.0.0.
 - **[New]** `@prodid/spec` on npm (CC0-1.0): schemas, examples and all fixtures with

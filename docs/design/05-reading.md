@@ -13,6 +13,7 @@ errors and the media. Normative text: spec *Reading*, *Media › Serving*.
 | `GET /01/{gtin}` and `/01/{gtin}/*` | **[Exists]** the item itself with `Content-Location: /id/{opid}`; extra Digital Link segments ignored; `invalid-gtin`, `restricted-gtin`, `unknown-gtin` |
 | `GET /source/{name}` | **[Exists]** status, exact name then lowercase; 404 until first successful discovery |
 | `GET /schemas/v0/{file}` | **[Exists]** the four schemas, `application/schema+json`, `max-age=3600` |
+| `GET /schemas/v1/{file}` | **[New]** the five v1 schemas, served like v0's and beside them for good (chapter 07, *How v0 and v1 coexist*) |
 | `POST /ping` | **[Exists]** caller budget checked before the body is read; `202 {"status":"accepted"}` |
 | `GET /sha256/{hex}` | **[Exists]** media; see below |
 

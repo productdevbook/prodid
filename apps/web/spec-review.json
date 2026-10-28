@@ -20,12 +20,12 @@
 		{
 			"anchor": "the-resolver",
 			"pages": ["/"],
-			"sha256": "d5c7b676da191d23e3e2d0a018c47e376b5a3df01c53479ab2cae83d1ce95b99"
+			"sha256": "dfd21950abf9d0ea760a4bcfcd30c4825188849683f1f80710dbc2d3c356fae6"
 		},
 		{
 			"anchor": "an-entity",
 			"pages": ["/"],
-			"sha256": "84435b31afdc8b88085d25bf55cc8f82416b2d531d211bb268ec8b5e86b9b24d"
+			"sha256": "2fc5c9aaeacc07313de586a88b76ea87af15cf54c4f7bc0f06b513df6b75c774"
 		},
 		{
 			"anchor": "licensing",
@@ -40,17 +40,17 @@
 		{
 			"anchor": "discovery",
 			"pages": ["/publish"],
-			"sha256": "66c47479bf178a2a0cac7ce49a3fbb64836a4e4ff0b7a71a04c53c3f4016a927"
+			"sha256": "22f44596dbf19e316b348a3d5db752bbd2f9cc1fc6bbc471a46e484b41672f10"
 		},
 		{
 			"anchor": "the-_prodid-txt-record",
 			"pages": ["/publish"],
-			"sha256": "31fee16bc6aa0eaa4794c3a759dfdafa8ee3dca4aeaa5cb4343d1e9db03efbae"
+			"sha256": "7993b7cb2cf282953d919103f9735aec8f3570144bf59877dd9e25d434ae93a4"
 		},
 		{
 			"anchor": "feeds",
 			"pages": ["/publish"],
-			"sha256": "60ac11e8aa7000835715e50bc215eb28eb0323a0d2d0ea9a962d03aaf661fb6d"
+			"sha256": "f65eef9ac973dd3649db3f0504317db3b98fbb51e6e75de6e5a942e9aabdeb12"
 		},
 		{
 			"anchor": "three-ways-to-publish",
@@ -90,7 +90,7 @@
 		{
 			"anchor": "a-sources-status",
 			"pages": ["/publish"],
-			"sha256": "4e4e5fa2054682f263c343dbfc412074e23debe29d1a75cbef5c27f58ac2d96a"
+			"sha256": "fc457c9fbd5b3b0e8680653b9598acb949e1ac5c29bad1d0cc44ad3cab2fe15d"
 		},
 		{
 			"anchor": "which-gtins-are-identifiers",
@@ -110,7 +110,7 @@
 		{
 			"anchor": "what-is-ingested",
 			"pages": ["/publish"],
-			"sha256": "980b503336b466a7f1e1d3cca4a86bfb1a7d728cd1d6c765b7f03dfaaa782b00"
+			"sha256": "484c389635ada6b03016152c775abc9dbea22e38a9c009241dbc4ae76090fee4"
 		},
 		{
 			"anchor": "caps",

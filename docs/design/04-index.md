@@ -106,6 +106,9 @@ Normative text: `ARCHITECTURE.md` *Index contract* and *Semantics*.
   `rcn` scopes are that id too. A dump carries neither, so `load-dump` assigns its own source ids and
   derives its own digests and scopes from the dump's written-out grouping keys and record bodies.
 - **Retention.** Daily dumps are kept 7 days; the first dump of each month is kept for good.
+- **[Change]** From spec v1, dumps are written under `https://dumps.prodid.org/v1/` with
+  `"version": 1` manifests and v1 source and entity lines; `v0/` keeps what was written, under the
+  same retention (chapter 07, *How v0 and v1 coexist*).
 - **Writer.** `prodid-batch dump` streams each table through a cursor, gzips, uploads with
   multipart to R2's S3 API, then writes the manifest and `latest.json`. It prints line counts and
   bytes per file and the elapsed time. It runs nightly at 04:30 UTC next to Postgres (chapter 07).

@@ -16,6 +16,9 @@ ping. Every point below keeps that.
   is a site when the label passes the slug rules; anything else is `not-found`.
 - **[Exists]** Public: `GET /.well-known/prodid.json` (canonical-hash ETag, Last-Modified, 304,
   `max-age=60`; not served while a site has no feed), `GET /feeds/{name}` (R2 stream, 304).
+- **[Change]** From spec v1 the served discovery document is `"version": 1`. It is built at
+  request time from `site.json`, so every existing site switches with the deploy; the deploy
+  follows edge's (chapter 07, *How v0 and v1 coexist*).
 - **[Exists]** Operator, `Authorization: Bearer <OPERATOR_TOKEN>` compared as SHA-256 digests in
   constant time: `GET|PUT|DELETE /sites/{slug}`, `PUT|DELETE /sites/{slug}/feeds/{name}`,
   `POST /sites/{slug}/verify`.

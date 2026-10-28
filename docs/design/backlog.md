@@ -704,12 +704,15 @@ below refer to them as "the private pattern list".
 - **Acceptance**
   - Crawls both versions; serves `/schemas/v1/*`; resolver documents carry v1 `$type`/`version`;
     tests.
+  - Deployed before P-084's hosted deploy: a crawler that knows only v0 refuses a v1 document.
 
 ### P-084 · Hosted writes v1 documents
 
-- **Area** hosted · **Owner** hosted-engineer · **Priority** P0 · **Depends on** P-082 · **Chapters** 06
+- **Area** hosted · **Owner** hosted-engineer · **Priority** P0 · **Depends on** P-082 · **Chapters** 04, 06
 - **Acceptance**
   - Served discovery documents are v1; existing sites switch without operator action; tests.
+  - `prodid-batch dump` writes v1 dumps under `v1/` and keeps applying retention under `v0/`;
+    `prodid-batch load-dump` loads a v0 and a v1 dump; tests.
 
 ### P-085 · `@prodid/core` buildable for npm
 
