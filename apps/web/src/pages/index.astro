@@ -1,7 +1,7 @@
 ---
 import CodeSample from '@/components/code-sample.astro'
 import Layout from '@/layouts/base.astro'
-import { examples, SPEC_STATUS } from '@/lib/spec'
+import { CONTACT, examples, SPEC_STATUS } from '@/lib/spec'
 
 const DESCRIPTION =
 	'prodid gives every physical product a permanent open identifier. GTIN, MPN and every other code resolve to it, and every fact is a claim attributed to its source.'
@@ -418,7 +418,9 @@ const heading = 'mt-4 text-2xl font-semibold tracking-tight text-balance sm:text
 							>The schemas and the resolver’s response may change until v1. <a
 								href="/spec"
 								class="rounded-sm text-accent underline underline-offset-4">Read it</a
-							> and say where it is wrong.</span
+							> and <a href={CONTACT.issues} class="rounded-sm text-accent underline underline-offset-4"
+								>say where it is wrong</a
+							>.</span
 						>
 					</p>
 				</li>

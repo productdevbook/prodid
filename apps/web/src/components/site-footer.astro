@@ -1,6 +1,6 @@
 ---
 import Wordmark from '@/components/wordmark.astro'
-import { SPEC_STATUS } from '@/lib/spec'
+import { CONTACT, SPEC_STATUS } from '@/lib/spec'
 ---
 
 <footer class="mt-24 border-t border-line">
@@ -12,28 +12,37 @@ import { SPEC_STATUS } from '@/lib/spec'
 			</p>
 			<p class="mt-3 text-xs text-soft">{SPEC_STATUS}</p>
 		</div>
-		<nav aria-label="Footer" class="text-sm">
-			<h2 class="text-xs font-semibold tracking-wider text-soft uppercase">Site</h2>
-			<ul class="mt-3 grid gap-2">
-				<li><a href="/spec" class="rounded-sm underline-offset-4 hover:text-accent hover:underline">Specification</a></li>
-				<li><a href="/publish" class="rounded-sm underline-offset-4 hover:text-accent hover:underline">Publish your products</a></li>
-				<li>
-					<a href="https://github.com/productdevbook/prodid" class="rounded-sm underline-offset-4 hover:text-accent hover:underline">
-						Source on GitHub
-					</a>
-				</li>
-				<li>
-					<a href="/spec/schemas/org.prodid.item.json" class="rounded-sm font-mono text-[0.8125rem] underline-offset-4 hover:text-accent hover:underline">
-						org.prodid.item.json
-					</a>
-				</li>
-				<li>
-					<a href="/spec/schemas/org.prodid.feed.json" class="rounded-sm font-mono text-[0.8125rem] underline-offset-4 hover:text-accent hover:underline">
-						org.prodid.feed.json
-					</a>
-				</li>
-			</ul>
-		</nav>
+		<div class="flex flex-wrap gap-x-16 gap-y-8">
+			<nav aria-label="Footer" class="text-sm">
+				<h2 class="text-xs font-semibold tracking-wider text-soft uppercase">Site</h2>
+				<ul class="mt-3 grid gap-2">
+					<li><a href="/spec" class="rounded-sm underline-offset-4 hover:text-accent hover:underline">Specification</a></li>
+					<li><a href="/publish" class="rounded-sm underline-offset-4 hover:text-accent hover:underline">Publish your products</a></li>
+					<li>
+						<a href="https://github.com/productdevbook/prodid" class="rounded-sm underline-offset-4 hover:text-accent hover:underline">
+							Source on GitHub
+						</a>
+					</li>
+					<li>
+						<a href="/spec/schemas/org.prodid.item.json" class="rounded-sm font-mono text-[0.8125rem] underline-offset-4 hover:text-accent hover:underline">
+							org.prodid.item.json
+						</a>
+					</li>
+					<li>
+						<a href="/spec/schemas/org.prodid.feed.json" class="rounded-sm font-mono text-[0.8125rem] underline-offset-4 hover:text-accent hover:underline">
+							org.prodid.feed.json
+						</a>
+					</li>
+				</ul>
+			</nav>
+			<nav aria-label="Contact" class="text-sm">
+				<h2 class="text-xs font-semibold tracking-wider text-soft uppercase">Contact</h2>
+				<ul class="mt-3 grid gap-2">
+					<li><a href={CONTACT.issues} class="rounded-sm underline-offset-4 hover:text-accent hover:underline">Report a problem</a></li>
+					<li><a href={CONTACT.security} class="rounded-sm underline-offset-4 hover:text-accent hover:underline">Security</a></li>
+				</ul>
+			</nav>
+		</div>
 	</div>
 	<div class="shell border-t border-line py-6">
 		<p class="max-w-3xl text-xs leading-relaxed text-soft">
