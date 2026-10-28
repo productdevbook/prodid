@@ -1,0 +1,21 @@
+{
+	"name": "@prodid/hosted",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"cf-typegen": "wrangler types",
+		"dev": "wrangler dev",
+		"typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.test.json",
+		"test": "bun test test"
+	},
+	"dependencies": {
+		"@prodid/core": "workspace:*",
+		"hono": "4.13.8"
+	},
+	"devDependencies": {
+		"@prodid/batch": "workspace:*",
+		"@prodid/spec": "workspace:*",
+		"wrangler": "4.135.0"
+	}
+}

@@ -1,0 +1,33 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "prodid-hosted",
+	"main": "src/index.ts",
+	"compatibility_date": "2026-09-19",
+	// The ping goes to prodid.org, our own zone: without this flag the fetch would be routed to the
+	// origin behind it instead of through the front door to the edge Worker, like anybody else's.
+	"compatibility_flags": ["global_fetch_strictly_public"],
+	"observability": {
+		"enabled": true,
+	},
+	"upload_source_maps": true,
+	// hosted answers *.prodid.org/*. Routes are attached at deploy time; this file declares none.
+	"r2_buckets": [
+		// Site settings and uploaded feeds. Shared with nothing: the index reads them over HTTPS.
+		{ "binding": "SITES", "bucket_name": "prodid-hosted" },
+	],
+	"triggers": {
+		// Daily: re-read every claimed domain's `_prodid` record.
+		"crons": ["17 3 * * *"],
+	},
+	"vars": {
+		"DOH_ENDPOINT": "https://cloudflare-dns.com/dns-query",
+		"HOSTING_ZONE": "prodid.org",
+		// A reserved slug, so no publisher can ever be served on it.
+		"OPERATOR_HOST": "publish.prodid.org",
+		"PING_URL": "https://prodid.org/ping",
+	},
+	// OPERATOR_TOKEN is a secret: `wrangler secret put OPERATOR_TOKEN`.
+	"secrets": {
+		"required": ["OPERATOR_TOKEN"],
+	},
+}

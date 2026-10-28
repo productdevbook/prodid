@@ -1,0 +1,19 @@
+{
+	"name": "@prodid/batch",
+	"version": "0.0.0",
+	"private": true,
+	"bin": {
+		"prodid-batch": "./src/cli.ts"
+	},
+	"type": "module",
+	"exports": {
+		".": "./src/index.ts"
+	},
+	"scripts": {
+		"typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.test.json",
+		"test": "bun test test"
+	},
+	"dependencies": {
+		"@prodid/core": "workspace:*"
+	}
+}

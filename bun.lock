@@ -11,6 +11,16 @@
         "typescript": "7.0.2",
       },
     },
+    "apps/batch": {
+      "name": "@prodid/batch",
+      "version": "0.0.0",
+      "bin": {
+        "prodid-batch": "./src/cli.ts",
+      },
+      "dependencies": {
+        "@prodid/core": "workspace:*",
+      },
+    },
     "apps/edge": {
       "name": "@prodid/edge",
       "version": "0.0.0",
@@ -21,6 +31,19 @@
         "hono": "4.13.8",
       },
       "devDependencies": {
+        "wrangler": "4.135.0",
+      },
+    },
+    "apps/hosted": {
+      "name": "@prodid/hosted",
+      "version": "0.0.0",
+      "dependencies": {
+        "@prodid/core": "workspace:*",
+        "hono": "4.13.8",
+      },
+      "devDependencies": {
+        "@prodid/batch": "workspace:*",
+        "@prodid/spec": "workspace:*",
         "wrangler": "4.135.0",
       },
     },
@@ -388,11 +411,15 @@
 
     "@poppinss/exception": ["@poppinss/exception@1.2.3", "", {}, "sha512-dCED+QRChTVatE9ibtoaxc+WkdzOSjYTKi/+uacHWIsfodVfpsueo3+DKpgU5Px8qXjgmXkSvhXvSCz3fnP9lw=="],
 
+    "@prodid/batch": ["@prodid/batch@workspace:apps/batch"],
+
     "@prodid/core": ["@prodid/core@workspace:packages/core"],
 
     "@prodid/db": ["@prodid/db@workspace:db"],
 
     "@prodid/edge": ["@prodid/edge@workspace:apps/edge"],
+
+    "@prodid/hosted": ["@prodid/hosted@workspace:apps/hosted"],
 
     "@prodid/spec": ["@prodid/spec@workspace:spec"],
 

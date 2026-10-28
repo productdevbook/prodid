@@ -1,0 +1,308 @@
+import { isNotModified, problem, sha256Hex } from '@prodid/core'
+import { type Context, Hono } from 'hono'
+
+import type { TxtLookup } from './dns'
+import { checkFeed, MAX_FEED_BYTES } from './feeds'
+import { checkSlug, isFeedName, resolveHost, siteHost, type Target } from './names'
+import { type Blobs, deleteSite, documentEtag, feedKey, parseSiteInput, readSite, type Site, siteDocument, writeSite } from './sites'
+import { verifySite } from './verify'
+
+/** A document can list at most this many feeds; the crawler rejects one listing more, whole. */
+export const MAX_FEEDS = 100
+
+export interface Services {
+	blobs: Blobs
+	resolveTxt(name: string): Promise<TxtLookup>
+	/** Asks the index for a crawl through its public ping, like any other publisher. */
+	ping(domains: string[]): Promise<void>
+	now(): Date
+	zone: string
+	operatorHost: string
+	/** Unset means the operator endpoint answers nobody. */
+	operatorToken: string | undefined
+}
+
+export interface Lifetime {
+	waitUntil(promise: Promise<unknown>): void
+}
+
+type App = { Variables: { services: Services; target: Target } }
+
+const DOCUMENT_CACHE = 'public, max-age=60'
+const FEED_CACHE = 'public, max-age=60'
+
+export function createApp(build: (env: Env) => Services): Hono<App> {
+	const app = new Hono<App>()
+
+	app.use('*', async (c, next) => {
+		const services = build(c.env as Env)
+		const target = resolveHost(c.req.header('host') ?? null, services.zone, services.operatorHost)
+		if (target.kind === 'none') return notFound()
+		if (target.kind === 'operator' && !(await authorized(c.req.header('authorization'), services.operatorToken))) {
+			return new Response(null, { status: 401, headers: { 'www-authenticate': 'Bearer', 'cache-control': 'no-store' } })
+		}
+		c.set('services', services)
+		c.set('target', target)
+		await next()
+	})
+
+	app.use('/sites/*', async (c, next) => {
+		if (c.get('target').kind !== 'operator') return notFound()
+		await next()
+	})
+
+	app.get('/.well-known/prodid.json', async (c) => {
+		const target = c.get('target')
+		if (target.kind !== 'site') return notFound()
+		const services = c.get('services')
+		const site = await readSite(services.blobs, target.slug)
+		const document = site === null ? null : siteDocument(site, services.zone)
+		if (site === null || document === null) return notFound()
+
+		const etag = await documentEtag(document)
+		const lastModified = new Date(site.updatedAt)
+		const headers = new Headers({
+			'content-type': 'application/json; charset=utf-8',
+			'cache-control': DOCUMENT_CACHE,
+			etag,
+			'last-modified': lastModified.toUTCString(),
+		})
+		if (isNotModified(conditional(c), { etag, lastModified })) return new Response(null, { status: 304, headers })
+		return new Response(`${JSON.stringify(document)}\n`, { headers })
+	})
+
+	app.get('/feeds/:name', async (c) => {
+		const target = c.get('target')
+		const name = c.req.param('name')
+		if (target.kind !== 'site' || !isFeedName(name)) return notFound()
+		const services = c.get('services')
+		const site = await readSite(services.blobs, target.slug)
+		if (site === null || !site.feeds.includes(name)) return notFound()
+		const object = await services.blobs.get(feedKey(site.slug, name))
+		if (object === null) return notFound()
+
+		const headers = new Headers({
+			'content-type': 'application/x-ndjson; charset=utf-8',
+			'cache-control': FEED_CACHE,
+			etag: object.etag,
+			'last-modified': object.uploaded.toUTCString(),
+		})
+		if (isNotModified(conditional(c), { etag: object.etag, lastModified: object.uploaded })) {
+			await object.body.cancel()
+			return new Response(null, { status: 304, headers })
+		}
+		headers.set('content-length', String(object.size))
+		return new Response(object.body, { headers })
+	})
+
+	app.get('/sites/:slug', async (c) => {
+		const site = await operatorSite(c)
+		if (site === null) return operatorError(404, 'no such site')
+		return siteAnswer(c, site, 200)
+	})
+
+	app.put('/sites/:slug', async (c) => {
+		const services = c.get('services')
+		const slug = c.req.param('slug')
+		const allowed = checkSlug(slug)
+		if (!allowed.ok) return operatorError(400, `slug refused: ${allowed.reason}`)
+
+		let body: unknown
+		try {
+			body = await c.req.json()
+		} catch {
+			return operatorError(400, 'body is not JSON')
+		}
+		const parsed = parseSiteInput(body, services.zone)
+		if (!parsed.ok) return operatorError(400, parsed.detail)
+
+		const existing = await readSite(services.blobs, slug)
+		const now = services.now().toISOString()
+		const site: Site = {
+			slug,
+			publisher: parsed.input.publisher,
+			license: parsed.input.license,
+			feeds: existing?.feeds ?? [],
+			updatedAt: now,
+		}
+		if (parsed.input.domain !== undefined) site.domain = parsed.input.domain
+		if (existing?.verified !== undefined && existing.verified === site.domain) {
+			site.verified = existing.verified
+			if (existing.verifiedAt !== undefined) site.verifiedAt = existing.verifiedAt
+		}
+		await writeSite(services.blobs, site)
+		announce(c, site)
+		return siteAnswer(c, site, existing === null ? 201 : 200)
+	})
+
+	app.delete('/sites/:slug', async (c) => {
+		const site = await operatorSite(c)
+		if (site === null) return operatorError(404, 'no such site')
+		const services = c.get('services')
+		await deleteSite(services.blobs, site)
+		announce(c, site)
+		return new Response(null, { status: 204 })
+	})
+
+	app.put('/sites/:slug/feeds/:name', async (c) => {
+		const site = await operatorSite(c)
+		if (site === null) return operatorError(404, 'no such site')
+		const name = c.req.param('name')
+		if (!isFeedName(name)) return operatorError(400, 'feed name must be lowercase letters, digits and hyphens ending in .ndjson')
+		if (!site.feeds.includes(name) && site.feeds.length >= MAX_FEEDS) return operatorError(409, `a site lists at most ${MAX_FEEDS} feeds`)
+
+		const declared = Number(c.req.header('content-length') ?? Number.NaN)
+		if (Number.isFinite(declared) && declared > MAX_FEED_BYTES) return operatorError(413, `a feed is at most ${MAX_FEED_BYTES} bytes`)
+		const bytes = await readCapped(c.req.raw.body, MAX_FEED_BYTES)
+		if (bytes === null) return operatorError(413, `a feed is at most ${MAX_FEED_BYTES} bytes`)
+
+		const checked = await checkFeed(bytes)
+		if (!checked.ok) return Response.json({ error: 'feed refused', problems: checked.problems }, { status: 400 })
+
+		const services = c.get('services')
+		await services.blobs.put(feedKey(site.slug, name), bytes.buffer, 'application/x-ndjson; charset=utf-8')
+		const updated: Site = {
+			...site,
+			feeds: site.feeds.includes(name) ? site.feeds : [...site.feeds, name],
+			updatedAt: services.now().toISOString(),
+		}
+		await writeSite(services.blobs, updated)
+		announce(c, updated)
+		return Response.json({ feed: name, items: checked.items, url: `https://${siteHost(site.slug, services.zone)}/feeds/${name}` })
+	})
+
+	app.delete('/sites/:slug/feeds/:name', async (c) => {
+		const site = await operatorSite(c)
+		if (site === null) return operatorError(404, 'no such site')
+		const name = c.req.param('name')
+		if (!site.feeds.includes(name)) return operatorError(404, 'no such feed')
+		const services = c.get('services')
+		const updated: Site = { ...site, feeds: site.feeds.filter((feed) => feed !== name), updatedAt: services.now().toISOString() }
+		await writeSite(services.blobs, updated)
+		await services.blobs.delete([feedKey(site.slug, name)])
+		announce(c, updated)
+		return new Response(null, { status: 204 })
+	})
+
+	app.post('/sites/:slug/verify', async (c) => {
+		const site = await operatorSite(c)
+		if (site === null) return operatorError(404, 'no such site')
+		const services = c.get('services')
+		const { site: checked, outcome } = await reverify(services, site)
+		if (checked !== site) announce(c, checked)
+		return Response.json({ outcome, site: checked, document: siteDocument(checked, services.zone) })
+	})
+
+	app.all('*', () => notFound())
+
+	return app
+}
+
+/**
+ * Re-reads every claimed domain's record, so a domain that withdraws its delegation stops being
+ * named by the document: one naming a domain that no longer delegates here speaks for nobody, and
+ * the slug would stop being discoverable even as itself.
+ */
+export async function reverifyAll(services: Services): Promise<string[]> {
+	const changed: string[] = []
+	for (const slug of await services.blobs.slugs()) {
+		const site = await readSite(services.blobs, slug)
+		if (site?.domain === undefined) continue
+		const { site: checked } = await reverify(services, site)
+		if (checked === site) continue
+		changed.push(...announced(checked, services.zone))
+	}
+	if (changed.length > 0) await services.ping(changed)
+	return changed
+}
+
+async function reverify(
+	services: Services,
+	site: Site,
+): Promise<{ site: Site; outcome: Awaited<ReturnType<typeof verifySite>>['outcome'] }> {
+	const result = await verifySite(site, services.zone, (name) => services.resolveTxt(name), services.now())
+	if (result.site.verified === site.verified) return { site, outcome: result.outcome }
+	const updated = { ...result.site, updatedAt: services.now().toISOString() }
+	await writeSite(services.blobs, updated)
+	return { site: updated, outcome: result.outcome }
+}
+
+async function operatorSite(c: Context<App>): Promise<Site | null> {
+	const slug = c.req.param('slug')
+	if (slug === undefined || !checkSlug(slug).ok) return null
+	return readSite(c.get('services').blobs, slug)
+}
+
+function siteAnswer(c: Context<App>, site: Site, status: number): Response {
+	const zone = c.get('services').zone
+	return Response.json({ site, host: siteHost(site.slug, zone), document: siteDocument(site, zone) }, { status })
+}
+
+/** The slug host, and the domain it claims: a change to either is something the index should crawl for. */
+function announced(site: Site, zone: string): string[] {
+	const names = [siteHost(site.slug, zone)]
+	if (site.domain !== undefined) names.push(site.domain)
+	return names
+}
+
+function announce(c: Context<App>, site: Site): void {
+	const services = c.get('services')
+	const pinging = services.ping(announced(site, services.zone)).catch((error: unknown) => {
+		console.error('ping failed', site.slug, error)
+	})
+	let lifetime: Lifetime | undefined
+	try {
+		lifetime = c.executionCtx
+	} catch {
+		lifetime = undefined
+	}
+	if (lifetime === undefined) void pinging
+	else lifetime.waitUntil(pinging)
+}
+
+function conditional(c: Context<App>): { ifNoneMatch: string | null; ifModifiedSince: string | null } {
+	return { ifNoneMatch: c.req.header('if-none-match') ?? null, ifModifiedSince: c.req.header('if-modified-since') ?? null }
+}
+
+function notFound(): Response {
+	const document = problem('not-found')
+	return new Response(`${JSON.stringify(document.body)}\n`, { status: document.status, headers: document.headers })
+}
+
+function operatorError(status: number, error: string): Response {
+	return Response.json({ error }, { status, headers: { 'cache-control': 'no-store' } })
+}
+
+/** Digests first, so the comparison takes the same time whatever the two strings share. */
+async function authorized(header: string | undefined, token: string | undefined): Promise<boolean> {
+	if (token === undefined || token === '' || header === undefined) return false
+	const presented = header.startsWith('Bearer ') ? header.slice('Bearer '.length) : ''
+	const [left, right] = await Promise.all([sha256Hex(presented), sha256Hex(token)])
+	let difference = 0
+	for (let index = 0; index < left.length; index++) difference |= left.charCodeAt(index) ^ right.charCodeAt(index)
+	return difference === 0
+}
+
+async function readCapped(body: ReadableStream<Uint8Array> | null, cap: number): Promise<Uint8Array<ArrayBuffer> | null> {
+	if (body === null) return new Uint8Array()
+	const reader = body.getReader()
+	const chunks: Uint8Array[] = []
+	let total = 0
+	for (;;) {
+		const { done, value } = await reader.read()
+		if (done) break
+		total += value.byteLength
+		if (total > cap) {
+			await reader.cancel()
+			return null
+		}
+		chunks.push(value)
+	}
+	const bytes = new Uint8Array(total)
+	let offset = 0
+	for (const chunk of chunks) {
+		bytes.set(chunk, offset)
+		offset += chunk.byteLength
+	}
+	return bytes
+}
