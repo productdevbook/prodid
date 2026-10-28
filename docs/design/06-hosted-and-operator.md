@@ -146,3 +146,35 @@ operator assigns one (`prodid-batch assign <slug> <email>`, new).
   known limit.
 - The Turnstile secret is the Worker secret `TURNSTILE_SECRET_KEY`; the site key is the variable
   `TURNSTILE_SITE_KEY` in `wrangler.jsonc`.
+- `publish.prodid.org/sites/{slug}` serves both sides: a request that carries `Authorization` goes
+  to the operator endpoint (401 when the token is wrong), one without it to the session pages
+  (`SELF_SERVICE` in `selfservice.tsx`, `app.ts`). `new` is a reserved slug, so `/sites/new` is
+  never a site.
+- Ownership lives in D1 next to the accounts: `site(slug pk, account_id, created_at, deleted_at)`
+  (`0002_sites.sql`), repeated as `owner` in `site.json`. Claiming a slug checks the limit of 5 and
+  that the slug is free in one statement (`claimSlug`, `owners.ts`). A deleted site keeps its row
+  with `deleted_at` for 30 days: during that hold only its last owner can take the slug again.
+- `site.checked_at` (`0003_site_checks.sql`) holds the last "Check now"; the check runs at most
+  once a minute per site and otherwise says how many seconds remain (`takeCheck`).
+- `sign_in(account_id, at)` (`0004_sign_ins.sql`) is the sign-in history; only the last 10 per
+  account are kept (`SIGN_INS_KEPT`, `signin.ts`). A session row is not that history: signing out
+  deletes it.
+- `site.reminded_at` (`0005_site_reminders.sql`) records the unused-slug reminder and is cleared
+  once the site has a feed, so a site that empties again is reminded again. The daily cron
+  (`releaseUnused`, `unused.ts`) mails the reminder from day 23 and releases at day 30 and at
+  least 7 days after the reminder, however late it went out. A released slug the index never
+  listed (`/source/<name>` answers not crawled) is free at once; one the index knows is held for
+  nobody for 30 days, as after a deletion, so its owner cannot simply take it back.
+- `prodid-batch assign <slug> <email>` calls the operator route `PUT /sites/{slug}/owner` with
+  `{"email": "…"}`. It creates the account if there is none, writes `owner` to `site.json`, and
+  restarts the unused-slug clock. It answers 409 when another account owns the site or the account
+  already owns 5 sites (`assignSite`).
+- The export (`GET /sites/{slug}/export`) is a zip of stored, uncompressed entries streamed from
+  R2: `site.json` and `feeds/<name>` for every feed, byte-identical to what is stored, named
+  `<slug>.prodid.org.zip` (`zip.ts`). It has no zip64, so it stays under 4 GiB, which 100 feeds of
+  32 MiB do.
+- A feed's item count is stored with it as R2 custom metadata `items`, which the Feeds table
+  reads instead of opening the feed (`storeFeed`, `sites.ts`).
+- `apps/hosted/src/merchant.ts` mirrors `convertMerchant` of `apps/batch/src/merchant.ts`: the
+  same `readDelimited` and `importMerchantRow` loop, so an upload and `prodid-batch merchant` give
+  the same feed. A change to one is made to both.
