@@ -1,9 +1,12 @@
+import { isIngestibleLicence, type MerchantDeclaration } from '@prodid/core'
 /** @jsxImportSource hono/jsx */
 import { type Context, Hono } from 'hono'
 import { getCookie } from 'hono/cookie'
 
-import { announce, type App, type Services } from './app'
-import { checkSlug, siteHost } from './names'
+import { announce, type App, MAX_FEEDS, type Services } from './app'
+import { checkFeed, MAX_FEED_BYTES } from './feeds'
+import { convertMerchant, type DroppedValues, type SkippedRow } from './merchant'
+import { checkSlug, isFeedName, siteHost } from './names'
 import { claimSlug, ownedSlugs, ownsSite, SITES_PER_ACCOUNT, unclaimSlug } from './owners'
 import { InboxPage, RefusedPage, StartPage, type StartProblem } from './pages'
 import {
@@ -22,8 +25,24 @@ import {
 	sessionAccount,
 	sessionCookie,
 } from './signin'
-import { type CreateProblem, NewSitePage, type NewSiteValues, NoSitePage, SitePage, type SiteRow, SitesPage } from './sitepages'
-import { parseSiteInput, readSite, type Site, siteDocument, writeSite } from './sites'
+import {
+	type CreateProblem,
+	type FeedRow,
+	NewSitePage,
+	type NewSiteValues,
+	NoSitePage,
+	SitePage,
+	type SiteRow,
+	SitesPage,
+	type UploadResult,
+	type UploadValues,
+} from './sitepages'
+import { feedKey, parseSiteInput, readSite, removeFeed, type Site, siteDocument, storeFeed, writeSite } from './sites'
+
+const UPLOAD_DEFAULTS: UploadValues = { feed: 'items.ndjson', lang: '', markets: '', media: 'none' }
+const TOO_LARGE = `A feed is at most ${MAX_FEED_BYTES / 1024 / 1024} MiB. Split a larger catalogue across feeds.`
+/** Room for the multipart boundaries and the other fields around the file. */
+const FORM_OVERHEAD = 65_536
 
 /** Self-service paths on the operator host; a request to them without `Authorization` is a browser's. */
 export const SELF_SERVICE = /^\/(?:signin(?:\/[^/]+)?|signout|slug-check|sites(?:\/.*)?)?$/
@@ -175,15 +194,81 @@ export function selfService(build: (env: Env) => Services): Hono<App> {
 		if (account === null) return c.redirect('/', 303)
 		const site = await ownedSite(c, account)
 		if (site === null) return noSite(c, account)
+		const replace = c.req.query('feed')
+		return sitePage(c, account, site, {
+			values: { ...UPLOAD_DEFAULTS, feed: replace !== undefined && isFeedName(replace) ? replace : 'items.ndjson' },
+		})
+	})
+
+	app.post('/sites/:slug/feeds', async (c) => {
+		const declared = Number(c.req.header('content-length') ?? Number.NaN)
+		const account = await signedIn(c)
+		if (account === null) return refused(c)
+		if (Number.isFinite(declared) && declared > MAX_FEED_BYTES + FORM_OVERHEAD) {
+			const site = await ownedSite(c, account)
+			if (site === null) return noSite(c, account)
+			return sitePage(c, account, site, { values: UPLOAD_DEFAULTS, upload: refusedUpload(TOO_LARGE) }, 413)
+		}
+		const form = await checkedForm(c)
+		if (form === null) return refused(c)
+		const site = await ownedSite(c, account)
+		if (site === null) return noSite(c, account)
+
+		const values: UploadValues = {
+			feed: field(form, 'feed'),
+			lang: field(form, 'lang'),
+			markets: field(form, 'markets'),
+			media: field(form, 'media'),
+		}
+		const page = (status: 200 | 400 | 409 | 413, upload: UploadResult, shown = site) =>
+			sitePage(c, account, shown, { values, upload }, status)
+		const file = form.get('file')
+		if (!(file instanceof File) || file.size === 0) return page(400, refusedUpload('Choose a file to upload.'))
+		if (!isFeedName(values.feed))
+			return page(400, refusedUpload('The feed name must be lowercase letters, digits and hyphens ending in .ndjson.'))
+		if (!site.feeds.includes(values.feed) && site.feeds.length >= MAX_FEEDS)
+			return page(409, refusedUpload(`A site lists at most ${MAX_FEEDS} feeds.`))
+		if (file.size > MAX_FEED_BYTES) return page(413, refusedUpload(TOO_LARGE))
+
+		const kind = uploadKind(file.name)
+		if (kind === null) return page(400, refusedUpload('Upload a Merchant file ending in .csv or .tsv, or a feed ending in .ndjson.'))
+		let bytes: Uint8Array<ArrayBuffer>
+		let skipped: SkippedRow[] = []
+		let dropped: DroppedValues[] = []
+		if (kind === 'merchant') {
+			const declaration = merchantDeclaration(values)
+			if (!declaration.ok) return page(400, refusedUpload(declaration.error))
+			const conversion = await convertMerchant(file.stream(), declaration.declared)
+			skipped = conversion.skipped
+			dropped = conversion.dropped
+			if (conversion.items === 0) return page(400, { ...refusedUpload('No row could be converted.'), skipped })
+			bytes = new TextEncoder().encode(conversion.ndjson)
+			if (bytes.byteLength > MAX_FEED_BYTES) return page(413, { ...refusedUpload(TOO_LARGE), skipped })
+		} else {
+			bytes = new Uint8Array(await file.arrayBuffer())
+		}
+
+		const checked = await checkFeed(bytes)
+		if (!checked.ok) {
+			const error = kind === 'merchant' ? 'The converted feed was refused.' : 'The feed was refused.'
+			return page(400, { ok: false, error, problems: checked.problems, skipped })
+		}
 		const services = c.get('services')
-		return c.html(
-			<SitePage
-				form={account.form}
-				site={site}
-				host={siteHost(site.slug, services.zone)}
-				served={siteDocument(site, services.zone) !== null}
-			/>,
-		)
+		const updated = await storeFeed(services.blobs, site, values.feed, bytes, checked.items, services.now())
+		announce(c, updated)
+		return page(200, { ok: true, feed: values.feed, items: checked.items, skipped, dropped }, updated)
+	})
+
+	app.post('/sites/:slug/feeds/:name/delete', async (c) => {
+		const account = await signedIn(c)
+		const form = await checkedForm(c)
+		if (account === null || form === null) return refused(c)
+		const site = await ownedSite(c, account)
+		const name = c.req.param('name')
+		if (site === null || !site.feeds.includes(name)) return noSite(c, account)
+		const services = c.get('services')
+		announce(c, await removeFeed(services.blobs, site, name, services.now()))
+		return c.redirect(`/sites/${site.slug}#feeds`, 303)
 	})
 
 	app.all('*', async (c) => {
@@ -214,6 +299,63 @@ async function ownedSite(c: Context<App>, account: SignedIn): Promise<Site | nul
 
 function noSite(c: Context<App>, account: SignedIn): Response | Promise<Response> {
 	return c.html(<NoSitePage form={account.form} />, 404)
+}
+
+async function sitePage(
+	c: Context<App>,
+	account: SignedIn,
+	site: Site,
+	extras: { values: UploadValues; upload?: UploadResult },
+	status: 200 | 400 | 409 | 413 = 200,
+): Promise<Response> {
+	const services = c.get('services')
+	const feeds: FeedRow[] = await Promise.all(
+		site.feeds.map(async (name) => {
+			const head = await services.blobs.head(feedKey(site.slug, name))
+			const items = Number(head?.metadata.items ?? Number.NaN)
+			return { name, items: Number.isInteger(items) ? items : undefined, size: head?.size, uploaded: head?.uploaded }
+		}),
+	)
+	return c.html(
+		<SitePage
+			form={account.form}
+			site={site}
+			host={siteHost(site.slug, services.zone)}
+			served={siteDocument(site, services.zone) !== null}
+			feeds={feeds}
+			values={extras.values}
+			upload={extras.upload}
+		/>,
+		status,
+	)
+}
+
+function refusedUpload(error: string): UploadResult {
+	return { ok: false, error, problems: [], skipped: [] }
+}
+
+function uploadKind(name: string): 'merchant' | 'ndjson' | null {
+	const lower = name.toLowerCase()
+	if (lower.endsWith('.csv') || lower.endsWith('.tsv')) return 'merchant'
+	if (lower.endsWith('.ndjson')) return 'ndjson'
+	return null
+}
+
+function merchantDeclaration(values: UploadValues): { ok: true; declared: MerchantDeclaration } | { ok: false; error: string } {
+	const declared: MerchantDeclaration = {}
+	if (values.lang !== '') declared.lang = values.lang
+	const markets = values.markets
+		.split(/[\s,]+/)
+		.filter((market) => market !== '')
+		.map((market) => market.toUpperCase())
+	const wrong = markets.find((market) => !/^[A-Z]{2}$/.test(market))
+	if (wrong !== undefined) return { ok: false, error: `${wrong} is not an ISO 3166-1 alpha-2 country code.` }
+	if (markets.length > 0) declared.markets = [...new Set(markets)]
+	if (values.media !== 'none') {
+		if (!isIngestibleLicence(values.media)) return { ok: false, error: 'Choose a media licence from the list, or no media.' }
+		declared.license = values.media
+	}
+	return { ok: true, declared }
 }
 
 function field(form: FormData, name: string): string {

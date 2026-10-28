@@ -28,6 +28,7 @@ beforeEach(() => {
 	services = {
 		blobs: {
 			get: async () => null,
+			head: async () => null,
 			text: async () => null,
 			put: async () => {},
 			delete: async () => {},

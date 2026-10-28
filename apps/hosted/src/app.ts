@@ -6,7 +6,19 @@ import { checkFeed, MAX_FEED_BYTES } from './feeds'
 import { checkSlug, isFeedName, resolveHost, siteHost, type Target } from './names'
 import { releaseSite } from './owners'
 import { SELF_SERVICE, selfService } from './selfservice'
-import { type Blobs, deleteSite, documentEtag, feedKey, parseSiteInput, readSite, type Site, siteDocument, writeSite } from './sites'
+import {
+	type Blobs,
+	deleteSite,
+	documentEtag,
+	feedKey,
+	parseSiteInput,
+	readSite,
+	removeFeed,
+	type Site,
+	siteDocument,
+	storeFeed,
+	writeSite,
+} from './sites'
 import type { Sql } from './sql'
 import { verifySite } from './verify'
 
@@ -179,13 +191,7 @@ export function createApp(build: (env: Env) => Services): Hono<App> {
 		if (!checked.ok) return Response.json({ error: 'feed refused', problems: checked.problems }, { status: 400 })
 
 		const services = c.get('services')
-		await services.blobs.put(feedKey(site.slug, name), bytes.buffer, 'application/x-ndjson; charset=utf-8')
-		const updated: Site = {
-			...site,
-			feeds: site.feeds.includes(name) ? site.feeds : [...site.feeds, name],
-			updatedAt: services.now().toISOString(),
-		}
-		await writeSite(services.blobs, updated)
+		const updated = await storeFeed(services.blobs, site, name, bytes, checked.items, services.now())
 		announce(c, updated)
 		return Response.json({ feed: name, items: checked.items, url: `https://${siteHost(site.slug, services.zone)}/feeds/${name}` })
 	})
@@ -196,9 +202,7 @@ export function createApp(build: (env: Env) => Services): Hono<App> {
 		const name = c.req.param('name')
 		if (!site.feeds.includes(name)) return operatorError(404, 'no such feed')
 		const services = c.get('services')
-		const updated: Site = { ...site, feeds: site.feeds.filter((feed) => feed !== name), updatedAt: services.now().toISOString() }
-		await writeSite(services.blobs, updated)
-		await services.blobs.delete([feedKey(site.slug, name)])
+		const updated = await removeFeed(services.blobs, site, name, services.now())
 		announce(c, updated)
 		return new Response(null, { status: 204 })
 	})

@@ -84,6 +84,11 @@ dl.facts dd { margin: 0; overflow-wrap: anywhere; }
 .badge.warn { background: var(--warn-bg); color: var(--warn); }
 code, .mono { font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace; font-size: 0.875em; overflow-wrap: anywhere; }
 section { margin: 2.5rem 0 0; }
+fieldset { border: 1px solid var(--line); border-radius: 0.375rem; margin: 0 0 1rem; padding: 0.75rem; }
+legend { font-weight: 500; padding: 0 0.25rem; }
+.actions { display: flex; align-items: center; gap: 1rem; margin-top: 0.5rem; font-size: 0.875rem; }
+.actions button { font-size: 0.875rem; padding: 0.25rem 0.75rem; }
+ul.problems { margin: 0 0 0.75rem; padding-left: 1.25rem; font-size: 0.875rem; overflow-wrap: anywhere; }
 section > h2 { margin-top: 0; padding-top: 1.5rem; border-top: 1px solid var(--line); }
 .turnstile { margin: 1rem 0; min-height: 65px; }
 button { font: inherit; font-weight: 500; cursor: pointer; color: var(--bg); background: var(--ink); border: 1px solid var(--ink); border-radius: 0.375rem; padding: 0.5rem 1rem; }

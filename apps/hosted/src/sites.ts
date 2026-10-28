@@ -9,11 +9,18 @@ export interface StoredObject {
 	size: number
 }
 
+export interface StoredHead {
+	uploaded: Date
+	size: number
+	metadata: Record<string, string>
+}
+
 /** The slice of R2 the publisher uses, so tests can stand in for the bucket. */
 export interface Blobs {
 	get(key: string): Promise<StoredObject | null>
+	head(key: string): Promise<StoredHead | null>
 	text(key: string): Promise<string | null>
-	put(key: string, body: ArrayBuffer | string, contentType: string): Promise<void>
+	put(key: string, body: ArrayBuffer | string, contentType: string, metadata?: Record<string, string>): Promise<void>
 	delete(keys: string[]): Promise<void>
 	slugs(): Promise<string[]>
 }
@@ -43,6 +50,32 @@ export async function readSite(blobs: Blobs, slug: string): Promise<Site | null>
 
 export function writeSite(blobs: Blobs, site: Site): Promise<void> {
 	return blobs.put(siteKey(site.slug), JSON.stringify(site), 'application/json')
+}
+
+/** Stores a validated feed and lists it; the item count rides along as the object's metadata. */
+export async function storeFeed(
+	blobs: Blobs,
+	site: Site,
+	name: string,
+	bytes: Uint8Array<ArrayBuffer>,
+	items: number,
+	now: Date,
+): Promise<Site> {
+	await blobs.put(feedKey(site.slug, name), bytes.buffer, 'application/x-ndjson; charset=utf-8', { items: String(items) })
+	const updated: Site = {
+		...site,
+		feeds: site.feeds.includes(name) ? site.feeds : [...site.feeds, name],
+		updatedAt: now.toISOString(),
+	}
+	await writeSite(blobs, updated)
+	return updated
+}
+
+export async function removeFeed(blobs: Blobs, site: Site, name: string, now: Date): Promise<Site> {
+	const updated: Site = { ...site, feeds: site.feeds.filter((feed) => feed !== name), updatedAt: now.toISOString() }
+	await writeSite(blobs, updated)
+	await blobs.delete([feedKey(site.slug, name)])
+	return updated
 }
 
 export async function deleteSite(blobs: Blobs, site: Site): Promise<void> {

@@ -14,12 +14,16 @@ function r2Blobs(bucket: R2Bucket): Blobs {
 			if (object === null) return null
 			return { body: object.body, etag: object.httpEtag, uploaded: object.uploaded, size: object.size }
 		},
+		async head(key) {
+			const object = await bucket.head(key)
+			return object === null ? null : { uploaded: object.uploaded, size: object.size, metadata: object.customMetadata ?? {} }
+		},
 		async text(key) {
 			const object = await bucket.get(key)
 			return object === null ? null : object.text()
 		},
-		async put(key, body, contentType) {
-			await bucket.put(key, body, { httpMetadata: { contentType } })
+		async put(key, body, contentType, metadata) {
+			await bucket.put(key, body, { httpMetadata: { contentType }, ...(metadata === undefined ? {} : { customMetadata: metadata }) })
 		},
 		async delete(keys) {
 			if (keys.length > 0) await bucket.delete(keys)
