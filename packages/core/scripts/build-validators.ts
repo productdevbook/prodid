@@ -50,9 +50,14 @@ function toEsm(code: string): string {
 		imports.set(key, name)
 		return name
 	})
+	// These helpers are CommonJS with `exports.default`. Bun honours `__esModule` on a default
+	// import; esbuild (wrangler) does not inside a `"type": "module"` package and hands back the
+	// whole exports object, so unwrap it here.
 	const lines = [...imports].map(([key, name]) => {
 		const [specifier, kind] = key.split('\u0000')
-		return kind === 'default' ? `import ${name} from '${specifier}'` : `import * as ${name} from '${specifier}'`
+		return kind === 'default'
+			? `import ${name}_module from '${specifier}'\nconst ${name} = ${name}_module.__esModule ? ${name}_module.default : ${name}_module`
+			: `import * as ${name} from '${specifier}'`
 	})
 	return `${lines.join('\n')}\n${body.replace(/^"use strict";\n?/, '')}`
 }

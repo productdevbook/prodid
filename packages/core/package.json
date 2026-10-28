@@ -25,5 +25,8 @@
 		"ajv": "8.20.0",
 		"ajv-formats": "3.0.1",
 		"tldts": "7.4.13"
+	},
+	"devDependencies": {
+		"esbuild": "0.28.1"
 	}
 }
