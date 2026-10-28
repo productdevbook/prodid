@@ -1,0 +1,545 @@
+[
+	{
+		"type": "item",
+		"id": "Q2001",
+		"labels": {
+			"en": {
+				"language": "en",
+				"value": "Acme"
+			},
+			"de": {
+				"language": "de",
+				"value": "Acme"
+			}
+		},
+		"claims": {}
+	},
+	{
+		"type": "item",
+		"id": "Q2002",
+		"labels": {
+			"en": {
+				"language": "en",
+				"value": "  Nordwind  "
+			}
+		},
+		"claims": {}
+	},
+	{
+		"type": "item",
+		"id": "Q2003",
+		"labels": {
+			"de": {
+				"language": "de",
+				"value": "Nur Deutsch"
+			}
+		},
+		"claims": {}
+	},
+	{
+		"type": "item",
+		"id": "Q1001",
+		"labels": {
+			"en": {
+				"language": "en",
+				"value": "Trail Bottle 1L"
+			},
+			"tr": {
+				"language": "tr",
+				"value": "Patika Matarası 1L"
+			}
+		},
+		"claims": {
+			"P3962": [
+				{
+					"mainsnak": {
+						"snaktype": "value",
+						"property": "P3962",
+						"datatype": "external-id",
+						"datavalue": {
+							"value": "9506000134420",
+							"type": "string"
+						}
+					},
+					"type": "statement",
+					"rank": "normal"
+				}
+			],
+			"P1716": [
+				{
+					"mainsnak": {
+						"snaktype": "value",
+						"property": "P1716",
+						"datatype": "wikibase-item",
+						"datavalue": {
+							"value": {
+								"entity-type": "item",
+								"numeric-id": 2001,
+								"id": "Q2001"
+							},
+							"type": "wikibase-entityid"
+						}
+					},
+					"type": "statement",
+					"rank": "normal"
+				}
+			]
+		}
+	},
+	{
+		"type": "item",
+		"id": "Q1002",
+		"labels": {
+			"en": {
+				"language": "en",
+				"value": "Trail Bottle 2L"
+			}
+		},
+		"claims": {
+			"P3962": [
+				{
+					"mainsnak": {
+						"snaktype": "value",
+						"property": "P3962",
+						"datatype": "external-id",
+						"datavalue": {
+							"value": "9506000134437",
+							"type": "string"
+						}
+					},
+					"type": "statement",
+					"rank": "deprecated"
+				},
+				{
+					"mainsnak": {
+						"snaktype": "value",
+						"property": "P3962",
+						"datatype": "external-id",
+						"datavalue": {
+							"value": "9506000134444",
+							"type": "string"
+						}
+					},
+					"type": "statement",
+					"rank": "preferred"
+				},
+				{
+					"mainsnak": {
+						"snaktype": "value",
+						"property": "P3962",
+						"datatype": "external-id",
+						"datavalue": {
+							"value": "9506000134440",
+							"type": "string"
+						}
+					},
+					"type": "statement",
+					"rank": "preferred"
+				},
+				{
+					"mainsnak": {
+						"snaktype": "value",
+						"property": "P3962",
+						"datatype": "external-id",
+						"datavalue": {
+							"value": "4006381333931",
+							"type": "string"
+						}
+					},
+					"type": "statement",
+					"rank": "normal"
+				}
+			],
+			"P1716": [
+				{
+					"mainsnak": {
+						"snaktype": "value",
+						"property": "P1716",
+						"datatype": "wikibase-item",
+						"datavalue": {
+							"value": {
+								"entity-type": "item",
+								"numeric-id": 2001,
+								"id": "Q2001"
+							},
+							"type": "wikibase-entityid"
+						}
+					},
+					"type": "statement",
+					"rank": "normal"
+				}
+			]
+		}
+	},
+	{
+		"type": "item",
+		"id": "Q1003",
+		"labels": {
+			"en": {
+				"language": "en",
+				"value": "Rain Jacket"
+			}
+		},
+		"claims": {
+			"P1716": [
+				{
+					"mainsnak": {
+						"snaktype": "value",
+						"property": "P1716",
+						"datatype": "wikibase-item",
+						"datavalue": {
+							"value": {
+								"entity-type": "item",
+								"numeric-id": 2002,
+								"id": "Q2002"
+							},
+							"type": "wikibase-entityid"
+						}
+					},
+					"type": "statement",
+					"rank": "normal"
+				}
+			]
+		}
+	},
+	{
+		"type": "item",
+		"id": "Q1004",
+		"labels": {
+			"en": {
+				"language": "en",
+				"value": "Unbranded Mug"
+			}
+		},
+		"claims": {
+			"P3962": [
+				{
+					"mainsnak": {
+						"snaktype": "value",
+						"property": "P3962",
+						"datatype": "external-id",
+						"datavalue": {
+							"value": "5012345678900",
+							"type": "string"
+						}
+					},
+					"type": "statement",
+					"rank": "normal"
+				}
+			]
+		}
+	},
+	{
+		"type": "item",
+		"id": "Q1005",
+		"labels": {
+			"en": {
+				"language": "en",
+				"value": "Mug of an Unknown Brand"
+			}
+		},
+		"claims": {
+			"P3962": [
+				{
+					"mainsnak": {
+						"snaktype": "value",
+						"property": "P3962",
+						"datatype": "external-id",
+						"datavalue": {
+							"value": "5012345678900",
+							"type": "string"
+						}
+					},
+					"type": "statement",
+					"rank": "normal"
+				}
+			],
+			"P1716": [
+				{
+					"mainsnak": {
+						"snaktype": "value",
+						"property": "P1716",
+						"datatype": "wikibase-item",
+						"datavalue": {
+							"value": {
+								"entity-type": "item",
+								"numeric-id": 2999,
+								"id": "Q2999"
+							},
+							"type": "wikibase-entityid"
+						}
+					},
+					"type": "statement",
+					"rank": "normal"
+				}
+			]
+		}
+	},
+	{
+		"type": "item",
+		"id": "Q1006",
+		"labels": {
+			"de": {
+				"language": "de",
+				"value": "Wanderschuh"
+			}
+		},
+		"claims": {
+			"P3962": [
+				{
+					"mainsnak": {
+						"snaktype": "value",
+						"property": "P3962",
+						"datatype": "external-id",
+						"datavalue": {
+							"value": "7612345678900",
+							"type": "string"
+						}
+					},
+					"type": "statement",
+					"rank": "normal"
+				}
+			],
+			"P1716": [
+				{
+					"mainsnak": {
+						"snaktype": "value",
+						"property": "P1716",
+						"datatype": "wikibase-item",
+						"datavalue": {
+							"value": {
+								"entity-type": "item",
+								"numeric-id": 2002,
+								"id": "Q2002"
+							},
+							"type": "wikibase-entityid"
+						}
+					},
+					"type": "statement",
+					"rank": "normal"
+				}
+			]
+		}
+	},
+	{
+		"type": "item",
+		"id": "Q1007",
+		"labels": {
+			"en": {
+				"language": "en",
+				"value": "Gift Card"
+			}
+		},
+		"claims": {
+			"P3962": [
+				{
+					"mainsnak": {
+						"snaktype": "somevalue",
+						"property": "P3962",
+						"datatype": "external-id"
+					},
+					"type": "statement",
+					"rank": "normal"
+				},
+				{
+					"mainsnak": {
+						"snaktype": "novalue",
+						"property": "P3962",
+						"datatype": "external-id"
+					},
+					"type": "statement",
+					"rank": "normal"
+				}
+			],
+			"P1716": [
+				{
+					"mainsnak": {
+						"snaktype": "value",
+						"property": "P1716",
+						"datatype": "wikibase-item",
+						"datavalue": {
+							"value": {
+								"entity-type": "item",
+								"numeric-id": 2001,
+								"id": "Q2001"
+							},
+							"type": "wikibase-entityid"
+						}
+					},
+					"type": "statement",
+					"rank": "normal"
+				}
+			]
+		}
+	},
+	{
+		"type": "item",
+		"id": "Q1008",
+		"labels": {
+			"en": {
+				"language": "en",
+				"value": "Pocket Knife"
+			}
+		},
+		"claims": {
+			"P3962": [
+				{
+					"mainsnak": {
+						"snaktype": "value",
+						"property": "P3962",
+						"datatype": "external-id",
+						"datavalue": {
+							"value": "95060019",
+							"type": "string"
+						}
+					},
+					"type": "statement",
+					"rank": "normal"
+				},
+				{
+					"mainsnak": {
+						"snaktype": "value",
+						"property": "P3962",
+						"datatype": "external-id",
+						"datavalue": {
+							"value": "0000095060019",
+							"type": "string"
+						}
+					},
+					"type": "statement",
+					"rank": "normal"
+				},
+				{
+					"mainsnak": {
+						"snaktype": "value",
+						"property": "P3962",
+						"datatype": "external-id",
+						"datavalue": {
+							"value": " 4006381333931 ",
+							"type": "string"
+						}
+					},
+					"type": "statement",
+					"rank": "normal"
+				}
+			],
+			"P1716": [
+				{
+					"mainsnak": {
+						"snaktype": "value",
+						"property": "P1716",
+						"datatype": "wikibase-item",
+						"datavalue": {
+							"value": {
+								"entity-type": "item",
+								"numeric-id": 2999,
+								"id": "Q2999"
+							},
+							"type": "wikibase-entityid"
+						}
+					},
+					"type": "statement",
+					"rank": "normal"
+				},
+				{
+					"mainsnak": {
+						"snaktype": "value",
+						"property": "P1716",
+						"datatype": "wikibase-item",
+						"datavalue": {
+							"value": {
+								"entity-type": "item",
+								"numeric-id": 2003,
+								"id": "Q2003"
+							},
+							"type": "wikibase-entityid"
+						}
+					},
+					"type": "statement",
+					"rank": "normal"
+				},
+				{
+					"mainsnak": {
+						"snaktype": "value",
+						"property": "P1716",
+						"datatype": "wikibase-item",
+						"datavalue": {
+							"value": {
+								"entity-type": "item",
+								"numeric-id": 2002,
+								"id": "Q2002"
+							},
+							"type": "wikibase-entityid"
+						}
+					},
+					"type": "statement",
+					"rank": "normal"
+				}
+			]
+		}
+	},
+	{
+		"type": "item",
+		"id": "Q1009",
+		"labels": {
+			"en": {
+				"language": "en",
+				"value": "Old Kettle"
+			}
+		},
+		"claims": {
+			"P3962": [
+				{
+					"mainsnak": {
+						"snaktype": "value",
+						"property": "P3962",
+						"datatype": "external-id",
+						"datavalue": {
+							"value": "4006381333931",
+							"type": "string"
+						}
+					},
+					"type": "statement",
+					"rank": "normal"
+				}
+			],
+			"P1716": [
+				{
+					"mainsnak": {
+						"snaktype": "value",
+						"property": "P1716",
+						"datatype": "wikibase-item",
+						"datavalue": {
+							"value": {
+								"entity-type": "item",
+								"numeric-id": 2001,
+								"id": "Q2001"
+							},
+							"type": "wikibase-entityid"
+						}
+					},
+					"type": "statement",
+					"rank": "deprecated"
+				}
+			]
+		}
+	},
+	{
+		"type": "property",
+		"id": "P3962",
+		"datatype": "external-id",
+		"labels": {
+			"en": {
+				"language": "en",
+				"value": "Global Trade Item Number"
+			}
+		},
+		"claims": {}
+	},
+	{
+		"type": "lexeme",
+		"id": "L7",
+		"lemmas": {},
+		"claims": {}
+	}
+]

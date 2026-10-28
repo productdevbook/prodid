@@ -1,0 +1,101 @@
+{
+	"Q2001": {
+		"ok": false,
+		"skip": "no-gtin"
+	},
+	"Q2002": {
+		"ok": false,
+		"skip": "no-gtin"
+	},
+	"Q2003": {
+		"ok": false,
+		"skip": "no-gtin"
+	},
+	"Q1001": {
+		"ok": true,
+		"record": {
+			"$type": "org.prodid.item",
+			"key": "Q1001",
+			"brand": "Acme",
+			"name": "Trail Bottle 1L",
+			"lang": "en",
+			"identifiers": [
+				{
+					"scheme": "gtin",
+					"value": "9506000134420"
+				}
+			]
+		},
+		"dropped": []
+	},
+	"Q1002": {
+		"ok": true,
+		"record": {
+			"$type": "org.prodid.item",
+			"key": "Q1002",
+			"brand": "Acme",
+			"name": "Trail Bottle 2L",
+			"lang": "en",
+			"identifiers": [
+				{
+					"scheme": "gtin",
+					"value": "9506000134444"
+				}
+			]
+		},
+		"dropped": ["P3962: 9506000134440 (check-digit)"]
+	},
+	"Q1003": {
+		"ok": false,
+		"skip": "no-gtin"
+	},
+	"Q1004": {
+		"ok": false,
+		"skip": "no-brand"
+	},
+	"Q1005": {
+		"ok": false,
+		"skip": "no-brand"
+	},
+	"Q1006": {
+		"ok": false,
+		"skip": "no-label"
+	},
+	"Q1007": {
+		"ok": false,
+		"skip": "no-gtin"
+	},
+	"Q1008": {
+		"ok": true,
+		"record": {
+			"$type": "org.prodid.item",
+			"key": "Q1008",
+			"brand": "Nordwind",
+			"name": "Pocket Knife",
+			"lang": "en",
+			"identifiers": [
+				{
+					"scheme": "gtin",
+					"value": "95060019"
+				},
+				{
+					"scheme": "gtin",
+					"value": "4006381333931"
+				}
+			]
+		},
+		"dropped": ["P1716: Q2999", "P1716: Q2003"]
+	},
+	"Q1009": {
+		"ok": false,
+		"skip": "no-brand"
+	},
+	"P3962": {
+		"ok": false,
+		"skip": "not-an-item"
+	},
+	"L7": {
+		"ok": false,
+		"skip": "not-an-item"
+	}
+}

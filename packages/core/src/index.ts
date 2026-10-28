@@ -49,6 +49,15 @@ export {
 	WELL_KNOWN_PATH,
 	wellKnownUrl,
 } from './discovery'
+export {
+	mapWikidataEntity,
+	WIKIDATA_BRAND,
+	WIKIDATA_GTIN,
+	wikidataBrandIds,
+	wikidataEnglishLabel,
+	type WikidataResult,
+	type WikidataSkip,
+} from './datasets/wikidata'
 export { gtinCheckDigit, type GtinProblem, type GtinResult, isGtin, isRestrictedGtin, parseGtin } from './gtin'
 export { type IdentifierScope, normalizeBrand, normalizeIdentifier, type NormalizedIdentifier } from './identifier'
 export { INGESTIBLE_LICENCES, isIngestibleLicence, type MediaType, SNIFF_BYTES, sniffMedia, type SniffedType } from './media'
