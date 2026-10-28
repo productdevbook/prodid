@@ -3639,7 +3639,7 @@ return errors === 0;
 validate22.evaluated = {"props":true,"dynamicProps":false,"dynamicItems":false};
 
 export const source = validate27;
-const schema53 = {"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://prodid.org/schemas/v0/org.prodid.source.json","title":"org.prodid.source","description":"The public status of one source: who it is, how its control was proven, whether it has lapsed, and what the last crawl saw. It reports only what the source itself publishes and when the index looked; never who asked for a crawl.","type":"object","required":["$type","name","kind","trust","lapsed"],"additionalProperties":false,"properties":{"$type":{"const":"org.prodid.source"},"name":{"description":"The identity: a domain, a slug host, or dataset:<slug> for a dataset.","type":"string","minLength":1,"maxLength":253},"kind":{"enum":["domain","hosted","dataset","community"]},"trust":{"enum":["authoritative","verified","unverified"]},"verified_by":{"description":"How domain control was proven. Present exactly when trust is above unverified.","$ref":"#/$defs/verifiedBy"},"verified_at":{"$ref":"#/$defs/timestamp"},"lapsed":{"type":"boolean"},"lapsed_at":{"description":"When discovery stopped succeeding. Present exactly while lapsed is true; 30 days after it, the source's active claims are withdrawn.","$ref":"#/$defs/timestamp"},"license":{"description":"SPDX license identifier the source publishes its facts under.","type":"string","minLength":1,"maxLength":64},"last_crawl":{"$ref":"#/$defs/crawl"}},"allOf":[{"if":{"required":["trust"],"properties":{"trust":{"enum":["authoritative","verified"]}}},"then":{"required":["verified_by","verified_at"],"properties":{"verified_by":{"$ref":"#/$defs/verifiedBy"},"verified_at":{"$ref":"#/$defs/timestamp"}}},"else":{"properties":{"verified_by":false,"verified_at":false}}},{"if":{"required":["kind"],"properties":{"kind":{"enum":["hosted","dataset","community"]}}},"then":{"properties":{"trust":{"const":"unverified"}}}},{"if":{"required":["kind"],"properties":{"kind":{"const":"dataset"}}},"then":{"properties":{"name":{"description":"dataset: and a slug: 3 to 32 lowercase letters, digits and hyphens, a letter or digit at each end, and no -- in the third and fourth places.","type":"string","pattern":"^dataset:(?!..--)[a-z0-9][a-z0-9-]{1,30}[a-z0-9]$"},"lapsed":{"const":false},"last_crawl":{"type":"object","properties":{"via":{"const":"import"}}}}},"else":{"properties":{"last_crawl":{"type":"object","properties":{"via":{"not":{"const":"import"}}}}}}},{"if":{"required":["lapsed"],"properties":{"lapsed":{"const":true}}},"then":{"required":["lapsed_at"],"properties":{"lapsed_at":{"$ref":"#/$defs/timestamp"}}},"else":{"properties":{"lapsed_at":false}}}],"$defs":{"timestamp":{"type":"string","format":"date-time"},"verifiedBy":{"enum":["well-known","dns-txt"]},"crawl":{"description":"The last discovery run, or for a dataset the last import. A crawl held back by the crawler's own rate limits is rescheduled and is not reported as an outcome.","type":"object","required":["at","outcome"],"additionalProperties":false,"allOf":[{"if":{"required":["via"],"properties":{"via":{"const":"import"}}},"then":{"required":["document_url"],"properties":{"document_url":{"type":"string"},"outcome":{"const":"success"},"http_status":false}}},{"if":{"required":["outcome"],"properties":{"outcome":{"const":"success"}}},"then":{"properties":{"http_status":{"enum":[200,304]},"feeds_failed":{"const":0}}}},{"if":{"required":["outcome"],"properties":{"outcome":{"const":"transport-failure"}}},"then":{"properties":{"http_status":{"$ref":"#/$defs/failureStatus"}}}}],"properties":{"at":{"$ref":"#/$defs/timestamp"},"via":{"description":"How the records arrived: through discovery, by .well-known on the domain or by a _prodid TXT record, or, for a dataset and only for one, by an operator's import of its export.","enum":["well-known","dns-txt","import"]},"document_url":{"description":"The discovery document this crawl asked for. Shown only for the host the source was last verified at, so the status of one source can never report how a host someone else chose answers the crawler. An import always shows it, as the public URL of the export it read: nobody can aim an import at a host.","type":"string","format":"uri","pattern":"^https://"},"outcome":{"description":"success: an acceptable document and every feed it lists read. definite-negative: discovery ended with no acceptable document — either none was found at all, or one was fetched and refused — which lapses the source at once; a failure at a host this source has never been verified at is a definite negative too, whatever the failure was. transport-failure: something could not be read at a host the source is verified at, including a feed, and nothing could be concluded.","enum":["success","definite-negative","transport-failure"]},"http_status":{"description":"The status of the discovery document fetch, when there was one, and only for the host the source was last verified at. The crawler's own error text is never published.","type":"integer","minimum":100,"maximum":599},"records_seen":{"type":"integer","minimum":0},"records_changed":{"description":"Records whose body changed since the last crawl. Never more than records_seen.","type":"integer","minimum":0},"lines_skipped":{"description":"Feed lines that were too long, unparseable or invalid. While this is above zero, absent keys are not withdrawn, for at most seven days.","type":"integer","minimum":0},"media_failed":{"description":"Media entries that could not be fetched or were refused. Unlike feeds_failed this does not make the crawl a failure: media is not discovery, and a media entry costs only itself.","type":"integer","minimum":0},"feeds_failed":{"description":"Feeds the document lists that could not be read. Above zero makes the crawl a transport failure, so seven days of it lapses the source; the feeds that did answer are still ingested and none of them withdraws anything. A feed the document no longer lists is retired rather than failed and is not counted here.","type":"integer","minimum":0}}},"failureStatus":{"description":"What a transport failure can carry: a status that says nothing was concluded, or none at all.","type":"integer","oneOf":[{"const":429},{"minimum":500,"maximum":599}]}}};
+const schema53 = {"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://prodid.org/schemas/v0/org.prodid.source.json","title":"org.prodid.source","description":"The public status of one source: who it is, how its control was proven, whether it has lapsed, and what the last crawl saw. It reports only what the source itself publishes and when the index looked; never who asked for a crawl.","type":"object","required":["$type","name","kind","trust","lapsed"],"additionalProperties":false,"properties":{"$type":{"const":"org.prodid.source"},"name":{"description":"The identity: a domain, a slug host, or dataset:<slug> for a dataset.","type":"string","minLength":1,"maxLength":253},"kind":{"enum":["domain","hosted","dataset","community"]},"trust":{"description":"authoritative: domain control proven, not lapsed, and at least one unrevoked per-brand grant made on evidence of brand ownership; it drops without operator action when either proof goes. verified: control of a domain proven. unverified: nothing proven about who is speaking.","enum":["authoritative","verified","unverified"]},"verified_by":{"description":"How domain control was proven. Present exactly when trust is above unverified.","$ref":"#/$defs/verifiedBy"},"verified_at":{"$ref":"#/$defs/timestamp"},"lapsed":{"type":"boolean"},"lapsed_at":{"description":"When discovery stopped succeeding. Present exactly while lapsed is true; 30 days after it, the source's active claims are withdrawn.","$ref":"#/$defs/timestamp"},"license":{"description":"SPDX license identifier the source publishes its facts under.","type":"string","minLength":1,"maxLength":64},"last_crawl":{"$ref":"#/$defs/crawl"}},"allOf":[{"if":{"required":["trust"],"properties":{"trust":{"enum":["authoritative","verified"]}}},"then":{"required":["verified_by","verified_at"],"properties":{"verified_by":{"$ref":"#/$defs/verifiedBy"},"verified_at":{"$ref":"#/$defs/timestamp"}}},"else":{"properties":{"verified_by":false,"verified_at":false}}},{"if":{"required":["kind"],"properties":{"kind":{"enum":["hosted","dataset","community"]}}},"then":{"properties":{"trust":{"const":"unverified"}}}},{"if":{"required":["kind"],"properties":{"kind":{"const":"dataset"}}},"then":{"properties":{"name":{"description":"dataset: and a slug: 3 to 32 lowercase letters, digits and hyphens, a letter or digit at each end, and no -- in the third and fourth places.","type":"string","pattern":"^dataset:(?!..--)[a-z0-9][a-z0-9-]{1,30}[a-z0-9]$"},"lapsed":{"const":false},"last_crawl":{"type":"object","properties":{"via":{"const":"import"}}}}},"else":{"properties":{"last_crawl":{"type":"object","properties":{"via":{"not":{"const":"import"}}}}}}},{"if":{"required":["lapsed"],"properties":{"lapsed":{"const":true}}},"then":{"required":["lapsed_at"],"properties":{"lapsed_at":{"$ref":"#/$defs/timestamp"},"trust":{"enum":["verified","unverified"]}}},"else":{"properties":{"lapsed_at":false}}}],"$defs":{"timestamp":{"type":"string","format":"date-time"},"verifiedBy":{"enum":["well-known","dns-txt"]},"crawl":{"description":"The last discovery run, or for a dataset the last import. A crawl held back by the crawler's own rate limits is rescheduled and is not reported as an outcome.","type":"object","required":["at","outcome"],"additionalProperties":false,"allOf":[{"if":{"required":["via"],"properties":{"via":{"const":"import"}}},"then":{"required":["document_url"],"properties":{"document_url":{"type":"string"},"outcome":{"const":"success"},"http_status":false}}},{"if":{"required":["outcome"],"properties":{"outcome":{"const":"success"}}},"then":{"properties":{"http_status":{"enum":[200,304]},"feeds_failed":{"const":0}}}},{"if":{"required":["outcome"],"properties":{"outcome":{"const":"transport-failure"}}},"then":{"properties":{"http_status":{"$ref":"#/$defs/failureStatus"}}}}],"properties":{"at":{"$ref":"#/$defs/timestamp"},"via":{"description":"How the records arrived: through discovery, by .well-known on the domain or by a _prodid TXT record, or, for a dataset and only for one, by an operator's import of its export.","enum":["well-known","dns-txt","import"]},"document_url":{"description":"The discovery document this crawl asked for. Shown only for the host the source was last verified at, so the status of one source can never report how a host someone else chose answers the crawler. An import always shows it, as the public URL of the export it read: nobody can aim an import at a host.","type":"string","format":"uri","pattern":"^https://"},"outcome":{"description":"success: an acceptable document and every feed it lists read. definite-negative: discovery ended with no acceptable document — either none was found at all, or one was fetched and refused — which lapses the source at once; a failure at a host this source has never been verified at is a definite negative too, whatever the failure was. transport-failure: something could not be read at a host the source is verified at, including a feed, and nothing could be concluded.","enum":["success","definite-negative","transport-failure"]},"http_status":{"description":"The status of the discovery document fetch, when there was one, and only for the host the source was last verified at. The crawler's own error text is never published.","type":"integer","minimum":100,"maximum":599},"records_seen":{"type":"integer","minimum":0},"records_changed":{"description":"Records whose body changed since the last crawl. Never more than records_seen.","type":"integer","minimum":0},"lines_skipped":{"description":"Feed lines that were too long, unparseable or invalid. While this is above zero, absent keys are not withdrawn, for at most seven days.","type":"integer","minimum":0},"media_failed":{"description":"Media entries that could not be fetched or were refused. Unlike feeds_failed this does not make the crawl a failure: media is not discovery, and a media entry costs only itself.","type":"integer","minimum":0},"feeds_failed":{"description":"Feeds the document lists that could not be read. Above zero makes the crawl a transport failure, so seven days of it lapses the source; the feeds that did answer are still ingested and none of them withdraws anything. A feed the document no longer lists is retired rather than failed and is not counted here.","type":"integer","minimum":0}}},"failureStatus":{"description":"What a transport failure can carry: a status that says nothing was concluded, or none at all.","type":"integer","oneOf":[{"const":429},{"minimum":500,"maximum":599}]}}};
 const schema54 = {"enum":["well-known","dns-txt"]};
 const schema55 = {"type":"string","format":"date-time"};
 const pattern35 = new RegExp("^dataset:(?!..--)[a-z0-9][a-z0-9-]{1,30}[a-z0-9]$", "u");
@@ -4852,21 +4852,10 @@ vErrors.push(err29);
 errors++;
 }
 }
-}
-var _valid3 = _errs39 === errors;
-valid17 = _valid3;
-if(valid17){
-var props3 = {};
-props3.lapsed_at = true;
-props3.lapsed = true;
-}
-ifClause2 = "then";
-}
-else {
-const _errs43 = errors;
-if(data && typeof data == "object" && !Array.isArray(data)){
-if(data.lapsed_at !== undefined){
-const err30 = {instancePath:instancePath+"/lapsed_at",schemaPath:"#/allOf/3/else/properties/lapsed_at/false schema",keyword:"false schema",params:{},message:"boolean schema is false"};
+if(data.trust !== undefined){
+let data16 = data.trust;
+if(!((data16 === "verified") || (data16 === "unverified"))){
+const err30 = {instancePath:instancePath+"/trust",schemaPath:"#/allOf/3/then/properties/trust/enum",keyword:"enum",params:{allowedValues: schema53.allOf[3].then.properties.trust.enum},message:"must be equal to one of the allowed values"};
 if(vErrors === null){
 vErrors = [err30];
 }
@@ -4876,7 +4865,32 @@ vErrors.push(err30);
 errors++;
 }
 }
-var _valid3 = _errs43 === errors;
+}
+var _valid3 = _errs39 === errors;
+valid17 = _valid3;
+if(valid17){
+var props3 = {};
+props3.lapsed_at = true;
+props3.trust = true;
+props3.lapsed = true;
+}
+ifClause2 = "then";
+}
+else {
+const _errs44 = errors;
+if(data && typeof data == "object" && !Array.isArray(data)){
+if(data.lapsed_at !== undefined){
+const err31 = {instancePath:instancePath+"/lapsed_at",schemaPath:"#/allOf/3/else/properties/lapsed_at/false schema",keyword:"false schema",params:{},message:"boolean schema is false"};
+if(vErrors === null){
+vErrors = [err31];
+}
+else {
+vErrors.push(err31);
+}
+errors++;
+}
+}
+var _valid3 = _errs44 === errors;
 valid17 = _valid3;
 if(valid17){
 if(props3 !== true){
@@ -4887,12 +4901,12 @@ props3.lapsed_at = true;
 ifClause2 = "else";
 }
 if(!valid17){
-const err31 = {instancePath,schemaPath:"#/allOf/3/if",keyword:"if",params:{failingKeyword: ifClause2},message:"must match \""+ifClause2+"\" schema"};
+const err32 = {instancePath,schemaPath:"#/allOf/3/if",keyword:"if",params:{failingKeyword: ifClause2},message:"must match \""+ifClause2+"\" schema"};
 if(vErrors === null){
-vErrors = [err31];
+vErrors = [err32];
 }
 else {
-vErrors.push(err31);
+vErrors.push(err32);
 }
 errors++;
 }
@@ -4907,17 +4921,7 @@ Object.assign(props0, props3);
 }
 if(data && typeof data == "object" && !Array.isArray(data)){
 if(data.$type === undefined){
-const err32 = {instancePath,schemaPath:"#/required",keyword:"required",params:{missingProperty: "$type"},message:"must have required property '"+"$type"+"'"};
-if(vErrors === null){
-vErrors = [err32];
-}
-else {
-vErrors.push(err32);
-}
-errors++;
-}
-if(data.name === undefined){
-const err33 = {instancePath,schemaPath:"#/required",keyword:"required",params:{missingProperty: "name"},message:"must have required property '"+"name"+"'"};
+const err33 = {instancePath,schemaPath:"#/required",keyword:"required",params:{missingProperty: "$type"},message:"must have required property '"+"$type"+"'"};
 if(vErrors === null){
 vErrors = [err33];
 }
@@ -4926,8 +4930,8 @@ vErrors.push(err33);
 }
 errors++;
 }
-if(data.kind === undefined){
-const err34 = {instancePath,schemaPath:"#/required",keyword:"required",params:{missingProperty: "kind"},message:"must have required property '"+"kind"+"'"};
+if(data.name === undefined){
+const err34 = {instancePath,schemaPath:"#/required",keyword:"required",params:{missingProperty: "name"},message:"must have required property '"+"name"+"'"};
 if(vErrors === null){
 vErrors = [err34];
 }
@@ -4936,8 +4940,8 @@ vErrors.push(err34);
 }
 errors++;
 }
-if(data.trust === undefined){
-const err35 = {instancePath,schemaPath:"#/required",keyword:"required",params:{missingProperty: "trust"},message:"must have required property '"+"trust"+"'"};
+if(data.kind === undefined){
+const err35 = {instancePath,schemaPath:"#/required",keyword:"required",params:{missingProperty: "kind"},message:"must have required property '"+"kind"+"'"};
 if(vErrors === null){
 vErrors = [err35];
 }
@@ -4946,8 +4950,8 @@ vErrors.push(err35);
 }
 errors++;
 }
-if(data.lapsed === undefined){
-const err36 = {instancePath,schemaPath:"#/required",keyword:"required",params:{missingProperty: "lapsed"},message:"must have required property '"+"lapsed"+"'"};
+if(data.trust === undefined){
+const err36 = {instancePath,schemaPath:"#/required",keyword:"required",params:{missingProperty: "trust"},message:"must have required property '"+"trust"+"'"};
 if(vErrors === null){
 vErrors = [err36];
 }
@@ -4956,9 +4960,8 @@ vErrors.push(err36);
 }
 errors++;
 }
-for(const key0 in data){
-if(!(func1.call(schema53.properties, key0))){
-const err37 = {instancePath,schemaPath:"#/additionalProperties",keyword:"additionalProperties",params:{additionalProperty: key0},message:"must NOT have additional properties"};
+if(data.lapsed === undefined){
+const err37 = {instancePath,schemaPath:"#/required",keyword:"required",params:{missingProperty: "lapsed"},message:"must have required property '"+"lapsed"+"'"};
 if(vErrors === null){
 vErrors = [err37];
 }
@@ -4967,10 +4970,9 @@ vErrors.push(err37);
 }
 errors++;
 }
-}
-if(data.$type !== undefined){
-if("org.prodid.source" !== data.$type){
-const err38 = {instancePath:instancePath+"/$type",schemaPath:"#/properties/%24type/const",keyword:"const",params:{allowedValue: "org.prodid.source"},message:"must be equal to constant"};
+for(const key0 in data){
+if(!(func1.call(schema53.properties, key0))){
+const err38 = {instancePath,schemaPath:"#/additionalProperties",keyword:"additionalProperties",params:{additionalProperty: key0},message:"must NOT have additional properties"};
 if(vErrors === null){
 vErrors = [err38];
 }
@@ -4980,11 +4982,9 @@ vErrors.push(err38);
 errors++;
 }
 }
-if(data.name !== undefined){
-let data18 = data.name;
-if(typeof data18 === "string"){
-if(func2(data18) > 253){
-const err39 = {instancePath:instancePath+"/name",schemaPath:"#/properties/name/maxLength",keyword:"maxLength",params:{limit: 253},message:"must NOT have more than 253 characters"};
+if(data.$type !== undefined){
+if("org.prodid.source" !== data.$type){
+const err39 = {instancePath:instancePath+"/$type",schemaPath:"#/properties/%24type/const",keyword:"const",params:{allowedValue: "org.prodid.source"},message:"must be equal to constant"};
 if(vErrors === null){
 vErrors = [err39];
 }
@@ -4993,8 +4993,12 @@ vErrors.push(err39);
 }
 errors++;
 }
-if(func2(data18) < 1){
-const err40 = {instancePath:instancePath+"/name",schemaPath:"#/properties/name/minLength",keyword:"minLength",params:{limit: 1},message:"must NOT have fewer than 1 characters"};
+}
+if(data.name !== undefined){
+let data19 = data.name;
+if(typeof data19 === "string"){
+if(func2(data19) > 253){
+const err40 = {instancePath:instancePath+"/name",schemaPath:"#/properties/name/maxLength",keyword:"maxLength",params:{limit: 253},message:"must NOT have more than 253 characters"};
 if(vErrors === null){
 vErrors = [err40];
 }
@@ -5003,9 +5007,8 @@ vErrors.push(err40);
 }
 errors++;
 }
-}
-else {
-const err41 = {instancePath:instancePath+"/name",schemaPath:"#/properties/name/type",keyword:"type",params:{type: "string"},message:"must be string"};
+if(func2(data19) < 1){
+const err41 = {instancePath:instancePath+"/name",schemaPath:"#/properties/name/minLength",keyword:"minLength",params:{limit: 1},message:"must NOT have fewer than 1 characters"};
 if(vErrors === null){
 vErrors = [err41];
 }
@@ -5015,10 +5018,8 @@ vErrors.push(err41);
 errors++;
 }
 }
-if(data.kind !== undefined){
-let data19 = data.kind;
-if(!((((data19 === "domain") || (data19 === "hosted")) || (data19 === "dataset")) || (data19 === "community"))){
-const err42 = {instancePath:instancePath+"/kind",schemaPath:"#/properties/kind/enum",keyword:"enum",params:{allowedValues: schema53.properties.kind.enum},message:"must be equal to one of the allowed values"};
+else {
+const err42 = {instancePath:instancePath+"/name",schemaPath:"#/properties/name/type",keyword:"type",params:{type: "string"},message:"must be string"};
 if(vErrors === null){
 vErrors = [err42];
 }
@@ -5028,10 +5029,10 @@ vErrors.push(err42);
 errors++;
 }
 }
-if(data.trust !== undefined){
-let data20 = data.trust;
-if(!(((data20 === "authoritative") || (data20 === "verified")) || (data20 === "unverified"))){
-const err43 = {instancePath:instancePath+"/trust",schemaPath:"#/properties/trust/enum",keyword:"enum",params:{allowedValues: schema53.properties.trust.enum},message:"must be equal to one of the allowed values"};
+if(data.kind !== undefined){
+let data20 = data.kind;
+if(!((((data20 === "domain") || (data20 === "hosted")) || (data20 === "dataset")) || (data20 === "community"))){
+const err43 = {instancePath:instancePath+"/kind",schemaPath:"#/properties/kind/enum",keyword:"enum",params:{allowedValues: schema53.properties.kind.enum},message:"must be equal to one of the allowed values"};
 if(vErrors === null){
 vErrors = [err43];
 }
@@ -5041,10 +5042,10 @@ vErrors.push(err43);
 errors++;
 }
 }
-if(data.verified_by !== undefined){
-let data21 = data.verified_by;
-if(!((data21 === "well-known") || (data21 === "dns-txt"))){
-const err44 = {instancePath:instancePath+"/verified_by",schemaPath:"#/$defs/verifiedBy/enum",keyword:"enum",params:{allowedValues: schema54.enum},message:"must be equal to one of the allowed values"};
+if(data.trust !== undefined){
+let data21 = data.trust;
+if(!(((data21 === "authoritative") || (data21 === "verified")) || (data21 === "unverified"))){
+const err44 = {instancePath:instancePath+"/trust",schemaPath:"#/properties/trust/enum",keyword:"enum",params:{allowedValues: schema53.properties.trust.enum},message:"must be equal to one of the allowed values"};
 if(vErrors === null){
 vErrors = [err44];
 }
@@ -5054,11 +5055,10 @@ vErrors.push(err44);
 errors++;
 }
 }
-if(data.verified_at !== undefined){
-let data22 = data.verified_at;
-if(typeof data22 === "string"){
-if(!(formats8.validate(data22))){
-const err45 = {instancePath:instancePath+"/verified_at",schemaPath:"#/$defs/timestamp/format",keyword:"format",params:{format: "date-time"},message:"must match format \""+"date-time"+"\""};
+if(data.verified_by !== undefined){
+let data22 = data.verified_by;
+if(!((data22 === "well-known") || (data22 === "dns-txt"))){
+const err45 = {instancePath:instancePath+"/verified_by",schemaPath:"#/$defs/verifiedBy/enum",keyword:"enum",params:{allowedValues: schema54.enum},message:"must be equal to one of the allowed values"};
 if(vErrors === null){
 vErrors = [err45];
 }
@@ -5068,8 +5068,11 @@ vErrors.push(err45);
 errors++;
 }
 }
-else {
-const err46 = {instancePath:instancePath+"/verified_at",schemaPath:"#/$defs/timestamp/type",keyword:"type",params:{type: "string"},message:"must be string"};
+if(data.verified_at !== undefined){
+let data23 = data.verified_at;
+if(typeof data23 === "string"){
+if(!(formats8.validate(data23))){
+const err46 = {instancePath:instancePath+"/verified_at",schemaPath:"#/$defs/timestamp/format",keyword:"format",params:{format: "date-time"},message:"must match format \""+"date-time"+"\""};
 if(vErrors === null){
 vErrors = [err46];
 }
@@ -5079,9 +5082,8 @@ vErrors.push(err46);
 errors++;
 }
 }
-if(data.lapsed !== undefined){
-if(typeof data.lapsed !== "boolean"){
-const err47 = {instancePath:instancePath+"/lapsed",schemaPath:"#/properties/lapsed/type",keyword:"type",params:{type: "boolean"},message:"must be boolean"};
+else {
+const err47 = {instancePath:instancePath+"/verified_at",schemaPath:"#/$defs/timestamp/type",keyword:"type",params:{type: "string"},message:"must be string"};
 if(vErrors === null){
 vErrors = [err47];
 }
@@ -5091,11 +5093,9 @@ vErrors.push(err47);
 errors++;
 }
 }
-if(data.lapsed_at !== undefined){
-let data24 = data.lapsed_at;
-if(typeof data24 === "string"){
-if(!(formats8.validate(data24))){
-const err48 = {instancePath:instancePath+"/lapsed_at",schemaPath:"#/$defs/timestamp/format",keyword:"format",params:{format: "date-time"},message:"must match format \""+"date-time"+"\""};
+if(data.lapsed !== undefined){
+if(typeof data.lapsed !== "boolean"){
+const err48 = {instancePath:instancePath+"/lapsed",schemaPath:"#/properties/lapsed/type",keyword:"type",params:{type: "boolean"},message:"must be boolean"};
 if(vErrors === null){
 vErrors = [err48];
 }
@@ -5105,8 +5105,11 @@ vErrors.push(err48);
 errors++;
 }
 }
-else {
-const err49 = {instancePath:instancePath+"/lapsed_at",schemaPath:"#/$defs/timestamp/type",keyword:"type",params:{type: "string"},message:"must be string"};
+if(data.lapsed_at !== undefined){
+let data25 = data.lapsed_at;
+if(typeof data25 === "string"){
+if(!(formats8.validate(data25))){
+const err49 = {instancePath:instancePath+"/lapsed_at",schemaPath:"#/$defs/timestamp/format",keyword:"format",params:{format: "date-time"},message:"must match format \""+"date-time"+"\""};
 if(vErrors === null){
 vErrors = [err49];
 }
@@ -5116,11 +5119,8 @@ vErrors.push(err49);
 errors++;
 }
 }
-if(data.license !== undefined){
-let data25 = data.license;
-if(typeof data25 === "string"){
-if(func2(data25) > 64){
-const err50 = {instancePath:instancePath+"/license",schemaPath:"#/properties/license/maxLength",keyword:"maxLength",params:{limit: 64},message:"must NOT have more than 64 characters"};
+else {
+const err50 = {instancePath:instancePath+"/lapsed_at",schemaPath:"#/$defs/timestamp/type",keyword:"type",params:{type: "string"},message:"must be string"};
 if(vErrors === null){
 vErrors = [err50];
 }
@@ -5129,8 +5129,12 @@ vErrors.push(err50);
 }
 errors++;
 }
-if(func2(data25) < 1){
-const err51 = {instancePath:instancePath+"/license",schemaPath:"#/properties/license/minLength",keyword:"minLength",params:{limit: 1},message:"must NOT have fewer than 1 characters"};
+}
+if(data.license !== undefined){
+let data26 = data.license;
+if(typeof data26 === "string"){
+if(func2(data26) > 64){
+const err51 = {instancePath:instancePath+"/license",schemaPath:"#/properties/license/maxLength",keyword:"maxLength",params:{limit: 64},message:"must NOT have more than 64 characters"};
 if(vErrors === null){
 vErrors = [err51];
 }
@@ -5139,14 +5143,24 @@ vErrors.push(err51);
 }
 errors++;
 }
-}
-else {
-const err52 = {instancePath:instancePath+"/license",schemaPath:"#/properties/license/type",keyword:"type",params:{type: "string"},message:"must be string"};
+if(func2(data26) < 1){
+const err52 = {instancePath:instancePath+"/license",schemaPath:"#/properties/license/minLength",keyword:"minLength",params:{limit: 1},message:"must NOT have fewer than 1 characters"};
 if(vErrors === null){
 vErrors = [err52];
 }
 else {
 vErrors.push(err52);
+}
+errors++;
+}
+}
+else {
+const err53 = {instancePath:instancePath+"/license",schemaPath:"#/properties/license/type",keyword:"type",params:{type: "string"},message:"must be string"};
+if(vErrors === null){
+vErrors = [err53];
+}
+else {
+vErrors.push(err53);
 }
 errors++;
 }
@@ -5159,12 +5173,12 @@ errors = vErrors.length;
 }
 }
 else {
-const err53 = {instancePath,schemaPath:"#/type",keyword:"type",params:{type: "object"},message:"must be object"};
+const err54 = {instancePath,schemaPath:"#/type",keyword:"type",params:{type: "object"},message:"must be object"};
 if(vErrors === null){
-vErrors = [err53];
+vErrors = [err54];
 }
 else {
-vErrors.push(err53);
+vErrors.push(err54);
 }
 errors++;
 }

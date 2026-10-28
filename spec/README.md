@@ -252,6 +252,10 @@ Trust is a property of the source, not of a claim.
 
 Only a source whose identity is a domain can be more than `unverified`. A `<slug>.prodid.org` host is prodid.org's domain, not the publisher's, so serving a document there proves nothing about the publisher: a hosted source stays `unverified` however well it publishes, until a domain's `_prodid` record names that host and the document names the domain back. That is the moment it [becomes that domain](#identity-continuity), and the same moment its trust rises.
 
+**`authoritative` is granted on evidence, per brand, and can be revoked.** No crawl can prove who owns a brand, so the index's operator grants it, and only on evidence: the GS1 company prefix of the GTINs the source publishes under that brand is licensed to the organization that controls the source's domain, as GS1's public "Verified by GS1" lookup shows, and the URL of that lookup is kept with the grant as its evidence. A grant names one brand, in its [normalized](#brand-normalization) form. A source may hold grants for several brands, and the operator revokes each on its own.
+
+A grant does not outlive the proof under it. A source is `authoritative` exactly while control of its domain is proven, as `verified` requires, it is not [lapsed](#lapse), and it holds at least one grant that has not been revoked. A source that loses that proof, or that lapses, drops at once to the trust its remaining proof supports — `verified` while it is lapsed, lower if that proof is gone too — with no operator action, and it is `authoritative` again as soon as all three hold again. Trust stays a property of the source: a source that holds a grant for one brand is `authoritative` in every claim it makes, including its claims about brands it holds no grant for.
+
 ### Crawling
 
 There is no publishing API key and no account is needed to be indexed:

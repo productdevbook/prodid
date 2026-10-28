@@ -151,7 +151,11 @@ Normative text: `ARCHITECTURE.md` *Index contract* and *Semantics*.
 - **Commands.** `prodid-batch grant-authority <source> <brand> --evidence <url>` and
   `prodid-batch revoke-authority <id> --reason "<text>"`.
 - **Spec.** *Trust* gains a paragraph stating the evidence rule and that the grant is per brand
-  and revocable.
+  and revocable. Written: *Trust* states the evidence rule, the per-brand revocable grant on the
+  normalized brand, and that a source is `authoritative` exactly while it is `verified`, not lapsed
+  and holds an unrevoked grant, so losing either proof drops it with no operator action.
+  `org.prodid.source` refuses `authoritative` on a lapsed source. Trust stays per source: a grant
+  for one brand makes every claim of that source `authoritative`, and the status names no brands.
 
 ## As built
 

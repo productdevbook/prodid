@@ -15,7 +15,10 @@
 			"maxLength": 253
 		},
 		"kind": { "enum": ["domain", "hosted", "dataset", "community"] },
-		"trust": { "enum": ["authoritative", "verified", "unverified"] },
+		"trust": {
+			"description": "authoritative: domain control proven, not lapsed, and at least one unrevoked per-brand grant made on evidence of brand ownership; it drops without operator action when either proof goes. verified: control of a domain proven. unverified: nothing proven about who is speaking.",
+			"enum": ["authoritative", "verified", "unverified"]
+		},
 		"verified_by": {
 			"description": "How domain control was proven. Present exactly when trust is above unverified.",
 			"$ref": "#/$defs/verifiedBy"
@@ -64,7 +67,10 @@
 		},
 		{
 			"if": { "required": ["lapsed"], "properties": { "lapsed": { "const": true } } },
-			"then": { "required": ["lapsed_at"], "properties": { "lapsed_at": { "$ref": "#/$defs/timestamp" } } },
+			"then": {
+				"required": ["lapsed_at"],
+				"properties": { "lapsed_at": { "$ref": "#/$defs/timestamp" }, "trust": { "enum": ["verified", "unverified"] } }
+			},
 			"else": { "properties": { "lapsed_at": false } }
 		}
 	],

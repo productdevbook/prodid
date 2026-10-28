@@ -186,6 +186,10 @@
 		"instancePath": "",
 		"keyword": "additionalProperties"
 	},
+	"source.authoritative-lapsed.json": {
+		"instancePath": "/trust",
+		"keyword": "enum"
+	},
 	"source.dataset-authoritative.json": {
 		"instancePath": "/trust",
 		"keyword": "const"
