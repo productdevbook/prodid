@@ -22,6 +22,7 @@ export {
 	type MediaWanted,
 	type RecordOutcome,
 } from './ingest'
+export { DumpError, type DumpLines, loadDump, LOADED_MERGE_REASON, type LoadOptions, type LoadResult } from './load'
 export { attachMediaClaim, blockMedia, findMedia, type MediaClaimInput, type MediaRow, recordMedia, touchMediaClaim } from './media'
 export { mergeEntities, type MergeInput, type MergeResult, revertMerge } from './merge'
 export { type PreparedClaim, type PreparedRecord, prepareRecord, type PrepareResult } from './prepare'

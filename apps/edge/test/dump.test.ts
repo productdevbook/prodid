@@ -2,10 +2,14 @@ import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 
 import { type EntityRecord, type SourceRecord, validateEntity, validateSource } from '@prodid/core'
 import {
+	DumpError,
+	type DumpLines,
 	type DumpSnapshot,
 	type EntityLine,
 	type GroupingLine,
 	ingestRecord,
+	loadDump,
+	LOADED_MERGE_REASON,
 	type MergeLine,
 	mergeEntities,
 	prepareRecord,
@@ -13,7 +17,7 @@ import {
 	type RecordLine,
 	revertMerge,
 } from '@prodid/store'
-import { databaseReachable } from '@prodid/store/testing'
+import { createDatabase, databaseReachable } from '@prodid/store/testing'
 
 import { document, GTINS, gtin13, item, png } from './support/fixtures'
 import { type Edge, json, startEdge } from './support/harness'
@@ -267,5 +271,115 @@ describe.skipIf(!reachable)('a snapshot export', () => {
 		expect(late.sources.find((line) => line.name === 'acme.example')?.license).toBe('CC0-1.0')
 		const after = await readSnapshot(edge!.sql, async (snapshot) => await collect(snapshot.records()))
 		expect(after.map((line) => line.key)).toContain('late')
+	})
+})
+
+function linesOf(dump: Dump): DumpLines {
+	return { sources: dump.sources, entities: dump.entities, records: dump.records, groupings: dump.groupings, merges: dump.merges }
+}
+
+async function answer(at: Edge, path: string): Promise<{ status: number; location: string | null; body: unknown }> {
+	const response = await at.fetch(path, { headers: { accept: 'application/json' } })
+	return {
+		status: response.status,
+		location: response.headers.get('location'),
+		body: response.status === 308 ? null : await response.json(),
+	}
+}
+
+const MOSS = gtin13('400638133515')
+
+describe.skipIf(!reachable)('loading a dump', () => {
+	let dump: Dump
+	let target: (Edge & { stop(): Promise<void> }) | null = null
+
+	beforeAll(async () => {
+		await edge!.reset()
+		await populate(edge!)
+		dump = await readSnapshot(edge!.sql, collectSnapshot)
+		target = await startEdge({ at: new Date(edge!.clock.now().getTime() + HOUR) })
+		const loaded = await loadDump(target.sql, linesOf(dump), { operator: 'test' })
+		expect(loaded).toEqual({
+			sources: dump.sources.length,
+			entities: dump.entities.length,
+			records: dump.records.length,
+			groupings: dump.groupings.length,
+			merges: dump.merges.length,
+		})
+	})
+	afterAll(async () => {
+		await target?.stop()
+	})
+
+	test('every opid answers on the loaded index exactly as on the one dumped', async () => {
+		for (const line of dump.entities) {
+			for (const query of ['', '?history=1']) {
+				expect(await answer(target!, `/id/${line.opid}${query}`)).toEqual(await answer(edge!, `/id/${line.opid}${query}`))
+			}
+		}
+		for (const gtin of [GTINS.navy, GTINS.black, GTINS.other]) {
+			expect(await answer(target!, `/01/${gtin}?history=1`)).toEqual(await answer(edge!, `/01/${gtin}?history=1`))
+		}
+		for (const line of dump.sources) {
+			expect(await answer(target!, `/source/${line.name}`)).toEqual(await answer(edge!, `/source/${line.name}`))
+		}
+	})
+
+	test('a dump of the loaded index is the dump it was loaded from', async () => {
+		const again = await readSnapshot(target!.sql, collectSnapshot)
+		expect({ ...again, snapshotAt: null }).toEqual({ ...dump, snapshotAt: null })
+		const merges = await target!.sql<{ reason: string; decided_by: string }[]>`select reason, decided_by from merge`
+		expect([...merges]).toEqual(dump.merges.map(() => ({ reason: LOADED_MERGE_REASON, decided_by: 'test' })))
+		const unattributed = await target!.sql<{ count: number; media: number }[]>`
+			select count(*)::int as count, count(*) filter (where property = 'media')::int as media from claim where withdrawn_at is null
+				and record_key is null
+		`
+		expect(unattributed[0]).toEqual({ count: 0, media: 0 })
+		const values = await target!.sql<{ type: string }[]>`select distinct jsonb_typeof(body) as type from record`
+		expect(values.map((row) => row.type)).toEqual(['object'])
+	})
+
+	test('a crawl continues from the loaded records and groupings instead of minting', async () => {
+		const count = async () => (await target!.sql<{ count: number }[]>`select count(*)::int as count from entity`)[0]!.count
+		const before = await count()
+		const live = dump.records.filter((line) => line.source === 'acme.example' && line.withdrawn_at === undefined).map((line) => line.body)
+		const moss = item({ key: 'tj-moss-m', group: 'trail-jacket', variant: { color: 'Moss', size: 'M' }, gtin: MOSS })
+		target!.net.document('acme.example', document({ feeds: [ACME_FEED] }))
+		target!.net.serve(IMAGE, { status: 200, headers: { 'content-type': 'image/png' }, body: png(7) })
+		target!.net.feed(ACME_FEED, [...live, moss])
+		const crawlStarted = target!.clock.now()
+		expect((await target!.crawl('acme.example')).kind).toBe('done')
+
+		expect(await count()).toBe(before + 2)
+		const status = await json<SourceRecord>(await target!.fetch('/source/acme.example'))
+		expect(status.last_crawl).toMatchObject({ outcome: 'success', records_seen: live.length + 1, records_changed: 1 })
+		const navy = await json<EntityRecord>(await target!.fetch(`/01/${GTINS.navy}`))
+		const added = await json<EntityRecord>(await target!.fetch(`/01/${MOSS}`))
+		expect(added.parents?.family).toBe(navy.parents!.family!)
+		const fresh = await target!.sql<{ key: string }[]>`
+			select distinct c.record_key as key from claim c join source s on s.id = c.source
+			where s.name = 'acme.example' and (c.seen_at >= ${crawlStarted} or c.withdrawn_at >= ${crawlStarted})
+		`
+		expect(fresh.map((row) => row.key)).toEqual(['tj-moss-m'])
+	})
+
+	test('a database that is not empty is refused', async () => {
+		await expect(loadDump(target!.sql, linesOf(dump), { operator: 'test' })).rejects.toThrow(/not empty/)
+	})
+
+	test('a dump that cannot be loaded leaves the database as empty as it was', async () => {
+		const empty = await createDatabase()
+		try {
+			const broken = { ...dump, records: [...dump.records, { ...dump.records[0]!, key: 'stray', source: 'nobody.example' }] }
+			const failure = await loadDump(empty.sql, linesOf(broken), { operator: 'test' }).catch((error: unknown) => error)
+			expect(failure).toBeInstanceOf(DumpError)
+			expect(failure).toMatchObject({ file: 'records.ndjson.gz', line: dump.records.length + 1 })
+			const [row] = await empty.sql<{ count: number }[]>`
+				select ((select count(*) from source) + (select count(*) from entity) + (select count(*) from crawl))::int as count
+			`
+			expect(row!.count).toBe(0)
+		} finally {
+			await empty.drop()
+		}
 	})
 })
