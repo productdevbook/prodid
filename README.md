@@ -12,8 +12,8 @@ replaceable, because the spec, the identifiers and full data dumps are open.
 
 ## Status
 
-Spec v0 draft. The index and the hosted publisher run on prodid.org. Hosting is operator-assisted.
-No catalogue is published yet.
+Spec v0 draft. The index and the hosted publisher run on prodid.org. Anyone can publish, on their
+own domain or hosted.
 
 ## Quick start
 
