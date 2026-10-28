@@ -1,9 +1,10 @@
 #!/usr/bin/env bun
-import { basename } from 'node:path'
+import { basename, extname } from 'node:path'
 import { parseArgs } from 'node:util'
 
 import type { MerchantDeclaration } from '@prodid/core'
 
+import { checkDocument, checkFeed, type CheckResult, formatProblem } from './check'
 import { convertMerchant, type MerchantConversion } from './merchant'
 import { OperatorClient, OperatorError, type SiteSettings } from './operator'
 
@@ -11,6 +12,10 @@ const USAGE = `prodid-batch <command>
 
   merchant <file.csv|tsv> --license SPDX [--lang TAG] [--market CC]... [--out FILE]
       Convert a Google Merchant product file to an org.prodid.item feed (stdout by default).
+
+  check <file>...
+      Validate a discovery document (.json) or an NDJSON feed as the index would. One line per
+      problem, with the feed line it is on; exits non-zero on any. Needs no token.
 
   site <slug> --publisher NAME --license SPDX [--contact EMAIL] [--domain DOMAIN]
       Create or update a hosted site at <slug>.prodid.org.
@@ -27,8 +32,8 @@ const USAGE = `prodid-batch <command>
   remove-feed <slug> <name>
   remove-site <slug>
 
-The operator endpoint is PRODID_OPERATOR_URL (default https://publish.prodid.org),
-authenticated with PRODID_OPERATOR_TOKEN.`
+The other commands call the operator endpoint, PRODID_OPERATOR_URL
+(default https://publish.prodid.org), authenticated with PRODID_OPERATOR_TOKEN.`
 
 const OPTIONS = {
 	license: { type: 'string' },
@@ -59,6 +64,18 @@ async function main(argv: string[]): Promise<void> {
 			const conversion = await convert(need(rest[0], 'file'), values)
 			if (values.out === undefined) process.stdout.write(conversion.ndjson)
 			else await Bun.write(values.out, conversion.ndjson)
+			return
+		}
+		case 'check': {
+			need(rest[0], 'file')
+			let failed = false
+			for (const path of rest) {
+				const result = await check(path)
+				for (const problem of result.problems) console.log(formatProblem(path, problem))
+				if (result.problems.length > 0) failed = true
+				else console.log(`${path}: ok, ${result.records} ${result.records === 1 ? 'record' : 'records'}`)
+			}
+			if (failed) process.exitCode = 1
 			return
 		}
 		case 'site':
@@ -95,6 +112,11 @@ async function main(argv: string[]): Promise<void> {
 		default:
 			throw new UsageError(`unknown command ${command}`)
 	}
+}
+
+function check(path: string): Promise<CheckResult> {
+	const file = Bun.file(path)
+	return extname(path) === '.json' ? file.text().then(checkDocument) : checkFeed(file.stream())
 }
 
 async function convert(path: string, values: Values): Promise<MerchantConversion> {
