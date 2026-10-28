@@ -61,3 +61,9 @@ All counted in the `RateLimiter` Durable Object (SQLite), exact sliding windows.
   `@prodid/store/testing`) with in-memory fakes for the network, clock, queues, R2 and the Durable
   Object (`apps/edge/test/support/`). Without `DATABASE_URL` reaching a database they are skipped,
   which is why chapter 07 gives CI a Postgres service and makes a skip a failure there.
+- `media.dead-letter` logs `url_sha256` (the SHA-256 of the entry's URL; the URL itself is never
+  logged), `source`, `reason` and `attempts`, which is the message's deferral count, not a count of
+  queue retries. `crawl.dead-letter` logs `reason`, `domain`, `step`, `crawl` and `deferrals`. Both
+  DLQ consumers accept the letter the consumer sends with its reason and the bare message the
+  queue moves there after its retries run out, which is logged with the reason "failed on every
+  retry of" its queue (`apps/edge/src/consumer.ts`).

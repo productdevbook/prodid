@@ -137,3 +137,12 @@ operator assigns one (`prodid-batch assign <slug> <email>`, new).
 
 - `publish.astro:501` says "nothing imports it for you yet" while the operator CLI does. Chapter 07
   fixes the site's wording; this chapter's self-service flow makes the import a publisher action.
+- `login_token` has one column more than *Data* shows: `client`, the SHA-256 of the requester's
+  /32 (IPv4) or /64 (IPv6), which the per-address limit counts
+  (`apps/hosted/migrations/0001_accounts.sql`, `signin.ts`).
+- Asking for a link creates no account; the `account` row is created when a link is used.
+- `GET /signin/{token}` consumes the link. A mail scanner that prefetches links can therefore use
+  it up before the person clicks, who then sees "This link has expired" and asks again. This is a
+  known limit.
+- The Turnstile secret is the Worker secret `TURNSTILE_SECRET_KEY`; the site key is the variable
+  `TURNSTILE_SITE_KEY` in `wrangler.jsonc`.

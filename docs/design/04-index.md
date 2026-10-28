@@ -137,3 +137,17 @@ Normative text: `ARCHITECTURE.md` *Index contract* and *Semantics*.
   `prodid-batch revoke-authority <id> --reason "<text>"`.
 - **Spec.** *Trust* gains a paragraph stating the evidence rule and that the grant is per brand
   and revocable.
+
+## As built
+
+- `blockMedia` on a hash that is already blocked keeps the first `blocked_at` and
+  `blocked_reason`, and returns 0: no active claim names the hash any more
+  (`packages/store/src/media.ts`).
+- `attachMediaClaim` reads the `media` row `for share` in its transaction and writes no claim when
+  the hash is blocked or has no row, so a claim racing a block is either withdrawn by it or refused.
+- `prodid-batch block-media <sha256> --reason TEXT` (`apps/batch/src/takedown.ts`) needs
+  `DATABASE_URL`, `R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_MEDIA_BUCKET`,
+  `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ZONE_ID`, and refuses to start when any is unset. It prints
+  the database host, then one line per step (`block:`, `delete:`, `purge:`, each `ok` or
+  `failed`). A failed block stops the run; the delete and the purge are each tried whatever the
+  other did. Any failure exits 1.

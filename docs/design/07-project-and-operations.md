@@ -165,3 +165,10 @@ created with the milestones and issues; the default labels stay.
   `expected.json`, so another implementation can run the vectors without cloning; README section
   on writing a conformance runner in another language.
 - **[New]** `CHANGELOG.md` from 1.0.0, one section per tag.
+
+## As built
+
+- The canary feed is a private copy of the spec's Merchant fixture with one `image_link` on
+  `https://prodid.org/canary/item.png` (`apps/web/public/canary/item.png`, a 256 × 256 PNG). The
+  fixture's own images are on `acme.example`, which never resolves, and the index refuses SVG, so
+  without the copy no canary image reaches `media.prodid.org`.

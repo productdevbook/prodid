@@ -88,3 +88,8 @@ Normative text: spec section *Publishing* and *Security considerations*.
 
 - A domain that fails and has no source row stores nothing (`run.ts`): `/source/{name}` stays 404
   until the first successful discovery, as the spec requires.
+- The contact travels in the crawl plan: discovery puts the accepted document's
+  `publisher.contact` (or null) into it, and `finishCrawl` writes it to `source.contact` in the
+  transaction that records the success (`run.ts`, `packages/store/src/source.ts`). A document that
+  answered 304 carries no contact and leaves the stored one; so does a failed crawl, including one
+  whose document was accepted but whose feed failed.
