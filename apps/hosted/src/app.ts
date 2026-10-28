@@ -5,6 +5,7 @@ import type { TxtLookup } from './dns'
 import { checkFeed, MAX_FEED_BYTES } from './feeds'
 import { checkSlug, isFeedName, resolveHost, siteHost, type Target } from './names'
 import { type Blobs, deleteSite, documentEtag, feedKey, parseSiteInput, readSite, type Site, siteDocument, writeSite } from './sites'
+import type { Sql } from './sql'
 import { verifySite } from './verify'
 
 /** A document can list at most this many feeds; the crawler rejects one listing more, whole. */
@@ -12,6 +13,7 @@ export const MAX_FEEDS = 100
 
 export interface Services {
 	blobs: Blobs
+	accounts: Sql
 	resolveTxt(name: string): Promise<TxtLookup>
 	/** Asks the index for a crawl through its public ping, like any other publisher. */
 	ping(domains: string[]): Promise<void>

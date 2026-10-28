@@ -1,6 +1,7 @@
 import { createApp, reverifyAll, type Services } from './app'
 import { resolveTxt } from './dns'
 import type { Blobs } from './sites'
+import { d1Sql } from './sql'
 
 function r2Blobs(bucket: R2Bucket): Blobs {
 	return {
@@ -35,6 +36,7 @@ function r2Blobs(bucket: R2Bucket): Blobs {
 export function productionServices(env: Env): Services {
 	return {
 		blobs: r2Blobs(env.SITES),
+		accounts: d1Sql(env.ACCOUNTS),
 		resolveTxt: (name) => resolveTxt(env.DOH_ENDPOINT, name),
 		async ping(domains) {
 			const response = await fetch(env.PING_URL, {

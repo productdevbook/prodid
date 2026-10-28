@@ -15,6 +15,16 @@
 		// Site settings and uploaded feeds. Shared with nothing: the index reads them over HTTPS.
 		{ "binding": "SITES", "bucket_name": "prodid-hosted" },
 	],
+	"d1_databases": [
+		// Self-service accounts, sign-in links and sessions. Bound by this Worker alone.
+		{
+			"binding": "ACCOUNTS",
+			"database_name": "prodid-hosted-accounts",
+			"database_id": "9f7abecd-7234-4a98-9a2b-c89daa8eb5d2",
+			"migrations_dir": "migrations",
+		},
+	],
+	"send_email": [{ "name": "MAIL", "allowed_sender_addresses": ["notify@prodid.org"] }],
 	"triggers": {
 		// Daily: re-read every claimed domain's `_prodid` record.
 		"crons": ["17 3 * * *"],
@@ -25,9 +35,10 @@
 		// A reserved slug, so no publisher can ever be served on it.
 		"OPERATOR_HOST": "publish.prodid.org",
 		"PING_URL": "https://prodid.org/ping",
+		"TURNSTILE_SITE_KEY": "0x4AAAAAAFp-jWzBXQ4rH0O0",
 	},
-	// OPERATOR_TOKEN is a secret: `wrangler secret put OPERATOR_TOKEN`.
+	// Both are secrets: `wrangler secret put OPERATOR_TOKEN`, `wrangler secret put TURNSTILE_SECRET_KEY`.
 	"secrets": {
-		"required": ["OPERATOR_TOKEN"],
+		"required": ["OPERATOR_TOKEN", "TURNSTILE_SECRET_KEY"],
 	},
 }

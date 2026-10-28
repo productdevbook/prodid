@@ -6,6 +6,7 @@ import { acceptDiscovery, type TxtRecord, validateFeed } from '@prodid/core'
 import { createApp, reverifyAll, type Services } from '../src/app'
 import type { TxtLookup } from '../src/dns'
 import type { Blobs, StoredObject } from '../src/sites'
+import { memorySql } from './sql'
 
 const TOKEN = 'operator-secret'
 const ZONE = 'prodid.org'
@@ -81,6 +82,7 @@ beforeEach(() => {
 	pinged = []
 	services = {
 		blobs,
+		accounts: memorySql(),
 		async resolveTxt(name): Promise<TxtLookup> {
 			const records = txt.get(name)
 			if (records === 'servfail') return { ok: false, reason: 'servfail' }
