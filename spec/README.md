@@ -644,6 +644,68 @@ All seven are current SPDX identifiers (list 3.29.0) and all seven permit verbat
 
 It is checked as a string, before the fetch, so a licence we cannot use costs nobody any bandwidth. The claim keeps the identifier, so a reader always knows the terms of the file it is looking at.
 
+## Dumps
+
+The index is replaceable. Everything it knows that a reader may know is published as a full export, a **dump**, that anyone can download and load into an index of their own.
+
+```
+https://dumps.prodid.org/v0/<YYYY-MM-DD>/manifest.json
+https://dumps.prodid.org/v0/latest.json
+```
+
+A dump is a directory named after the UTC date of its `snapshot_at`. It holds five data files and a [manifest](schemas/org.prodid.dump.json) ([example](examples/dump.json)). `latest.json` is a copy of the newest dump's `manifest.json`, and it is written last, after every file of that dump and its manifest are in place: a reader that starts from `latest.json` never finds a manifest naming a file that is not there yet, and finds the directory from the manifest's own `snapshot_at`.
+
+### Files
+
+Every data file is NDJSON compressed with gzip, one JSON object per line. **All five are read from one consistent snapshot of the index**, taken at `snapshot_at`, so they agree with each other: every source a line names has its line in `sources.ndjson.gz`, and every `opid` a line names has its line in `entities.ndjson.gz`.
+
+| file | one line per | the line |
+| --- | --- | --- |
+| `sources.ndjson.gz` | source | the [`org.prodid.source`](#a-sources-status) status, exactly as `/source/{name}` answers it |
+| `entities.ndjson.gz` | entity, merged ones included | the [`org.prodid.entity`](#an-entity) document exactly as `/id/{opid}?history=1` answers it, withdrawn claims included |
+| `records.ndjson.gz` | record, withdrawn ones included | `source`, `key`, `feed`, `opid`, `body`, `first_seen`, `last_seen`, `withdrawn_at` |
+| `groupings.ndjson.gz` | grouping | `source`, `kind`, `key`, `opid` |
+| `merges.ndjson.gz` | merge, reverted ones included | `from`, `into`, `decided_at`, `reverted_at` |
+
+An `opid` that was merged answers `308` at the resolver, so it has no document of its own to copy. Its line is the document it would answer were it not merged — its own identifiers and claims stay on it, which is what makes a merge reversible — with one more member, `merged_into`, the `opid` of its survivor. Without `merged_into` the line validates as `org.prodid.entity`. `merged_into` is never the line's own `opid`, and names an entity that is not itself merged, because merges do not chain.
+
+A **record** line is one record as the index keeps it. `source` is the source's name; `key` is the record's key in that source; `feed` is the URL of the feed it was read from; `opid` is the item it resolved to; `body` is the [`org.prodid.item`](schemas/org.prodid.item.json) the publisher sent, unchanged; `first_seen` and `last_seen` are when the index first and last read it; `withdrawn_at` is present exactly when the record is withdrawn. Every time is UTC, ISO 8601.
+
+A **grouping** line says which entity a source's grouping resolved to: `source` is the source's name, `kind` is `family` or `variant`, and `opid` is that entity. `key` is what the source's records are grouped on, written out rather than digested, so that another implementation can match its own grouping to it:
+
+| `kind` | `key` |
+| --- | --- |
+| `family` | `{ "group": "<group>" }` for a publisher `group`; `{ "key": "<key>" }` for a record with no `group`, which is a family of its own |
+| `variant` | `{ "family": <the family's key>, "variant": { <axis>: <value>, … } }`, the record's `variant`, `{}` when it has none |
+
+A **merge** line is one merge decision: `from` the merged `opid`, `into` its survivor, `decided_at` when it was made, and `reverted_at`, present exactly when it was reverted.
+
+### What a dump never holds
+
+A dump says no more than the resolver already does, plus the records, groupings and merges the resolver's answers are built from. It never holds:
+
+- a publisher's contact address, which the index keeps only to send the [lapse notice](#lapse);
+- the crawl log, the crawler's error text, or anything else about a crawl that the source's status does not show — the log is per-host observation, which the status withholds on purpose;
+- why a merge was made or who decided it;
+- why a media hash was blocked;
+- media bytes. A `media` claim's `media_url` addresses the file, and a blocked hash is not served;
+- the index's internal row identifiers. Every line names a source by its name and an entity by its `opid`.
+
+### Licences
+
+The manifest's `licenses` says what the contents are under, and the rule is the one in [Licensing](#licensing):
+
+- everything the index makes — `opid`s, the identifier mappings, the family and variant hierarchy, groupings and merges — is `CC0-1.0`;
+- every claim and every record is under the licence its own source declares, the `license` of that source's line in `sources.ndjson.gz`. A source that declares none has granted nothing, and prodid grants nothing on its behalf.
+
+### Manifest
+
+`org.prodid.dump` names each of the five files exactly once, with the SHA-256 and the size of the file as served, compressed, and its number of lines once decompressed. A reader checks each file against its digest before loading it. `created_at` is when the manifest was written and is never before `snapshot_at`, a rule the schema cannot state.
+
+### Retention
+
+A daily dump is kept for 7 days. The first dump of each UTC month is kept for good. A dump that is kept is never rewritten: its directory, its files and its manifest stay byte for byte as they were.
+
 ## Conformance
 
 `bun run check` in this directory validates every example and fixture against the schemas, and runs the vector sets through reference implementations of the rules above.
@@ -658,7 +720,7 @@ It is checked as a string, before the fetch, so a licence we cannot use costs no
 | [`fixtures/ndjson/`](fixtures/ndjson) | a feed and the line numbers that must be skipped |
 | [`fixtures/merchant/`](fixtures/merchant) | a Merchant file and the records it must produce |
 
-Every file in `fixtures/invalid/` has an entry in [`fixtures/expected.json`](fixtures/expected.json) naming the instance path, the schema keyword and, where it disambiguates, the error parameters that must reject it. A fixture that fails for a new and unrelated reason is a failure, not a pass. Six of the keywords name rules that live on top of the schemas rather than inside them, because JSON Schema cannot express them: `storable` for a string that cannot be stored, `gtin` for a value that is not a GTIN, `identifiable` for a record with no identifier the index can store, `self-reference` for an entity that lists its own `opid`, `order` for a `withdrawn_at` before its `seen_at`, and `digest` for a `media_url` that does not address its claim's `sha256`.
+Every file in `fixtures/invalid/` has an entry in [`fixtures/expected.json`](fixtures/expected.json) naming the instance path, the schema keyword and, where it disambiguates, the error parameters that must reject it. A fixture that fails for a new and unrelated reason is a failure, not a pass. Six of the keywords name rules that live on top of the schemas rather than inside them, because JSON Schema cannot express them: `storable` for a string that cannot be stored, `gtin` for a value that is not a GTIN, `identifiable` for a record with no identifier the index can store, `self-reference` for an entity that lists its own `opid`, `order` for a `withdrawn_at` before its `seen_at` or a dump's `snapshot_at` after its `created_at`, and `digest` for a `media_url` that does not address its claim's `sha256`.
 
 A TXT vector is `{ "value": [...], "outcome": "delegation" | "ignored" | "malformed", "host": "..." }`, where `value` is the RR's character-strings in order and `host` is the normalized host, present exactly when the outcome is `delegation`. The three outcomes are behavioural, not cosmetic: `ignored` means the RR is not a prodid record and discovery carries on without it, `malformed` means discovery fails.
 

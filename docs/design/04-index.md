@@ -82,7 +82,7 @@ Normative text: `ARCHITECTURE.md` *Index contract* and *Semantics*.
   | `sources.ndjson.gz` | source | the `org.prodid.source` status document |
   | `entities.ndjson.gz` | entity, merged ones included | the `org.prodid.entity` document as `/id/{opid}?history=1` answers it; a merged opid's line carries `merged_into` |
   | `records.ndjson.gz` | record | `source` (name), `key`, `feed`, `opid`, `body`, `first_seen`, `last_seen`, `withdrawn_at` |
-  | `groupings.ndjson.gz` | grouping | `source` (name), `kind`, `key` (the digest), `opid` |
+  | `groupings.ndjson.gz` | grouping | `source` (name), `kind`, `key` (what the grouping is on, written out: never the index's digest, which embeds the internal source id), `opid` |
   | `merges.ndjson.gz` | merge | `from`, `into`, `decided_at`, `reverted_at` |
   | `manifest.json` | — | `org.prodid.dump` |
 
@@ -93,7 +93,14 @@ Normative text: `ARCHITECTURE.md` *Index contract* and *Semantics*.
 - **Manifest** `org.prodid.dump` (new schema `spec/schemas/org.prodid.dump.json`): `$type`,
   `version: 0`, `created_at`, `snapshot_at`, and `files: [{ name, sha256, bytes, lines }]`, plus
   `licenses`: `opid`s, identifiers, hierarchy, groupings and merges are `CC0-1.0`; every claim and
-  record carries the licence its source declares in `sources.ndjson.gz`.
+  record carries the licence its source declares in `sources.ndjson.gz`. In the manifest this is
+  `"licenses": { "index": "CC0-1.0", "claims": "source" }`.
+- **Spec.** *Dumps* states the files, the line of each, the exclusions, the licences and the
+  retention; the schema, `examples/dump.json` and the `dump.*` fixtures go with it.
+- **Grouping keys and the loader.** The store's `grouping.key` is the SHA-256 of a key that
+  includes the internal `source.id` (`groupingKeys`, `packages/core/src/claims.ts`), and `sku` and
+  `rcn` scopes are that id too. A dump carries neither, so `load-dump` assigns its own source ids and
+  derives its own digests and scopes from the dump's written-out grouping keys and record bodies.
 - **Retention.** Daily dumps are kept 7 days; the first dump of each month is kept for good.
 - **Writer.** `prodid-batch dump` streams each table through a cursor, gzips, uploads with
   multipart to R2's S3 API, then writes the manifest and `latest.json`. It prints line counts and

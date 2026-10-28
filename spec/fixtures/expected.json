@@ -107,6 +107,41 @@
 		"instancePath": "/claims/0/withdrawn_at",
 		"keyword": "order"
 	},
+	"dump.file-missing.json": {
+		"instancePath": "/files",
+		"keyword": "minItems"
+	},
+	"dump.file-twice.json": {
+		"instancePath": "/files",
+		"keyword": "contains"
+	},
+	"dump.file-unknown.json": {
+		"instancePath": "/files/0/name",
+		"keyword": "enum"
+	},
+	"dump.index-not-cc0.json": {
+		"instancePath": "/licenses/index",
+		"keyword": "const"
+	},
+	"dump.no-licenses.json": {
+		"instancePath": "",
+		"keyword": "required",
+		"params": {
+			"missingProperty": "licenses"
+		}
+	},
+	"dump.sha256-uppercase.json": {
+		"instancePath": "/files/1/sha256",
+		"keyword": "pattern"
+	},
+	"dump.snapshot-after-created.json": {
+		"instancePath": "/snapshot_at",
+		"keyword": "order"
+	},
+	"dump.version-not-zero.json": {
+		"instancePath": "/version",
+		"keyword": "const"
+	},
 	"feed.domain-ip-literal.json": {
 		"instancePath": "/domain",
 		"keyword": "pattern"

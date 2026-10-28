@@ -148,7 +148,15 @@ function recordProblems(record: unknown): Problem[] | string {
 	problems.push(...storabilityProblems(record, ''))
 	if (type === 'org.prodid.item') problems.push(...gtinProblems(record), ...identifiableProblems(record))
 	if (type === 'org.prodid.entity') problems.push(...entityProblems(record))
+	if (type === 'org.prodid.dump') problems.push(...dumpProblems(record))
 	return problems
+}
+
+function dumpProblems(record: unknown): Problem[] {
+	const { created_at: createdAt, snapshot_at: snapshotAt } = record as Record<string, unknown>
+	if (typeof createdAt !== 'string' || typeof snapshotAt !== 'string') return []
+	if (Date.parse(snapshotAt) <= Date.parse(createdAt)) return []
+	return [problem('/snapshot_at', 'order', '/snapshot_at is after created_at')]
 }
 
 function entityProblems(record: unknown): Problem[] {
