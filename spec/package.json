@@ -29,7 +29,7 @@
 		"check": "bun run validate.ts"
 	},
 	"devDependencies": {
-		"@types/bun": "1.4.2",
+		"@types/bun": "1.4.4",
 		"ajv": "8.20.0",
 		"ajv-formats": "3.0.1"
 	}

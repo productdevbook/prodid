@@ -17,7 +17,7 @@ own domain or hosted.
 
 ## Quick start
 
-With [Bun](https://bun.sh) 1.4.2:
+With [Bun](https://bun.sh) 1.4.4:
 
 ```sh
 git clone https://github.com/productdevbook/prodid

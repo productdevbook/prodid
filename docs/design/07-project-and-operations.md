@@ -108,7 +108,7 @@ credential. What must not be public is infrastructure detail.
 **[New]** `.github/workflows/check.yml`, on pull requests and pushes to `main`:
 
 - `ubuntu-latest`, `permissions: contents: read`, every action pinned by commit SHA.
-- `oven-sh/setup-bun` with the version in `packageManager` (`bun@1.4.2`).
+- `oven-sh/setup-bun` with the version in `packageManager` (`bun@1.4.4`).
 - Service `postgres:18.6` (the production image's major and minor), `POSTGRES_USER/PASSWORD/DB =
   prodid`, health-checked; `DATABASE_URL=postgres://prodid:prodid@localhost:5432/prodid`.
 - Steps: `bun install --frozen-lockfile`; `bun run check`; `bun run --filter '@prodid/web' build`
