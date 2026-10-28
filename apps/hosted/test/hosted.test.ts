@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, test } from 'bun:test'
 
 import { convertMerchant, OperatorClient, OperatorError } from '@prodid/batch'
-import { acceptDiscovery, type TxtRecord, validateFeed } from '@prodid/core'
+import { acceptDiscovery, type TxtRecord, V0_DISCOVERY_CUTOFF, validateFeed } from '@prodid/core'
 
 import { createApp, reverifyAll, type Services } from '../src/app'
 import type { TxtLookup } from '../src/dns'
@@ -128,8 +128,8 @@ describe('a hosted site', () => {
 		const response = await call('acme.prodid.org', '/.well-known/prodid.json')
 		expect(response.status).toBe(200)
 		const document: unknown = await response.json()
-		expect(validateFeed(document).ok).toBe(true)
-		expect(document).toMatchObject({ feeds: ['https://acme.prodid.org/feeds/items.ndjson'] })
+		expect(validateFeed(document, { version: 1 }).ok).toBe(true)
+		expect(document).toMatchObject({ version: 1, feeds: ['https://acme.prodid.org/feeds/items.ndjson'] })
 		expect(document).not.toHaveProperty('domain')
 
 		const decision = acceptDiscovery({
@@ -139,6 +139,7 @@ describe('a hosted site', () => {
 			domain: 'acme.prodid.org',
 			host: 'acme.prodid.org',
 			delegated: false,
+			crawlStartedAt: new Date(V0_DISCOVERY_CUTOFF),
 		})
 		expect(decision.ok).toBe(true)
 
@@ -177,7 +178,7 @@ describe('a hosted site', () => {
 		expect(await client().verify('acme')).toMatchObject({ outcome: { state: 'verified', domain: 'acme.example' } })
 		const delegated = await call('acme.prodid.org', '/.well-known/prodid.json')
 		const body: unknown = await delegated.json()
-		expect(body).toMatchObject({ domain: 'acme.example' })
+		expect(body).toMatchObject({ version: 1, domain: 'acme.example' })
 		expect(
 			acceptDiscovery({
 				status: delegated.status,
@@ -186,6 +187,7 @@ describe('a hosted site', () => {
 				domain: 'acme.example',
 				host: 'acme.prodid.org',
 				delegated: true,
+				crawlStartedAt: new Date(V0_DISCOVERY_CUTOFF),
 			}).ok,
 		).toBe(true)
 		expect(pinged.at(-1)).toEqual(['acme.prodid.org', 'acme.example'])

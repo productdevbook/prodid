@@ -280,7 +280,7 @@ prodid-batch show acme
   "host": "acme.prodid.org",
   "document": {
     "$type": "org.prodid.feed",
-    "version": 0,
+    "version": 1,
     "publisher": {
       "name": "Acme Tools Ltd",
       "contact": "products@example.com"

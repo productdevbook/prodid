@@ -92,7 +92,7 @@ export function siteDocument(site: Site, zone: string): FeedRecord | null {
 	const host = siteHost(site.slug, zone)
 	const document: FeedRecord = {
 		$type: 'org.prodid.feed',
-		version: 0,
+		version: 1,
 		publisher: site.publisher,
 		license: site.license,
 		feeds: site.feeds.map((name) => `https://${host}/feeds/${name}`),
@@ -135,7 +135,7 @@ export function parseSiteInput(body: unknown, zone: string): SiteInputResult {
 
 	const probe = validateFeed({
 		$type: 'org.prodid.feed',
-		version: 0,
+		version: 1,
 		publisher,
 		license,
 		feeds: ['https://probe.invalid/feed.ndjson'],
