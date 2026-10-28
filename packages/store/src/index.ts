@@ -1,6 +1,19 @@
 export { type CandidateSide, DEFAULT_CANDIDATE_LIMIT, findMergeCandidates, type MergeCandidate } from './candidates'
 export { createClient, DEFAULT_ATTEMPTS, isRetryable, type Sql, type TransactionSql, withRetry } from './client'
 export {
+	DUMP_FILES,
+	DUMP_PAGE,
+	type DumpFile,
+	type DumpSnapshot,
+	type EntityLine,
+	type FamilyKey,
+	type GroupingLine,
+	type MergeLine,
+	readSnapshot,
+	type RecordLine,
+	type VariantKey,
+} from './dump'
+export {
 	type Disagreement,
 	type IngestResult,
 	ingestRecord,
