@@ -95,6 +95,17 @@ beforeEach(() => {
 		zone: ZONE,
 		operatorHost: OPERATOR,
 		operatorToken: TOKEN,
+		mail: {
+			async send() {
+				throw new Error('the operator endpoint sends no mail')
+			},
+		},
+		turnstile: {
+			siteKey: 'unused',
+			async verify() {
+				return false
+			},
+		},
 	}
 })
 

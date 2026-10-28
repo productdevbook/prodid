@@ -4,6 +4,7 @@ import { type Context, Hono } from 'hono'
 import type { TxtLookup } from './dns'
 import { checkFeed, MAX_FEED_BYTES } from './feeds'
 import { checkSlug, isFeedName, resolveHost, siteHost, type Target } from './names'
+import { SELF_SERVICE, selfService } from './selfservice'
 import { type Blobs, deleteSite, documentEtag, feedKey, parseSiteInput, readSite, type Site, siteDocument, writeSite } from './sites'
 import type { Sql } from './sql'
 import { verifySite } from './verify'
@@ -22,31 +23,47 @@ export interface Services {
 	operatorHost: string
 	/** Unset means the operator endpoint answers nobody. */
 	operatorToken: string | undefined
+	mail: Mailer
+	turnstile: Turnstile
+}
+
+export interface Mailer {
+	send(to: string, subject: string, text: string): Promise<void>
+}
+
+export interface Turnstile {
+	siteKey: string
+	/** Asks Cloudflare whether the widget's response is a pass; `address` is the client's, when known. */
+	verify(response: string, address: string | undefined): Promise<boolean>
 }
 
 export interface Lifetime {
 	waitUntil(promise: Promise<unknown>): void
 }
 
-type App = { Variables: { services: Services; target: Target } }
+export type App = { Variables: { services: Services; target: Target | { kind: 'self-service' } } }
 
 const DOCUMENT_CACHE = 'public, max-age=60'
 const FEED_CACHE = 'public, max-age=60'
 
 export function createApp(build: (env: Env) => Services): Hono<App> {
 	const app = new Hono<App>()
+	app.notFound(() => notFound())
 
 	app.use('*', async (c, next) => {
 		const services = build(c.env as Env)
 		const target = resolveHost(c.req.header('host') ?? null, services.zone, services.operatorHost)
 		if (target.kind === 'none') return notFound()
-		if (target.kind === 'operator' && !(await authorized(c.req.header('authorization'), services.operatorToken))) {
+		const browser = target.kind === 'operator' && c.req.header('authorization') === undefined && SELF_SERVICE.test(c.req.path)
+		if (target.kind === 'operator' && !browser && !(await authorized(c.req.header('authorization'), services.operatorToken))) {
 			return new Response(null, { status: 401, headers: { 'www-authenticate': 'Bearer', 'cache-control': 'no-store' } })
 		}
 		c.set('services', services)
-		c.set('target', target)
+		c.set('target', browser ? { kind: 'self-service' } : target)
 		await next()
 	})
+
+	app.route('/', selfService())
 
 	app.use('/sites/*', async (c, next) => {
 		if (c.get('target').kind !== 'operator') return notFound()

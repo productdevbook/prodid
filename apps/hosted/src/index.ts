@@ -3,6 +3,10 @@ import { resolveTxt } from './dns'
 import type { Blobs } from './sites'
 import { d1Sql } from './sql'
 
+/** The one sender `send_email` allows in wrangler.jsonc. */
+const MAIL_FROM = 'notify@prodid.org'
+const TURNSTILE_VERIFY = 'https://challenges.cloudflare.com/turnstile/v0/siteverify'
+
 function r2Blobs(bucket: R2Bucket): Blobs {
 	return {
 		async get(key) {
@@ -50,6 +54,24 @@ export function productionServices(env: Env): Services {
 		zone: env.HOSTING_ZONE,
 		operatorHost: env.OPERATOR_HOST,
 		operatorToken: env.OPERATOR_TOKEN,
+		mail: {
+			async send(to, subject, text) {
+				await env.MAIL.send({ from: { name: 'prodid', email: MAIL_FROM }, to, subject, text })
+			},
+		},
+		turnstile: {
+			siteKey: env.TURNSTILE_SITE_KEY,
+			async verify(response, address) {
+				const body = new FormData()
+				body.set('secret', env.TURNSTILE_SECRET_KEY)
+				body.set('response', response)
+				if (address !== undefined) body.set('remoteip', address)
+				const answer = await fetch(TURNSTILE_VERIFY, { method: 'POST', body })
+				if (!answer.ok) return false
+				const outcome: { success?: unknown } = await answer.json()
+				return outcome.success === true
+			},
+		},
 	}
 }
 

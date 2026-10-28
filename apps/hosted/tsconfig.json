@@ -1,7 +1,9 @@
 {
 	"extends": "../../tsconfig.base.json",
 	"compilerOptions": {
-		"types": ["./worker-configuration.d.ts"]
+		"types": ["./worker-configuration.d.ts"],
+		"jsx": "react-jsx",
+		"jsxImportSource": "hono/jsx"
 	},
-	"include": ["worker-configuration.d.ts", "src/**/*.ts"]
+	"include": ["worker-configuration.d.ts", "src/**/*.ts", "src/**/*.tsx"]
 }
