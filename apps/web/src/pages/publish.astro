@@ -2,7 +2,7 @@
 import CodeSample from '@/components/code-sample.astro'
 import PageHeader from '@/components/page-header.astro'
 import Layout from '@/layouts/base.astro'
-import { examples, HOSTED_PUBLISHER, SPEC_STATUS } from '@/lib/spec'
+import { CONTACT, examples, HOSTED_PUBLISHER, SPEC_STATUS } from '@/lib/spec'
 
 const DESCRIPTION =
 	'How a manufacturer or a software vendor publishes product data to prodid: the discovery document, the NDJSON feed, the one DNS TXT record that holds the identity, and the ping.'
@@ -580,6 +580,52 @@ const checklist = [
 						</tbody>
 					</table>
 				</div>
+				<p class="mt-8 text-base leading-relaxed text-soft sm:text-lg">
+					Only a source whose identity is a domain can be more than <code class="chip">unverified</code>.{' '}
+					<code class="chip">verified</code> comes from the crawl. <code class="chip">authoritative</code> does not, because
+					no crawl can prove who owns a brand: the index's operator grants it, and only on evidence.
+				</p>
+				<ul class="mt-8 grid gap-6 [&>*]:min-w-0">
+					<li class="border-l-2 border-rule pl-5">
+						<p class="font-medium">The evidence is your GS1 company prefix.</p>
+						<p class="mt-1 text-[0.9375rem] leading-relaxed text-soft">
+							The GS1 company prefix of the GTINs your source publishes under the brand must be licensed to the
+							organization that controls your domain, as GS1's public “Verified by GS1” lookup shows. The URL of that
+							lookup is kept with the grant as its evidence.
+						</p>
+					</li>
+					<li class="border-l-2 border-rule pl-5">
+						<p class="font-medium">A grant names one brand, and each can be revoked.</p>
+						<p class="mt-1 text-[0.9375rem] leading-relaxed text-soft">
+							The brand is recorded in its{' '}
+							<a href="/spec#brand-normalization" class="rounded-sm text-accent underline underline-offset-4">normalized</a>{' '}
+							form. A source may hold grants for several brands, and the operator revokes each on its own.
+						</p>
+					</li>
+					<li class="border-l-2 border-rule pl-5">
+						<p class="font-medium">A grant does not outlive the proof under it.</p>
+						<p class="mt-1 text-[0.9375rem] leading-relaxed text-soft">
+							Your source is <code class="chip">authoritative</code> exactly while control of its domain is proven, it is
+							not <a href="/spec#lapse" class="rounded-sm text-accent underline underline-offset-4">lapsed</a>, and it holds
+							at least one grant that has not been revoked. Lose the domain proof or lapse, and it drops at once to what its
+							remaining proof supports — <code class="chip">verified</code> while lapsed, lower if the domain proof is gone
+							too — with no one acting. It is <code class="chip">authoritative</code> again as soon as all three hold again.
+						</p>
+					</li>
+					<li class="border-l-2 border-rule pl-5">
+						<p class="font-medium">It covers the source, not the brand.</p>
+						<p class="mt-1 text-[0.9375rem] leading-relaxed text-soft">
+							Trust stays a property of the source: a grant for one brand makes every claim your source makes{' '}
+							<code class="chip">authoritative</code>, including claims about brands it holds no grant for.
+						</p>
+					</li>
+				</ul>
+				<p class="mt-8 text-base leading-relaxed text-soft sm:text-lg">
+					To ask for it, publish on your own domain first, then{' '}
+					<a href={CONTACT.issues} class="rounded-sm text-accent underline underline-offset-4">open a GitHub issue</a>{' '}
+					naming your domain and the brand. The operator checks the GTINs your source publishes under that brand in
+					Verified by GS1. The issue is public.
+				</p>
 			</div>
 		</div>
 	</section>
