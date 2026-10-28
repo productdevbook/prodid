@@ -27,6 +27,8 @@ jobs:
       SOURCE: canary.prodid.org
       ORIGIN: https://prodid.org
       MAX_CRAWL_AGE_HOURS: '12'
+      DUMP_LATEST_URL: https://dumps.prodid.org/v0/latest.json
+      MAX_DUMP_AGE_HOURS: '30'
     steps:
       - id: probe
         shell: bash
@@ -65,8 +67,22 @@ jobs:
             fi
           fi
 
+          status=$(curl -sS -o latest.json -w '%{http_code}' "$DUMP_LATEST_URL") || status=000
+          if [[ "$status" != 200 ]]; then
+            problems+=("\`$DUMP_LATEST_URL\` answered $status, expected 200")
+          elif ! created=$(jq -er '.created_at | strings' latest.json 2>/dev/null); then
+            problems+=("\`$DUMP_LATEST_URL\` is not JSON with a \`created_at\` string")
+          elif ! created_s=$(date -u -d "$created" +%s 2>/dev/null); then
+            problems+=("\`$DUMP_LATEST_URL\` has no readable \`created_at\` (\`$created\`)")
+          else
+            age_s=$(( $(date -u +%s) - created_s ))
+            if (( age_s > MAX_DUMP_AGE_HOURS * 3600 )); then
+              problems+=("latest dump was created at $created, older than $MAX_DUMP_AGE_HOURS hours")
+            fi
+          fi
+
           if (( ${#problems[@]} == 0 )); then
-            echo "canary ok: $GTIN and $SOURCE"
+            echo "canary ok: $GTIN, $SOURCE and the latest dump"
             exit 0
           fi
           {
