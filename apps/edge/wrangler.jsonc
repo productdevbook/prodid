@@ -21,13 +21,12 @@
 		"enabled": true,
 	},
 	"upload_source_maps": true,
-	// edge answers prodid.org/id/*, /01/*, /source/*, /ping and /schemas/*, plus *.prodid.org.
+	// edge answers prodid.org/id/*, /01/*, /source/*, /ping and /schemas/*, plus media.prodid.org.
 	// Routes are attached at deploy time; this file declares none.
 	"hyperdrive": [
 		{
 			"binding": "HYPERDRIVE",
-			// PLACEHOLDER — replace with the real Hyperdrive config id before deploying.
-			"id": "0000000000000000000000000000cafe",
+			"id": "f7711bc2567f42b2921653856d688c93",
 			"localConnectionString": "postgres://prodid:prodid@127.0.0.1:54329/prodid",
 		},
 	],

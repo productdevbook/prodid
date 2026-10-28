@@ -17,4 +17,4 @@ A barcode is not a product. The same product carries different barcodes across c
 
 ## Status
 
-Spec v0 draft. No server yet.
+Spec v0 draft. The index Worker (`apps/edge`), the hosted publisher (`apps/hosted`) and the operator CLI (`apps/batch`) run in production on prodid.org; no feed has been crawled yet.
