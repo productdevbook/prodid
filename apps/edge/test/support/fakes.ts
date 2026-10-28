@@ -23,10 +23,14 @@ import type {
 	CrawlMessage,
 	CrawlProducer,
 	DeadLetters,
+	Mail,
+	Mailer,
 	MediaDeadLetter,
 	MediaDeadLetters,
 	MediaMessage,
 	MediaProducer,
+	NotifyMessage,
+	NotifyProducer,
 } from '../../src/services'
 
 export class TestClock {
@@ -335,5 +339,33 @@ export class MemoryQueue implements CrawlProducer {
 		const due = this.pending.filter((entry) => entry.readyAt <= at)
 		for (const entry of due) this.pending.splice(this.pending.indexOf(entry), 1)
 		return due.map((entry) => entry.body)
+	}
+}
+
+export class MemoryNotifyQueue implements NotifyProducer {
+	readonly pending: NotifyMessage[] = []
+	readonly sent: NotifyMessage[] = []
+
+	async sendBatch(messages: readonly NotifyMessage[]): Promise<void> {
+		this.sent.push(...messages)
+		this.pending.push(...messages)
+	}
+
+	ready(): NotifyMessage[] {
+		return this.pending.splice(0, this.pending.length)
+	}
+}
+
+/** A mailer that keeps what it was given, and fails the next `failures` sends. */
+export class FakeMailer implements Mailer {
+	readonly sent: Mail[] = []
+	failures = 0
+
+	async send(mail: Mail): Promise<void> {
+		if (this.failures > 0) {
+			this.failures -= 1
+			throw new Error('mail service unavailable')
+		}
+		this.sent.push(mail)
 	}
 }

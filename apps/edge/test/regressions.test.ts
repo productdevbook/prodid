@@ -182,7 +182,7 @@ describe.skipIf(!reachable)('review round seven', () => {
 
 		edge!.clock.advance(2 * 3_600_000)
 		const { finalizeStaleCrawls } = await import('@prodid/store')
-		expect(await finalizeStaleCrawls(edge!.sql, { now: edge!.clock.now(), olderThanMs: 3_600_000 })).toBe(1)
+		expect((await finalizeStaleCrawls(edge!.sql, { now: edge!.clock.now(), olderThanMs: 3_600_000 })).finished).toBe(1)
 		const rows = await edge!.sql<{ outcome: string; error: string }[]>`select outcome, error from crawl`
 		expect(rows[0]?.outcome).toBe('fetch-failed')
 		expect(rows[0]?.error).toContain('abandoned')

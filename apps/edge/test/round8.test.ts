@@ -135,7 +135,7 @@ describe.skipIf(!reachable)('review round eight', () => {
 		// The sweep closes the crawl while the message is still in flight.
 		const { finalizeStaleCrawls } = await import('@prodid/store')
 		edge!.clock.advance(QUEUE_LEASE_MS + 1)
-		expect(await finalizeStaleCrawls(edge!.sql, { now: edge!.clock.now(), olderThanMs: QUEUE_LEASE_MS })).toBe(1)
+		expect((await finalizeStaleCrawls(edge!.sql, { now: edge!.clock.now(), olderThanMs: QUEUE_LEASE_MS })).finished).toBe(1)
 
 		expect(await consumeCrawl(edge!.services, feedMessage)).toMatchObject({ kind: 'ignored' })
 		expect(await live()).toBe(0)

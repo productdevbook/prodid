@@ -4,6 +4,7 @@ import { countMediaFailure, finalizeStaleCrawls, lapseSweep, QUEUE_LEASE_MS, tou
 import { type CrawlStep, runDiscover, runFeedStep, runFinalize } from './crawl/run'
 import { POLICY } from './limits/policy'
 import { runMediaStep } from './media/ingest'
+import { enqueueNotices } from './notify'
 import { claimDueSources } from './schedule'
 import type { CrawlDeadLetter, CrawlMessage, MediaDeadLetter, MediaMessage, Services } from './services'
 
@@ -151,6 +152,8 @@ export async function consumeMediaDeadLetter(body: MediaDeadLetter | MediaMessag
 
 export async function runScheduled(services: Services): Promise<void> {
 	await claimDueSources(services)
-	await finalizeStaleCrawls(services.sql, { now: services.now(), olderThanMs: QUEUE_LEASE_MS })
-	await lapseSweep(services.sql, { now: services.now() })
+	const stale = await finalizeStaleCrawls(services.sql, { now: services.now(), olderThanMs: QUEUE_LEASE_MS })
+	await enqueueNotices(services, stale.notices)
+	const swept = await lapseSweep(services.sql, { now: services.now() })
+	await enqueueNotices(services, swept.notices)
 }

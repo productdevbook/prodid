@@ -28,6 +28,7 @@ import {
 import type { Decision } from '../limits/client'
 import { POLICY } from '../limits/policy'
 import { GuardedFetcher } from '../net/guard'
+import { enqueueNotices } from '../notify'
 import { type CrawlMessage, type CrawlPlan, type MediaMessage, type Services, sourceKindFor } from '../services'
 import { conditional, runDiscovery } from './discovery'
 import { type FeedRead, readFeed } from './feeds'
@@ -94,7 +95,7 @@ export async function runDiscover(services: Services, domain: string): Promise<C
 			documentUrl: discovery.documentUrl,
 			startedAt,
 		})
-		await finishCrawl(services.sql, {
+		const notice = await finishCrawl(services.sql, {
 			crawl,
 			source: source.id,
 			outcome,
@@ -102,6 +103,7 @@ export async function runDiscover(services: Services, domain: string): Promise<C
 			error: discovery.reason,
 			finishedAt: services.now(),
 		})
+		await enqueueNotices(services, [notice])
 		return { kind: 'done', outcome, source: source.id, crawl }
 	}
 
@@ -243,7 +245,7 @@ export async function runFinalize(services: Services, plan: CrawlPlan, touched =
 	const failed = row.feeds_failed ?? 0
 	const outcome: CrawlOutcome = failed > 0 ? failureOutcome('transport', state.verified) : touched ? 'changed' : 'unchanged'
 
-	await finishCrawl(services.sql, {
+	const notice = await finishCrawl(services.sql, {
 		crawl: plan.crawl,
 		source: plan.source,
 		outcome,
@@ -251,6 +253,7 @@ export async function runFinalize(services: Services, plan: CrawlPlan, touched =
 		contact: plan.contact,
 		finishedAt: services.now(),
 	})
+	await enqueueNotices(services, [notice])
 
 	if (outcome === 'changed' || outcome === 'unchanged') {
 		const feedHost = plan.host === plan.domain ? null : plan.host

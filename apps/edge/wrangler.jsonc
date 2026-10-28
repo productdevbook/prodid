@@ -42,6 +42,8 @@
 		// no public domain of its own: a blocked hash has to answer 410, which only a Worker can do.
 		{ "binding": "MEDIA", "bucket_name": "prodid-media" },
 	],
+	// The lapse notice. Email Service sends from this address only.
+	"send_email": [{ "name": "MAIL", "allowed_sender_addresses": ["notify@prodid.org"] }],
 	"queues": {
 		"producers": [
 			{ "binding": "CRAWL", "queue": "prodid-crawl" },
@@ -51,6 +53,7 @@
 			{ "binding": "MEDIA_INGEST", "queue": "prodid-media-ingest" },
 			// Written to directly for the same reason as `CRAWL_DLQ`.
 			{ "binding": "MEDIA_DLQ", "queue": "prodid-media-dlq" },
+			{ "binding": "NOTIFY", "queue": "prodid-notify" },
 		],
 		"consumers": [
 			{
@@ -80,6 +83,19 @@
 			},
 			{
 				"queue": "prodid-media-dlq",
+				"max_batch_size": 10,
+				"max_batch_timeout": 30,
+				"max_retries": 1,
+			},
+			{
+				"queue": "prodid-notify",
+				"max_batch_size": 10,
+				"max_batch_timeout": 30,
+				"max_retries": 3,
+				"dead_letter_queue": "prodid-notify-dlq",
+			},
+			{
+				"queue": "prodid-notify-dlq",
 				"max_batch_size": 10,
 				"max_batch_timeout": 30,
 				"max_retries": 1,

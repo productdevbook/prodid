@@ -84,6 +84,29 @@ export interface MediaDeadLetters {
 	send(message: MediaMessage, reason: string): Promise<void>
 }
 
+/** One lapse to tell its source's contact about; `source` is the source's id. */
+export interface NotifyMessage {
+	source: string
+	lapsed_at: string
+}
+
+export interface NotifyProducer {
+	sendBatch(messages: readonly NotifyMessage[]): Promise<void>
+}
+
+export interface Mail {
+	to: string
+	subject: string
+	text: string
+}
+
+/** Sends one plain-text mail from the notice address, or throws. */
+export interface Mailer {
+	send(mail: Mail): Promise<void>
+}
+
+export const NOTICE_SENDER = 'notify@prodid.org'
+
 /** Everything with a side effect, in one bag, so a test can replace all of it and nothing else. */
 export interface Services {
 	sql: Sql
@@ -95,6 +118,8 @@ export interface Services {
 	media: ObjectStore
 	dead: DeadLetters
 	mediaDead: MediaDeadLetters
+	notify: NotifyProducer
+	mail: Mailer
 	caps: Caps
 	/** The only clock. Nothing below this reads the wall clock. */
 	now: () => Date
@@ -137,6 +162,8 @@ export function productionServices(env: Env): Services {
 		media: r2Store(env.MEDIA),
 		dead: deadLetters(env.CRAWL_DLQ),
 		mediaDead: mediaDeadLetters(env.MEDIA_DLQ),
+		notify: notifyProducer(env.NOTIFY),
+		mail: mailer(env.MAIL),
 		caps: DEFAULT_CAPS,
 		now: () => new Date(),
 		crawlIntervalMs: Number(env.CRAWL_INTERVAL_MINUTES) * 60_000,
@@ -186,6 +213,24 @@ function mediaDeadLetters(queue: Queue<MediaDeadLetter>): MediaDeadLetters {
 	return {
 		async send(message, reason) {
 			await queue.send({ reason, message })
+		},
+	}
+}
+
+function notifyProducer(queue: Queue<NotifyMessage>): NotifyProducer {
+	return {
+		async sendBatch(messages) {
+			for (let at = 0; at < messages.length; at += QUEUE_BATCH) {
+				await queue.sendBatch(messages.slice(at, at + QUEUE_BATCH).map((body) => ({ body })))
+			}
+		},
+	}
+}
+
+function mailer(binding: SendEmail): Mailer {
+	return {
+		async send(mail) {
+			await binding.send({ from: NOTICE_SENDER, to: mail.to, subject: mail.subject, text: mail.text })
 		},
 	}
 }

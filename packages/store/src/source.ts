@@ -197,11 +197,18 @@ export async function isCrawlOpen(sql: Sql, crawl: string): Promise<boolean> {
 	return rows[0]?.open ?? false
 }
 
+/** A lapse that has just started on a source with a contact to tell. */
+export interface LapseNotice {
+	source: string
+	lapsedAt: Date
+}
+
 /**
  * Closes the crawl row and moves the source's lapse state with it, in one transaction: the outcome
- * and what it means for the source are the same fact and must not be observable apart.
+ * and what it means for the source are the same fact and must not be observable apart. Returns the
+ * lapse this crawl started, when the source has a contact to tell.
  */
-export function finishCrawl(sql: Sql, input: FinishCrawlInput): Promise<void> {
+export function finishCrawl(sql: Sql, input: FinishCrawlInput): Promise<LapseNotice | null> {
 	const at = input.finishedAt
 	const lapseCutoff = new Date(at.getTime() - LAPSE_AFTER_FAILING_MS)
 	return sql.begin(async (tx) => {
@@ -215,6 +222,7 @@ export function finishCrawl(sql: Sql, input: FinishCrawlInput): Promise<void> {
 				error = ${input.error ?? null}
 			where id = ${input.crawl}
 		`
+		const before = await tx<{ lapsed_at: Date | null }[]>`select lapsed_at from source where id = ${input.source} for update`
 		switch (classifyOutcome(input.outcome)) {
 			case 'success':
 				await tx`
@@ -223,29 +231,47 @@ export function finishCrawl(sql: Sql, input: FinishCrawlInput): Promise<void> {
 						contact = case when ${input.contact !== undefined} then ${input.contact ?? null} else contact end
 					where id = ${input.source}
 				`
-				return
+				return null
 			case 'definite-negative':
-				await tx`
-					update source set
-						last_crawled_at = ${at}, queued_at = null, failing_since = null, lapsed_at = coalesce(lapsed_at, ${at})
-					where id = ${input.source}
-				`
-				return
+				return startedLapse(
+					before[0]?.lapsed_at ?? null,
+					await tx<LapseRow[]>`
+						update source set
+							last_crawled_at = ${at}, queued_at = null, failing_since = null, lapsed_at = coalesce(lapsed_at, ${at})
+						where id = ${input.source}
+						returning id::text, lapsed_at, contact is not null as has_contact
+					`,
+				)
 			case 'transport-failure':
-				await tx`
-					update source set
-						last_crawled_at = ${at},
-						queued_at = null,
-						failing_since = coalesce(failing_since, ${at}),
-						lapsed_at = case
-							when coalesce(failing_since, ${at}) <= ${lapseCutoff} then coalesce(lapsed_at, ${at})
-							else lapsed_at
-						end
-					where id = ${input.source}
-				`
-				return
+				return startedLapse(
+					before[0]?.lapsed_at ?? null,
+					await tx<LapseRow[]>`
+						update source set
+							last_crawled_at = ${at},
+							queued_at = null,
+							failing_since = coalesce(failing_since, ${at}),
+							lapsed_at = case
+								when coalesce(failing_since, ${at}) <= ${lapseCutoff} then coalesce(lapsed_at, ${at})
+								else lapsed_at
+							end
+						where id = ${input.source}
+						returning id::text, lapsed_at, contact is not null as has_contact
+					`,
+				)
 		}
 	})
+}
+
+interface LapseRow {
+	id: string
+	lapsed_at: Date | null
+	has_contact: boolean
+}
+
+function startedLapse(before: Date | null, rows: readonly LapseRow[]): LapseNotice | null {
+	const row = rows[0]
+	if (before !== null || row === undefined || row.lapsed_at === null || !row.has_contact) return null
+	return { source: row.id, lapsedAt: row.lapsed_at }
 }
 
 export function classifyOutcome(outcome: CrawlOutcome): 'success' | 'definite-negative' | 'transport-failure' {
@@ -402,21 +428,26 @@ export async function claimDueSources(
  * A crawl whose feed message never came back. Nothing else closes it, and the contract calls `crawl`
  * a log of discovery runs, so it is finished as what it was: something that could not be read.
  */
-export async function finalizeStaleCrawls(sql: Sql, input: { now: Date; olderThanMs: number }): Promise<number> {
+export async function finalizeStaleCrawls(
+	sql: Sql,
+	input: { now: Date; olderThanMs: number },
+): Promise<{ finished: number; notices: LapseNotice[] }> {
 	const cutoff = new Date(input.now.getTime() - input.olderThanMs)
 	const stale = await sql<{ id: string; source: string }[]>`
 		select id::text, source::text from crawl where finished_at is null and started_at <= ${cutoff}
 	`
+	const notices: LapseNotice[] = []
 	for (const row of stale) {
-		await finishCrawl(sql, {
+		const notice = await finishCrawl(sql, {
 			crawl: row.id,
 			source: row.source,
 			outcome: 'fetch-failed',
 			error: 'abandoned: no message came back for this crawl',
 			finishedAt: input.now,
 		})
+		if (notice !== null) notices.push(notice)
 	}
-	return stale.length
+	return { finished: stale.length, notices }
 }
 
 /**
@@ -430,4 +461,50 @@ export async function countVerifiedSourcesAtHost(sql: Sql, host: string): Promis
 		where trust <> 'unverified' and ((feed_host is null and name = ${host}) or feed_host = ${host})
 	`
 	return rows[0]?.verified ?? 0
+}
+
+export interface ClaimedNotice {
+	name: string
+	contact: string
+	/** The outcome of the crawl that started the lapse. */
+	outcome: 'definite-negative' | 'transport-failure'
+	/** What `notified_lapse_at` was before this claim, put back if the mail cannot be sent. */
+	previous: Date | null
+}
+
+/**
+ * Takes the right to send the notice of one lapse. It is taken once: a second delivery of the same
+ * message, a lapse that has been cleared, and a source with no contact all get nothing.
+ */
+export async function claimLapseNotice(sql: Sql, notice: LapseNotice): Promise<ClaimedNotice | null> {
+	const rows = await sql<{ name: string; contact: string; outcome: CrawlOutcome | null; previous: Date | null }[]>`
+		with prior as (
+			select id, notified_lapse_at from source where id = ${notice.source} for update
+		)
+		update source s set notified_lapse_at = s.lapsed_at
+		from prior
+		where s.id = prior.id and s.lapsed_at = ${notice.lapsedAt} and s.contact is not null
+			and s.notified_lapse_at is distinct from s.lapsed_at
+		returning s.name, s.contact, prior.notified_lapse_at as previous, (
+			select c.outcome from crawl c
+			where c.source = s.id and c.finished_at is not null and c.finished_at <= s.lapsed_at
+			order by c.finished_at desc, c.id desc limit 1
+		) as outcome
+	`
+	const row = rows[0]
+	if (row === undefined) return null
+	return {
+		name: row.name,
+		contact: row.contact,
+		outcome: row.outcome !== null && classifyOutcome(row.outcome) === 'definite-negative' ? 'definite-negative' : 'transport-failure',
+		previous: row.previous,
+	}
+}
+
+/** Gives the claim back after a send that failed, so the retry can take it again. */
+export async function releaseLapseNotice(sql: Sql, notice: LapseNotice, previous: Date | null): Promise<void> {
+	await sql`
+		update source set notified_lapse_at = ${previous}
+		where id = ${notice.source} and notified_lapse_at = ${notice.lapsedAt}
+	`
 }

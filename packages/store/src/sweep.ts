@@ -1,10 +1,12 @@
 import type { Sql } from './client'
-import { LAPSE_AFTER_FAILING_MS, WITHDRAW_AFTER_LAPSE_MS } from './source'
+import { LAPSE_AFTER_FAILING_MS, type LapseNotice, WITHDRAW_AFTER_LAPSE_MS } from './source'
 import { withdrawSource } from './withdraw'
 
 export interface SweepResult {
 	/** Sources whose unbroken run of transport failures reached seven days. */
 	lapsed: string[]
+	/** The lapses among them on a source with a contact to tell. */
+	notices: LapseNotice[]
 	/** Sources lapsed for thirty days whose records and active claims were withdrawn. */
 	withdrawn: { source: string; records: number; claims: number }[]
 }
@@ -21,10 +23,10 @@ export async function lapseSweep(
 	const lapsedCutoff = new Date(input.now.getTime() - (input.withdrawMs ?? WITHDRAW_AFTER_LAPSE_MS))
 	const limit = input.limit ?? 1000
 
-	const lapsed = await sql<{ id: string }[]>`
+	const lapsed = await sql<{ id: string; lapsed_at: Date; has_contact: boolean }[]>`
 		update source set lapsed_at = ${input.now}
 		where lapsed_at is null and failing_since is not null and failing_since <= ${failingCutoff}
-		returning id::text
+		returning id::text, lapsed_at, contact is not null as has_contact
 	`
 
 	const due = await sql<{ id: string }[]>`
@@ -41,5 +43,9 @@ export async function lapseSweep(
 		withdrawn.push({ source: row.id, ...result })
 	}
 
-	return { lapsed: lapsed.map((row) => row.id), withdrawn }
+	return {
+		lapsed: lapsed.map((row) => row.id),
+		notices: lapsed.filter((row) => row.has_contact).map((row) => ({ source: row.id, lapsedAt: row.lapsed_at })),
+		withdrawn,
+	}
 }

@@ -6,12 +6,14 @@ import type { CrawlStep } from '../../src/crawl/run'
 import { DEFAULT_CAPS } from '../../src/net/guard'
 import type { Services } from '../../src/services'
 import {
+	FakeMailer,
 	FakeNetwork,
 	LocalLimiter,
 	MemoryBucket,
 	MemoryDeadLetters,
 	MemoryMediaDeadLetters,
 	MemoryMediaQueue,
+	MemoryNotifyQueue,
 	MemoryQueue,
 	TestClock,
 } from './fakes'
@@ -25,6 +27,8 @@ export interface Edge {
 	media: MemoryBucket
 	dead: MemoryDeadLetters
 	mediaDead: MemoryMediaDeadLetters
+	notify: MemoryNotifyQueue
+	mail: FakeMailer
 	limits: LocalLimiter
 	services: Services
 	fetch(path: string, init?: RequestInit): Promise<Response>
@@ -55,6 +59,8 @@ function build(sql: Sql, clock: TestClock): Edge {
 	const media = new MemoryBucket()
 	const dead = new MemoryDeadLetters()
 	const mediaDead = new MemoryMediaDeadLetters()
+	const notify = new MemoryNotifyQueue()
+	const mail = new FakeMailer()
 
 	const services: Services = {
 		sql,
@@ -69,6 +75,8 @@ function build(sql: Sql, clock: TestClock): Edge {
 		media,
 		dead,
 		mediaDead,
+		notify,
+		mail,
 		caps: { ...DEFAULT_CAPS },
 		now: clock.now,
 		crawlIntervalMs: 6 * 3_600_000,
@@ -110,6 +118,8 @@ function build(sql: Sql, clock: TestClock): Edge {
 		media,
 		dead,
 		mediaDead,
+		notify,
+		mail,
 		get limits() {
 			return limits
 		},
@@ -137,6 +147,10 @@ function build(sql: Sql, clock: TestClock): Edge {
 			media.objects.clear()
 			dead.letters.length = 0
 			mediaDead.letters.length = 0
+			notify.pending.length = 0
+			notify.sent.length = 0
+			mail.sent.length = 0
+			mail.failures = 0
 			// `media` belongs here too: it is keyed by digest and shared by every source, so a row
 			// left behind — a blocked hash above all — decides the next test's answer.
 			await sql`truncate claim, record, grouping, identifier, merge, entity, crawl, feed, source, media restart identity cascade`
