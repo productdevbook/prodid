@@ -6,6 +6,7 @@ import type { MerchantDeclaration } from '@prodid/core'
 
 import { checkDocument, checkFeed, type CheckResult, formatProblem } from './check'
 import { convertMerchant, type MerchantConversion } from './merchant'
+import { databaseEnv, MergeError, mergeEnv, parseOpid, parseReason, runMerge, runUnmerge } from './merge'
 import { OperatorClient, OperatorError, type SiteSettings } from './operator'
 import { parseDigest, runBlockMedia, TakedownError, takedownEnv } from './takedown'
 
@@ -43,6 +44,18 @@ const USAGE = `prodid-batch <command>
       cache. Prints each step's result; run it again to finish a step that failed. Needs
       DATABASE_URL, R2_ENDPOINT, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_MEDIA_BUCKET,
       CLOUDFLARE_API_TOKEN (Cache Purge) and CLOUDFLARE_ZONE_ID; never the operator token.
+
+  merge <from-opid> <into-opid> --reason TEXT
+      Merge an entity into another of the same kind; <from-opid> then answers with a 308 to the
+      survivor, which lists it in merged_from. Prints the merge id and the final survivor. The
+      reason is at most 500 characters; PRODID_OPERATOR (e.g. a GitHub login) is recorded as the
+      decider. Needs DATABASE_URL and PRODID_OPERATOR; never the operator token.
+
+  unmerge <from-opid>
+      Revert the active merge of <from-opid>, so it resolves on its own again with everything it
+      held. Prints what now resolves where. Needs DATABASE_URL.
+
+block-media, merge and unmerge print the database host first and write to it directly.
 
 site, feed, publish, assign, verify, show, remove-feed and remove-site call the operator endpoint,
 PRODID_OPERATOR_URL (default https://publish.prodid.org), authenticated with PRODID_OPERATOR_TOKEN.`
@@ -133,6 +146,18 @@ async function main(argv: string[]): Promise<void> {
 			if (!(await runBlockMedia(env, { sha256, reason, now: new Date() }))) process.exitCode = 1
 			return
 		}
+		case 'merge': {
+			const from = parseOpid(need(rest[0], 'from-opid'))
+			const into = parseOpid(need(rest[1], 'into-opid'))
+			const reason = parseReason(need(values.reason, '--reason'))
+			await runMerge(mergeEnv(process.env), { from, into, reason, now: new Date() })
+			return
+		}
+		case 'unmerge': {
+			const from = parseOpid(need(rest[0], 'from-opid'))
+			await runUnmerge(databaseEnv(process.env), { from, now: new Date() })
+			return
+		}
 		default:
 			throw new UsageError(`unknown command ${command}`)
 	}
@@ -190,7 +215,7 @@ function print(value: unknown): void {
 
 main(process.argv.slice(2)).catch((error: unknown) => {
 	if (error instanceof UsageError) console.error(`${error.message}\n\n${USAGE}`)
-	else if (error instanceof OperatorError || error instanceof TakedownError) console.error(error.message)
+	else if (error instanceof OperatorError || error instanceof TakedownError || error instanceof MergeError) console.error(error.message)
 	else console.error(error)
 	process.exit(1)
 })
