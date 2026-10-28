@@ -5,6 +5,7 @@ import { parseArgs } from 'node:util'
 import type { MerchantDeclaration } from '@prodid/core'
 
 import { checkDocument, checkFeed, type CheckResult, formatProblem } from './check'
+import { bucketEnv, bucketTarget, directoryTarget, DumpCommandError, dumpDatabaseEnv, runDump } from './dump'
 import { convertMerchant, type MerchantConversion } from './merchant'
 import { databaseEnv, MergeError, mergeEnv, parseLimit, parseOpid, parseReason, runCandidates, runMerge, runUnmerge } from './merge'
 import { OperatorClient, OperatorError, type SiteSettings } from './operator'
@@ -61,8 +62,17 @@ const USAGE = `prodid-batch <command>
       then the brand and name as JSON strings. It only reads; merging stays a human decision.
       Needs DATABASE_URL.
 
-block-media, merge, unmerge and candidates print the database host first; all but candidates write
-to it directly.
+  dump [--out DIR]
+      Write a full dump of the index from one snapshot: the five gzip NDJSON files under
+      v0/<YYYY-MM-DD>/, then manifest.json, then v0/latest.json, each line counted and digested as
+      it is written. Then removes the dated dumps retention no longer keeps: the last 7 days and the
+      first dump of each month stay. A date that already has a manifest is refused. Prints lines,
+      bytes and elapsed time per file. Writes to R2 over S3 multipart, needing R2_ENDPOINT,
+      R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY and R2_DUMPS_BUCKET, or with --out to the same layout
+      under DIR. Needs DATABASE_URL; it only reads the index.
+
+block-media, merge, unmerge, candidates and dump print the database host first; block-media, merge
+and unmerge write to it directly.
 
 site, feed, publish, assign, verify, show, remove-feed and remove-site call the operator endpoint,
 PRODID_OPERATOR_URL (default https://publish.prodid.org), authenticated with PRODID_OPERATOR_TOKEN.`
@@ -171,6 +181,12 @@ async function main(argv: string[]): Promise<void> {
 			await runCandidates(databaseEnv(process.env), { limit })
 			return
 		}
+		case 'dump': {
+			const databaseUrl = dumpDatabaseEnv(process.env)
+			const target = values.out === undefined ? bucketTarget(bucketEnv(process.env)) : directoryTarget(values.out)
+			await runDump(databaseUrl, target)
+			return
+		}
 		default:
 			throw new UsageError(`unknown command ${command}`)
 	}
@@ -228,7 +244,13 @@ function print(value: unknown): void {
 
 main(process.argv.slice(2)).catch((error: unknown) => {
 	if (error instanceof UsageError) console.error(`${error.message}\n\n${USAGE}`)
-	else if (error instanceof OperatorError || error instanceof TakedownError || error instanceof MergeError) console.error(error.message)
+	else if (
+		error instanceof OperatorError ||
+		error instanceof TakedownError ||
+		error instanceof MergeError ||
+		error instanceof DumpCommandError
+	)
+		console.error(error.message)
 	else console.error(error)
 	process.exit(1)
 })

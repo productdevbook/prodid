@@ -1,4 +1,19 @@
 export { checkDocument, checkFeed, type CheckProblem, type CheckResult, formatProblem, MAX_LINE_BYTES } from './check'
+export {
+	bucketEnv,
+	type BucketEnv,
+	bucketTarget,
+	DAILY_KEPT,
+	directoryTarget,
+	DumpCommandError,
+	dumpDatabaseEnv,
+	type DumpRun,
+	type DumpRunOptions,
+	type DumpTarget,
+	keptDates,
+	LATEST_KEY,
+	runDump,
+} from './dump'
 export { convertMerchant, type DroppedValues, type MerchantConversion, type SkippedRow } from './merchant'
 export {
 	databaseEnv,
