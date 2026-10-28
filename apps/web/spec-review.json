@@ -25,7 +25,7 @@
 		{
 			"anchor": "an-entity",
 			"pages": ["/"],
-			"sha256": "2fc5c9aaeacc07313de586a88b76ea87af15cf54c4f7bc0f06b513df6b75c774"
+			"sha256": "0998704a38190c3f12195ae3bde4efcc554ea5bc7d69fb58d4c3c8c90be260c9"
 		},
 		{
 			"anchor": "licensing",
@@ -40,7 +40,7 @@
 		{
 			"anchor": "discovery",
 			"pages": ["/publish"],
-			"sha256": "22f44596dbf19e316b348a3d5db752bbd2f9cc1fc6bbc471a46e484b41672f10"
+			"sha256": "f81c4cdc9b9403f11d8912e9505ba23cecaf786c6a575592f06af04885a6832b"
 		},
 		{
 			"anchor": "the-_prodid-txt-record",
@@ -50,7 +50,7 @@
 		{
 			"anchor": "feeds",
 			"pages": ["/publish"],
-			"sha256": "f65eef9ac973dd3649db3f0504317db3b98fbb51e6e75de6e5a942e9aabdeb12"
+			"sha256": "0957db03fb8d711bd181c3a14e8e4cf2a5363c8cac9bd54be3e7b736d497f730"
 		},
 		{
 			"anchor": "three-ways-to-publish",
@@ -90,7 +90,7 @@
 		{
 			"anchor": "a-sources-status",
 			"pages": ["/publish"],
-			"sha256": "fc457c9fbd5b3b0e8680653b9598acb949e1ac5c29bad1d0cc44ad3cab2fe15d"
+			"sha256": "07e48ab4efa17263f70d6bf01d169a648ee31696821044fadf6ee32da1a89291"
 		},
 		{
 			"anchor": "which-gtins-are-identifiers",
@@ -130,7 +130,7 @@
 		{
 			"anchor": "appendix-importing-a-merchant-feed",
 			"pages": ["/publish"],
-			"sha256": "e9a460a54838ea10d99de72fc4033c7e86d77b5385f0848b2122271571f83d57"
+			"sha256": "24abbe5f9ce94c115f06ef686ddcef4a1ae58e48642d4d2c74ebd2d5d5cd0b5a"
 		},
 		{
 			"anchor": "dataset-sources",

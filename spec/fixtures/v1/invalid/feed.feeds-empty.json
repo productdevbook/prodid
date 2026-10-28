@@ -1,0 +1,7 @@
+{
+	"$type": "org.prodid.feed",
+	"version": 1,
+	"publisher": { "name": "Acme Tekstil" },
+	"license": "CC0-1.0",
+	"feeds": []
+}

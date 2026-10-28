@@ -1,0 +1,25 @@
+{
+	"$type": "org.prodid.entity",
+	"version": 1,
+	"opid": "3n7k2q9vdfhb4mta",
+	"kind": "family",
+	"identifiers": [],
+	"claims": [
+		{
+			"property": "media",
+			"value": {
+				"sha256": "e3943ea26ce08ae81809e62936dc4f934fa04da6cd57bd9ab2a90b79da751c09",
+				"url": "https://acme.example/img/tj2041-navy.webp",
+				"media_url": "https://media.prodid.org/sha256/0000000000000000000000000000000000000000000000000000000000000000",
+				"license": "CC-BY-4.0",
+				"kind": "image"
+			},
+			"source": {
+				"name": "acme.example",
+				"trust": "verified",
+				"lapsed": false
+			},
+			"seen_at": "2026-09-14T09:12:03Z"
+		}
+	]
+}

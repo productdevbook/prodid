@@ -1,0 +1,10 @@
+{
+	"$type": "org.prodid.source",
+	"version": 1,
+	"name": "dataset:open-food-facts",
+	"kind": "dataset",
+	"trust": "authoritative",
+	"verified_by": "well-known",
+	"verified_at": "2026-09-14T09:12:03Z",
+	"lapsed": false
+}

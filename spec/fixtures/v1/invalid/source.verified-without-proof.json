@@ -1,0 +1,8 @@
+{
+	"$type": "org.prodid.source",
+	"version": 1,
+	"name": "acme.example",
+	"kind": "domain",
+	"trust": "verified",
+	"lapsed": false
+}

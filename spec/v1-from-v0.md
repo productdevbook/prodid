@@ -44,6 +44,21 @@ files changes.
 | 13 | what a dump never holds | not stated for grants | the grants of authority and their evidence are named; this is how dumps were built in v0 (*What a dump never holds*) |
 | 14 | the TXT record | `v=prodid0` | `v=prodid0`, stated as the record's own version (*The `_prodid` TXT record*) |
 
+## Files
+
+v0 is kept where it was, unchanged: the schemas directly in `schemas/`, `examples/`, and the
+vectors in `fixtures/valid/`, `fixtures/invalid/`, `fixtures/expected.json` and `fixtures/dump/`.
+v1 is beside it:
+
+| path | holds |
+| --- | --- |
+| `schemas/v1/` | the five v1 schemas |
+| `fixtures/v1/examples/` | the v1 examples, the v0 examples with changes 3 to 6 applied |
+| `fixtures/v1/valid/`, `fixtures/v1/invalid/`, `fixtures/v1/expected.json` | the v0 vectors with changes 3 to 6 applied, plus `entity.version-missing.json` and `source.version-missing.json`; `feed.version-not-zero.json` becomes `feed.version-not-one.json`, a v0 document the v1 schema refuses |
+| `fixtures/v1/dump/` | the v0 dump vectors with change 4 applied; `version-not-zero.json` becomes `version-not-one.json` |
+
+`fixtures/txt/`, `gtin/`, `brand/`, `ndjson/`, `merchant/` and `datasets/` hold for both versions.
+
 ## Open questions
 
 Each "in v0" of the v0 text, closed in v1:

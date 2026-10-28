@@ -1,0 +1,9 @@
+{
+	"$type": "org.prodid.source",
+	"version": 1,
+	"name": "acme.prodid.org",
+	"kind": "hosted",
+	"trust": "unverified",
+	"lapsed": false,
+	"last_crawl": { "at": "2026-09-19T06:00:11Z", "outcome": "deferred" }
+}

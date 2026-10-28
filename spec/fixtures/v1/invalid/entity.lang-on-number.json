@@ -1,0 +1,16 @@
+{
+	"$type": "org.prodid.entity",
+	"version": 1,
+	"opid": "3n7k2q9vdfhb4mta",
+	"kind": "family",
+	"identifiers": [],
+	"claims": [
+		{
+			"property": "properties.hydrostaticHead",
+			"value": 10000,
+			"lang": "en",
+			"source": { "name": "acme.example", "trust": "verified", "lapsed": false },
+			"seen_at": "2026-09-14T09:12:03Z"
+		}
+	]
+}

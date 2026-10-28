@@ -1,0 +1,35 @@
+{
+	"$type": "org.prodid.entity",
+	"version": 1,
+	"opid": "kq7m3v9dn2hb4t5x",
+	"kind": "item",
+	"parents": {
+		"family": "3n7k2q9vdfhb4mta",
+		"variant": "9p2d4kv7mq3nbhxf"
+	},
+	"identifiers": [
+		{
+			"scheme": "rcn",
+			"value": "02001234567893",
+			"scope": "acme.example"
+		},
+		{
+			"scheme": "sku",
+			"value": "TB-100",
+			"scope": "acme.example"
+		}
+	],
+	"claims": [
+		{
+			"property": "name",
+			"value": "Trail Bottle 1L",
+			"lang": "en",
+			"source": {
+				"name": "acme.example",
+				"trust": "verified",
+				"lapsed": false
+			},
+			"seen_at": "2026-09-14T09:12:03Z"
+		}
+	]
+}

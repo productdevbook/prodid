@@ -1,0 +1,20 @@
+{
+	"$type": "org.prodid.source",
+	"version": 1,
+	"name": "open-food-facts",
+	"kind": "dataset",
+	"trust": "unverified",
+	"lapsed": false,
+	"license": "ODbL-1.0",
+	"last_crawl": {
+		"at": "2026-11-03T02:14:55Z",
+		"via": "import",
+		"document_url": "https://exports.example/open-food-facts/products.jsonl.gz",
+		"outcome": "success",
+		"records_seen": 2841077,
+		"records_changed": 1093,
+		"lines_skipped": 0,
+		"feeds_failed": 0,
+		"media_failed": 0
+	}
+}

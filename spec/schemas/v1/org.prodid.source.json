@@ -1,0 +1,154 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://prodid.org/schemas/v1/org.prodid.source.json",
+	"title": "org.prodid.source",
+	"description": "The public status of one source: who it is, how its control was proven, whether it has lapsed, and what the last crawl saw. It reports only what the source itself publishes and when the index looked; never who asked for a crawl.",
+	"type": "object",
+	"required": ["$type", "version", "name", "kind", "trust", "lapsed"],
+	"additionalProperties": false,
+	"properties": {
+		"$type": { "const": "org.prodid.source" },
+		"version": { "const": 1 },
+		"name": {
+			"description": "The identity: a domain, a slug host, or dataset:<slug> for a dataset.",
+			"type": "string",
+			"minLength": 1,
+			"maxLength": 253
+		},
+		"kind": { "enum": ["domain", "hosted", "dataset", "community"] },
+		"trust": {
+			"description": "authoritative: domain control proven, not lapsed, and at least one unrevoked per-brand grant made on evidence of brand ownership; it drops without operator action when either proof goes. verified: control of a domain proven. unverified: nothing proven about who is speaking.",
+			"enum": ["authoritative", "verified", "unverified"]
+		},
+		"verified_by": {
+			"description": "How domain control was proven. Present exactly when trust is above unverified.",
+			"$ref": "#/$defs/verifiedBy"
+		},
+		"verified_at": { "$ref": "#/$defs/timestamp" },
+		"lapsed": { "type": "boolean" },
+		"lapsed_at": {
+			"description": "When discovery stopped succeeding. Present exactly while lapsed is true; 30 days after it, the source's active claims are withdrawn.",
+			"$ref": "#/$defs/timestamp"
+		},
+		"license": {
+			"description": "SPDX license identifier the source publishes its facts under.",
+			"type": "string",
+			"minLength": 1,
+			"maxLength": 64
+		},
+		"last_crawl": { "$ref": "#/$defs/crawl" }
+	},
+	"allOf": [
+		{
+			"if": { "required": ["trust"], "properties": { "trust": { "enum": ["authoritative", "verified"] } } },
+			"then": {
+				"required": ["verified_by", "verified_at"],
+				"properties": { "verified_by": { "$ref": "#/$defs/verifiedBy" }, "verified_at": { "$ref": "#/$defs/timestamp" } }
+			},
+			"else": { "properties": { "verified_by": false, "verified_at": false } }
+		},
+		{
+			"if": { "required": ["kind"], "properties": { "kind": { "enum": ["hosted", "dataset", "community"] } } },
+			"then": { "properties": { "trust": { "const": "unverified" } } }
+		},
+		{
+			"if": { "required": ["kind"], "properties": { "kind": { "const": "dataset" } } },
+			"then": {
+				"properties": {
+					"name": {
+						"description": "dataset: and a slug: 3 to 32 lowercase letters, digits and hyphens, a letter or digit at each end, and no -- in the third and fourth places.",
+						"type": "string",
+						"pattern": "^dataset:(?!..--)[a-z0-9][a-z0-9-]{1,30}[a-z0-9]$"
+					},
+					"lapsed": { "const": false },
+					"last_crawl": { "type": "object", "properties": { "via": { "const": "import" } } }
+				}
+			},
+			"else": { "properties": { "last_crawl": { "type": "object", "properties": { "via": { "not": { "const": "import" } } } } } }
+		},
+		{
+			"if": { "required": ["lapsed"], "properties": { "lapsed": { "const": true } } },
+			"then": {
+				"required": ["lapsed_at"],
+				"properties": { "lapsed_at": { "$ref": "#/$defs/timestamp" }, "trust": { "enum": ["verified", "unverified"] } }
+			},
+			"else": { "properties": { "lapsed_at": false } }
+		}
+	],
+	"$defs": {
+		"timestamp": { "type": "string", "format": "date-time" },
+		"verifiedBy": { "enum": ["well-known", "dns-txt"] },
+		"crawl": {
+			"description": "The last discovery run, or for a dataset the last import. A crawl held back by the crawler's own rate limits is rescheduled and is not reported as an outcome.",
+			"type": "object",
+			"required": ["at", "outcome"],
+			"additionalProperties": false,
+			"allOf": [
+				{
+					"if": { "required": ["via"], "properties": { "via": { "const": "import" } } },
+					"then": {
+						"required": ["document_url"],
+						"properties": { "document_url": { "type": "string" }, "outcome": { "const": "success" }, "http_status": false }
+					}
+				},
+				{
+					"if": { "required": ["outcome"], "properties": { "outcome": { "const": "success" } } },
+					"then": { "properties": { "http_status": { "enum": [200, 304] }, "feeds_failed": { "const": 0 } } }
+				},
+				{
+					"if": { "required": ["outcome"], "properties": { "outcome": { "const": "transport-failure" } } },
+					"then": { "properties": { "http_status": { "$ref": "#/$defs/failureStatus" } } }
+				}
+			],
+			"properties": {
+				"at": { "$ref": "#/$defs/timestamp" },
+				"via": {
+					"description": "How the records arrived: through discovery, by .well-known on the domain or by a _prodid TXT record, or, for a dataset and only for one, by an operator's import of its export.",
+					"enum": ["well-known", "dns-txt", "import"]
+				},
+				"document_url": {
+					"description": "The discovery document this crawl asked for. Shown only for the host the source was last verified at, so the status of one source can never report how a host someone else chose answers the crawler. An import always shows it, as the public URL of the export it read: nobody can aim an import at a host.",
+					"type": "string",
+					"format": "uri",
+					"pattern": "^https://"
+				},
+				"outcome": {
+					"description": "success: an acceptable document and every feed it lists read. definite-negative: discovery ended with no acceptable document — either none was found at all, or one was fetched and refused — which lapses the source at once; a failure at a host this source has never been verified at is a definite negative too, whatever the failure was. transport-failure: something could not be read at a host the source is verified at, including a feed, and nothing could be concluded.",
+					"enum": ["success", "definite-negative", "transport-failure"]
+				},
+				"http_status": {
+					"description": "The status of the discovery document fetch, when there was one, and only for the host the source was last verified at. The crawler's own error text is never published.",
+					"type": "integer",
+					"minimum": 100,
+					"maximum": 599
+				},
+				"records_seen": { "type": "integer", "minimum": 0 },
+				"records_changed": {
+					"description": "Records whose body changed since the last crawl. Never more than records_seen.",
+					"type": "integer",
+					"minimum": 0
+				},
+				"lines_skipped": {
+					"description": "Feed lines that were too long, unparseable or invalid. While this is above zero, absent keys are not withdrawn, for at most seven days.",
+					"type": "integer",
+					"minimum": 0
+				},
+				"media_failed": {
+					"description": "Media entries that could not be fetched or were refused. Unlike feeds_failed this does not make the crawl a failure: media is not discovery, and a media entry costs only itself.",
+					"type": "integer",
+					"minimum": 0
+				},
+				"feeds_failed": {
+					"description": "Feeds the document lists that could not be read. Above zero makes the crawl a transport failure, so seven days of it lapses the source; the feeds that did answer are still ingested and none of them withdraws anything. A feed the document no longer lists is retired rather than failed and is not counted here.",
+					"type": "integer",
+					"minimum": 0
+				}
+			}
+		},
+		"failureStatus": {
+			"description": "What a transport failure can carry: a status that says nothing was concluded, or none at all.",
+			"type": "integer",
+			"oneOf": [{ "const": 429 }, { "minimum": 500, "maximum": 599 }]
+		}
+	}
+}

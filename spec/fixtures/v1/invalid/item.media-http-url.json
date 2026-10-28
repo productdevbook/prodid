@@ -1,0 +1,8 @@
+{
+	"$type": "org.prodid.item",
+	"key": "TB-100",
+	"brand": "Acme",
+	"name": "Trail Bottle 1L",
+	"identifiers": [{ "scheme": "gtin", "value": "9506000134420" }],
+	"media": [{ "url": "http://acme.example/img/tb100.webp", "license": "CC-BY-4.0", "kind": "image" }]
+}

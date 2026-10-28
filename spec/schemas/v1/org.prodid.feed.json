@@ -1,0 +1,42 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://prodid.org/schemas/v1/org.prodid.feed.json",
+	"title": "org.prodid.feed",
+	"description": "Discovery document served at /.well-known/prodid.json. The source identity is the domain it speaks for, which is the domain serving it unless the document was reached through a _prodid DNS TXT record.",
+	"type": "object",
+	"required": ["$type", "version", "publisher", "license", "feeds"],
+	"additionalProperties": false,
+	"properties": {
+		"$type": { "const": "org.prodid.feed" },
+		"version": { "const": 1 },
+		"domain": {
+			"description": "The domain this document speaks for. Required, and equal to the delegating domain, whenever the document is reached through a _prodid TXT record naming a host other than the domain itself; a delegated document without it is rejected. It may be absent only when the domain serves the document itself. A document naming a domain that does not delegate to this host speaks for nobody and is ignored. Lowercase hostname: labels and dots, at least two labels, no scheme, no port, no path, never an IP literal.",
+			"type": "string",
+			"maxLength": 253,
+			"pattern": "^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]([a-z0-9-]{0,61}[a-z0-9])?$"
+		},
+		"publisher": {
+			"type": "object",
+			"required": ["name"],
+			"additionalProperties": false,
+			"properties": {
+				"name": { "type": "string", "minLength": 1, "maxLength": 256 },
+				"contact": { "type": "string", "format": "email" }
+			}
+		},
+		"license": {
+			"description": "SPDX license identifier covering the facts in the feeds.",
+			"type": "string",
+			"minLength": 1,
+			"maxLength": 64
+		},
+		"feeds": {
+			"description": "NDJSON files, one org.prodid.item record per line. Every feed must be served from the same host as the discovery document; a document listing a feed on any other host, or more than 100 of them, is rejected whole.",
+			"type": "array",
+			"minItems": 1,
+			"maxItems": 100,
+			"uniqueItems": true,
+			"items": { "type": "string", "format": "uri", "pattern": "^https://" }
+		}
+	}
+}

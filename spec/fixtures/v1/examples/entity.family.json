@@ -1,0 +1,24 @@
+{
+	"$type": "org.prodid.entity",
+	"version": 1,
+	"opid": "3n7k2q9vdfhb4mta",
+	"kind": "family",
+	"children": ["9p2d4kv7mq3nbhxf", "t4m9k2qv7bn3dhz6"],
+	"merged_from": ["5x2kq9mv7dnb3h4t"],
+	"identifiers": [],
+	"claims": [
+		{
+			"property": "name",
+			"value": "Trail Jacket",
+			"lang": "en",
+			"source": { "name": "acme.example", "trust": "verified", "lapsed": false },
+			"seen_at": "2026-09-14T09:12:03Z"
+		},
+		{
+			"property": "brand",
+			"value": "Acme",
+			"source": { "name": "acme.example", "trust": "verified", "lapsed": false },
+			"seen_at": "2026-09-14T09:12:03Z"
+		}
+	]
+}

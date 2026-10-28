@@ -9,6 +9,7 @@ type Problem = { instancePath: string; keyword: string; params: Record<string, u
 type TxtOutcome = 'delegation' | 'ignored' | 'malformed'
 type TxtResult = { outcome: TxtOutcome; host?: string }
 type MerchantImport = { ndjson: string; declared: { lang: string; markets: string[]; license: string }; skipped_rows: number[] }
+type Version = 0 | 1
 
 const INGESTIBLE_LICENCES = ['CC0-1.0', 'CC-BY-4.0', 'CC-BY-SA-4.0', 'CC-BY-ND-4.0', 'CC-BY-3.0', 'CC-BY-SA-3.0', 'CC-BY-ND-3.0']
 
@@ -22,30 +23,42 @@ const root = import.meta.dir
 const ajv = new Ajv2020({ strict: true, allErrors: true })
 addFormats(ajv)
 
+const VERSIONS: readonly Version[] = [0, 1]
+const SCHEMA_DIRS: Record<Version, string> = { 0: 'schemas', 1: join('schemas', 'v1') }
 const schemas = new Map<string, AnySchemaObject>()
-const validators = new Map<string, ValidateFunction>()
-for (const name of jsonFiles(join(root, 'schemas'))) {
-	const schema = JSON.parse(readFileSync(join(root, 'schemas', name), 'utf8')) as AnySchemaObject
-	const type: unknown = schema.properties?.$type?.const
-	if (typeof type !== 'string') throw new Error(`${name}: no $type const`)
-	schemas.set(type, schema)
-	validators.set(type, ajv.compile(schema))
+const validators = new Map<Version, Map<string, ValidateFunction>>()
+for (const version of VERSIONS) {
+	const compiled = new Map<string, ValidateFunction>()
+	for (const name of jsonFiles(join(root, SCHEMA_DIRS[version]))) {
+		const schema = JSON.parse(readFileSync(join(root, SCHEMA_DIRS[version], name), 'utf8')) as AnySchemaObject
+		const type: unknown = schema.properties?.$type?.const
+		if (typeof type !== 'string') throw new Error(`${name}: no $type const`)
+		if (schema.$id !== `https://prodid.org/schemas/v${version}/${name}`) {
+			throw new Error(`${SCHEMA_DIRS[version]}/${name}: $id is not https://prodid.org/schemas/v${version}/${name}`)
+		}
+		if (version === 0) schemas.set(type, schema)
+		compiled.set(type, ajv.compile(schema))
+	}
+	validators.set(version, compiled)
 }
 
+const V1 = join('fixtures', 'v1')
 const expected = JSON.parse(readFileSync(join(root, 'fixtures', 'expected.json'), 'utf8')) as Record<string, Defect>
+const v1Expected = JSON.parse(readFileSync(join(root, V1, 'expected.json'), 'utf8')) as Record<string, Defect>
 const merchantExpected = JSON.parse(readFileSync(join(root, 'fixtures', 'merchant', 'expected.json'), 'utf8')) as Record<
 	string,
 	MerchantImport
 >
 const ndjsonExpected = JSON.parse(readFileSync(join(root, 'fixtures', 'ndjson', 'expected.json'), 'utf8')) as Record<string, number[]>
 const dumpExpected = JSON.parse(readFileSync(join(root, 'fixtures', 'dump', 'expected.json'), 'utf8')) as Record<string, Defect>
+const v1DumpExpected = JSON.parse(readFileSync(join(root, V1, 'dump', 'expected.json'), 'utf8')) as Record<string, Defect>
 const domainRule = schemas.get('org.prodid.feed')?.properties.domain as { pattern: string; maxLength: number }
 const isHost = (value: string): boolean => new RegExp(domainRule.pattern).test(value) && bytes(value) <= domainRule.maxLength
 
 if (process.argv[2] === '--emit-merchant') {
 	for (const [name, want] of Object.entries(merchantExpected)) {
 		const csv = readFileSync(join(root, 'fixtures', 'merchant', name), 'utf8')
-		const { records } = importMerchant(csv, want.declared)
+		const { records } = importMerchant(csv, want.declared, 1)
 		writeFileSync(join(root, 'fixtures', 'merchant', want.ndjson), `${records.join('\n')}\n`)
 		console.log(`wrote fixtures/merchant/${want.ndjson}: ${records.length} records`)
 	}
@@ -56,25 +69,11 @@ let failures = 0
 const asserted = new Set<string>()
 const ndjsonAsserted = new Set<string>()
 const dumpAsserted = new Set<string>()
+const v1Asserted = new Set<string>()
+const v1DumpAsserted = new Set<string>()
 
-for (const name of readdirSync(join(root, 'examples')).sort()) {
-	const path = join(root, 'examples', name)
-	if (name.endsWith('.ndjson')) report(path, checkNdjson(path))
-	else if (name.endsWith('.json')) report(path, checkFile(path, true))
-}
-for (const name of jsonFiles(join(root, 'fixtures', 'valid'))) {
-	report(join(root, 'fixtures', 'valid', name), checkFile(join(root, 'fixtures', 'valid', name), true))
-}
-for (const name of jsonFiles(join(root, 'fixtures', 'invalid'))) {
-	report(join(root, 'fixtures', 'invalid', name), checkInvalidFixture(join(root, 'fixtures', 'invalid', name), name))
-}
-for (const name of jsonFiles(join(root, 'fixtures', 'dump', 'valid'))) {
-	report(join(root, 'fixtures', 'dump', 'valid', name), checkFile(join(root, 'fixtures', 'dump', 'valid', name), true))
-}
-for (const name of jsonFiles(join(root, 'fixtures', 'dump', 'invalid'))) {
-	const path = join(root, 'fixtures', 'dump', 'invalid', name)
-	report(path, checkInvalidFixture(path, name, dumpExpected, dumpAsserted))
-}
+checkDocuments(0, { examples: 'examples', fixtures: 'fixtures' }, [expected, asserted], [dumpExpected, dumpAsserted])
+checkDocuments(1, { examples: join(V1, 'examples'), fixtures: V1 }, [v1Expected, v1Asserted], [v1DumpExpected, v1DumpAsserted])
 for (const name of jsonFiles(join(root, 'fixtures', 'txt'))) {
 	report(join(root, 'fixtures', 'txt', name), checkTxtVector(join(root, 'fixtures', 'txt', name)))
 }
@@ -92,18 +91,19 @@ for (const name of readdirSync(join(root, 'fixtures', 'merchant')).sort()) {
 	if (!name.endsWith('.csv')) continue
 	report(join(root, 'fixtures', 'merchant', name), checkMerchantFixture(name))
 }
-report(
-	join(root, 'fixtures', 'expected.json'),
-	Object.keys(expected)
-		.filter((name) => !asserted.has(name))
-		.map((name) => `no fixture named ${name}`),
-)
-report(
-	join(root, 'fixtures', 'dump', 'expected.json'),
-	Object.keys(dumpExpected)
-		.filter((name) => !dumpAsserted.has(name))
-		.map((name) => `no fixture named ${name}`),
-)
+for (const [path, defects, seen] of [
+	[join('fixtures', 'expected.json'), expected, asserted],
+	[join('fixtures', 'dump', 'expected.json'), dumpExpected, dumpAsserted],
+	[join(V1, 'expected.json'), v1Expected, v1Asserted],
+	[join(V1, 'dump', 'expected.json'), v1DumpExpected, v1DumpAsserted],
+] as const) {
+	report(
+		join(root, path),
+		Object.keys(defects)
+			.filter((name) => !seen.has(name))
+			.map((name) => `no fixture named ${name}`),
+	)
+}
 report(
 	join(root, 'fixtures', 'ndjson', 'expected.json'),
 	Object.keys(ndjsonExpected)
@@ -112,6 +112,34 @@ report(
 )
 
 process.exit(failures === 0 ? 0 : 1)
+
+function checkDocuments(
+	version: Version,
+	dirs: { examples: string; fixtures: string },
+	[defects, seen]: readonly [Record<string, Defect>, Set<string>],
+	[dumpDefects, dumpSeen]: readonly [Record<string, Defect>, Set<string>],
+): void {
+	for (const name of readdirSync(join(root, dirs.examples)).sort()) {
+		const path = join(root, dirs.examples, name)
+		if (name.endsWith('.ndjson')) report(path, checkNdjson(path, version))
+		else if (name.endsWith('.json')) report(path, checkFile(path, version))
+	}
+	for (const name of jsonFiles(join(root, dirs.fixtures, 'valid'))) {
+		report(join(root, dirs.fixtures, 'valid', name), checkFile(join(root, dirs.fixtures, 'valid', name), version))
+	}
+	for (const name of jsonFiles(join(root, dirs.fixtures, 'invalid'))) {
+		const path = join(root, dirs.fixtures, 'invalid', name)
+		report(path, checkInvalidFixture(path, name, version, defects, seen))
+	}
+	for (const name of jsonFiles(join(root, dirs.fixtures, 'dump', 'valid'))) {
+		const path = join(root, dirs.fixtures, 'dump', 'valid', name)
+		report(path, checkFile(path, version))
+	}
+	for (const name of jsonFiles(join(root, dirs.fixtures, 'dump', 'invalid'))) {
+		const path = join(root, dirs.fixtures, 'dump', 'invalid', name)
+		report(path, checkInvalidFixture(path, name, version, dumpDefects, dumpSeen))
+	}
+}
 
 function jsonFiles(dir: string): string[] {
 	return readdirSync(dir)
@@ -131,23 +159,22 @@ function parse(text: string): { value: unknown } | { problem: string } {
 	}
 }
 
-function checkFile(path: string, expectValid: boolean): string[] {
+function checkFile(path: string, version: Version): string[] {
 	const parsed = parse(readFileSync(path, 'utf8'))
-	if ('problem' in parsed) return expectValid ? [parsed.problem] : []
-	return checkRecord(parsed.value, expectValid)
+	if ('problem' in parsed) return [parsed.problem]
+	return checkRecord(parsed.value, version)
 }
 
-function checkRecord(record: unknown, expectValid: boolean): string[] {
-	const problems = recordProblems(record)
-	if (typeof problems === 'string') return expectValid ? [problems] : []
-	if (problems.length === 0) return expectValid ? [] : ['accepted, but must be rejected']
-	return expectValid ? [problemText(problems)] : []
+function checkRecord(record: unknown, version: Version): string[] {
+	const problems = recordProblems(record, version)
+	if (typeof problems === 'string') return [problems]
+	return problems.length === 0 ? [] : [problemText(problems)]
 }
 
-function recordProblems(record: unknown): Problem[] | string {
+function recordProblems(record: unknown, version: Version): Problem[] | string {
 	const type = (record as { $type?: unknown } | null)?.$type
 	if (typeof type !== 'string') return 'no $type'
-	const validate = validators.get(type)
+	const validate = validators.get(version)?.get(type)
 	if (!validate) return `unknown $type ${type}`
 	const problems: Problem[] = []
 	if (!validate(record)) {
@@ -271,11 +298,11 @@ function problemText(problems: readonly Problem[]): string {
 	return problems.map((one) => one.message).join('; ')
 }
 
-function checkNdjson(path: string): string[] {
-	return skippedLines(path).problems
+function checkNdjson(path: string, version: Version): string[] {
+	return skippedLines(path, version).problems
 }
 
-function skippedLines(path: string): { problems: string[]; skipped: number[] } {
+function skippedLines(path: string, version: Version): { problems: string[]; skipped: number[] } {
 	const lines = readFileSync(path, 'utf8').split('\n')
 	const problems: string[] = []
 	const skipped: number[] = []
@@ -291,7 +318,7 @@ function skippedLines(path: string): { problems: string[]; skipped: number[] } {
 			skipped.push(index + 1)
 			return
 		}
-		const found = checkRecord(parsed.value, true)
+		const found = checkRecord(parsed.value, version)
 		if (found.length > 0) skipped.push(index + 1)
 		for (const found_ of found) problems.push(`${at}: ${found_}`)
 	})
@@ -302,9 +329,11 @@ function checkNdjsonFixture(path: string, name: string): string[] {
 	const want = ndjsonExpected[name]
 	if (!want) return ['no expected skipped lines in fixtures/ndjson/expected.json']
 	ndjsonAsserted.add(name)
-	const { skipped } = skippedLines(path)
-	if (skipped.join(',') === want.join(',')) return []
-	return [`skips lines ${skipped.join(', ') || 'none'}, expected ${want.join(', ') || 'none'}`]
+	return VERSIONS.flatMap((version) => {
+		const { skipped } = skippedLines(path, version)
+		if (skipped.join(',') === want.join(',')) return []
+		return [`v${version} skips lines ${skipped.join(', ') || 'none'}, expected ${want.join(', ') || 'none'}`]
+	})
 }
 
 function checkMerchantFixture(name: string): string[] {
@@ -314,19 +343,21 @@ function checkMerchantFixture(name: string): string[] {
 	const problems: string[] = []
 	if (!isIngestibleLicence(want.declared.license)) problems.push(`declared licence ${want.declared.license} is not ingestible`)
 
-	const imported = importMerchant(readFileSync(join(dir, name), 'utf8'), want.declared)
-	if (imported.skipped.join(',') !== want.skipped_rows.join(',')) {
-		problems.push(`skips rows ${imported.skipped.join(', ') || 'none'}, expected ${want.skipped_rows.join(', ') || 'none'}`)
-	}
 	const lines = readFileSync(join(dir, want.ndjson), 'utf8').trim().split('\n')
-	problems.push(...skippedLines(join(dir, want.ndjson)).problems.map((one) => `${want.ndjson}: ${one}`))
-	if (lines.length !== imported.records.length) {
-		problems.push(`${want.ndjson} has ${lines.length} records, the mapping produces ${imported.records.length}`)
-		return problems
+	for (const version of VERSIONS) {
+		const imported = importMerchant(readFileSync(join(dir, name), 'utf8'), want.declared, version)
+		if (imported.skipped.join(',') !== want.skipped_rows.join(',')) {
+			problems.push(`v${version} skips rows ${imported.skipped.join(', ') || 'none'}, expected ${want.skipped_rows.join(', ') || 'none'}`)
+		}
+		problems.push(...skippedLines(join(dir, want.ndjson), version).problems.map((one) => `v${version} ${want.ndjson}: ${one}`))
+		if (lines.length !== imported.records.length) {
+			problems.push(`${want.ndjson} has ${lines.length} records, the v${version} mapping produces ${imported.records.length}`)
+			continue
+		}
+		lines.forEach((line, index) => {
+			if (line !== imported.records[index]) problems.push(`${want.ndjson} line ${index + 1} is not what the v${version} mapping produces`)
+		})
 	}
-	lines.forEach((line, index) => {
-		if (line !== imported.records[index]) problems.push(`${want.ndjson} line ${index + 1} is not what the mapping produces`)
-	})
 	return problems
 }
 
@@ -334,14 +365,14 @@ function isIngestibleLicence(licence: string): boolean {
 	return INGESTIBLE_LICENCES.includes(licence)
 }
 
-function importMerchant(csv: string, declared: MerchantImport['declared']): { records: string[]; skipped: number[] } {
+function importMerchant(csv: string, declared: MerchantImport['declared'], version: Version): { records: string[]; skipped: number[] } {
 	const rows = parseCsv(csv)
 	const header = rows[0] ?? []
 	const records: string[] = []
 	const skipped: number[] = []
 	rows.slice(1).forEach((cells, index) => {
 		const record = merchantRecord(header, cells, declared)
-		const found = recordProblems(record)
+		const found = recordProblems(record, version)
 		if (typeof found === 'string' || found.length > 0) skipped.push(index + 2)
 		else records.push(JSON.stringify(record))
 	})
@@ -466,13 +497,13 @@ function camelCase(name: string): string | null {
 	return /^[a-z][A-Za-z0-9]*$/.test(key) ? key : null
 }
 
-function checkInvalidFixture(path: string, name: string, defects = expected, seen = asserted): string[] {
+function checkInvalidFixture(path: string, name: string, version: Version, defects: Record<string, Defect>, seen: Set<string>): string[] {
 	seen.add(name)
 	const defect = defects[name]
 	if (!defect) return [`no expected defect in ${relative(root, join(path, '..', '..', 'expected.json'))}`]
 	const parsed = parse(readFileSync(path, 'utf8'))
 	if ('problem' in parsed) return [parsed.problem]
-	const problems = recordProblems(parsed.value)
+	const problems = recordProblems(parsed.value, version)
 	if (typeof problems === 'string') return [problems]
 	if (problems.length === 0) return ['accepted, but must be rejected']
 	const wanted = problems.some(

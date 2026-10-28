@@ -177,8 +177,15 @@ created with the milestones and issues; the default labels stay.
   ever changes again.
 - **Repository.** v0 stays where it is, byte for byte: `spec/schemas/*.json`,
   `spec/examples/`, `spec/fixtures/{valid,invalid,dump}/` and `spec/fixtures/expected.json`. v1
-  sits beside it under `v1/` (P-081). The vector sets whose rules did not change, `txt`, `gtin`,
-  `brand`, `ndjson`, `merchant` and `datasets`, hold for both versions and are not copied.
+  sits beside it (P-081): `spec/schemas/v1/*.json`, and `spec/fixtures/v1/` with `examples/`,
+  `valid/`, `invalid/`, `expected.json` and `dump/`. The v1 examples are in `fixtures/v1/examples/`
+  rather than `examples/v1/` because `prodid-batch check`'s test passes every entry of
+  `spec/examples/` to the CLI, a directory included, and core's record test reads
+  `fixtures/{valid,invalid}/` with the v0 validators; neither reads `fixtures/v1/`. The vector sets
+  whose rules did not change, `txt`, `gtin`, `brand`, `ndjson`, `merchant` and `datasets`, hold
+  for both versions and are not copied; `spec/validate.ts` runs `ndjson` and `merchant` under both
+  item schemas. `spec/package.json`'s `./schemas/*.json` export already reaches
+  `schemas/v1/<file>`.
 - **What core reads (P-082).** Validators for both versions. A discovery document: v1 always, v0
   only when the crawl started before the cut-off, so the check takes the crawl's start time, not
   the clock. Dump manifests, entities and statuses: v0 and v1 for good, because a kept v0 dump is

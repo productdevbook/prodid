@@ -1,0 +1,14 @@
+{
+	"$type": "org.prodid.entity",
+	"version": 1,
+	"opid": "3n7k2q9vdfhb4mta",
+	"kind": "family",
+	"identifiers": [
+		{
+			"scheme": "asin",
+			"value": "B000000000",
+			"scope": "acme.example"
+		}
+	],
+	"claims": []
+}

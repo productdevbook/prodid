@@ -1,0 +1,80 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://prodid.org/schemas/v1/org.prodid.dump.json",
+	"title": "org.prodid.dump",
+	"description": "The manifest of one dump: when its snapshot was taken, the five data files it consists of with their digests and sizes, and the licences its contents are under. Served as manifest.json in the dump's directory, and copied to latest.json once every file of the newest dump is in place.",
+	"type": "object",
+	"required": ["$type", "version", "created_at", "snapshot_at", "files", "licenses"],
+	"additionalProperties": false,
+	"properties": {
+		"$type": { "const": "org.prodid.dump" },
+		"version": { "const": 1 },
+		"created_at": {
+			"description": "When the manifest was written, after every file. Never before snapshot_at.",
+			"$ref": "#/$defs/timestamp"
+		},
+		"snapshot_at": {
+			"description": "The moment of the one snapshot every file was read from. The dump's directory is named after its UTC date.",
+			"$ref": "#/$defs/timestamp"
+		},
+		"files": {
+			"description": "Each of the five data files exactly once. The manifest does not list itself.",
+			"type": "array",
+			"minItems": 5,
+			"maxItems": 5,
+			"items": { "$ref": "#/$defs/file" },
+			"allOf": [
+				{ "contains": { "type": "object", "required": ["name"], "properties": { "name": { "const": "sources.ndjson.gz" } } } },
+				{ "contains": { "type": "object", "required": ["name"], "properties": { "name": { "const": "entities.ndjson.gz" } } } },
+				{ "contains": { "type": "object", "required": ["name"], "properties": { "name": { "const": "records.ndjson.gz" } } } },
+				{ "contains": { "type": "object", "required": ["name"], "properties": { "name": { "const": "groupings.ndjson.gz" } } } },
+				{ "contains": { "type": "object", "required": ["name"], "properties": { "name": { "const": "merges.ndjson.gz" } } } }
+			]
+		},
+		"licenses": {
+			"description": "What the dump's contents may be used under.",
+			"type": "object",
+			"required": ["index", "claims"],
+			"additionalProperties": false,
+			"properties": {
+				"index": {
+					"description": "The licence of everything the index itself makes: opids, identifier mappings, the family and variant hierarchy, groupings and merges.",
+					"const": "CC0-1.0"
+				},
+				"claims": {
+					"description": "Every claim and every record is under the licence its own source declares, the license of that source's line in sources.ndjson.gz.",
+					"const": "source"
+				}
+			}
+		}
+	},
+	"$defs": {
+		"timestamp": { "type": "string", "format": "date-time" },
+		"file": {
+			"type": "object",
+			"required": ["name", "sha256", "bytes", "lines"],
+			"additionalProperties": false,
+			"properties": {
+				"name": {
+					"description": "The file's name inside the dump's directory.",
+					"enum": ["sources.ndjson.gz", "entities.ndjson.gz", "records.ndjson.gz", "groupings.ndjson.gz", "merges.ndjson.gz"]
+				},
+				"sha256": {
+					"description": "SHA-256 of the file as served, compressed, in lowercase hex.",
+					"type": "string",
+					"pattern": "^[0-9a-f]{64}$"
+				},
+				"bytes": {
+					"description": "The size of the file as served, compressed.",
+					"type": "integer",
+					"minimum": 1
+				},
+				"lines": {
+					"description": "The number of NDJSON lines once decompressed, one per source, entity, record, grouping or merge.",
+					"type": "integer",
+					"minimum": 0
+				}
+			}
+		}
+	}
+}

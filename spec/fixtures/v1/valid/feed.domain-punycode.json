@@ -1,0 +1,8 @@
+{
+	"$type": "org.prodid.feed",
+	"version": 1,
+	"domain": "acme.xn--p1ai",
+	"publisher": { "name": "Acme Tekstil" },
+	"license": "CC0-1.0",
+	"feeds": ["https://acme.prodid.org/feeds/items.ndjson"]
+}

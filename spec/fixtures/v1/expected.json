@@ -1,0 +1,284 @@
+{
+	"entity.claim-no-source.json": {
+		"instancePath": "/claims/0",
+		"keyword": "required",
+		"params": {
+			"missingProperty": "source"
+		}
+	},
+	"entity.claim-trust-unknown.json": {
+		"instancePath": "/claims/0/source/trust",
+		"keyword": "enum"
+	},
+	"entity.family-with-parents.json": {
+		"instancePath": "/parents",
+		"keyword": "false schema"
+	},
+	"entity.identifier-asin-with-scope.json": {
+		"instancePath": "/identifiers/0/scope",
+		"keyword": "false schema"
+	},
+	"entity.identifier-gtin-13.json": {
+		"instancePath": "/identifiers/0/value",
+		"keyword": "pattern"
+	},
+	"entity.identifier-gtin-all-zero.json": {
+		"instancePath": "/identifiers/0/value",
+		"keyword": "not"
+	},
+	"entity.identifier-gtin-with-scope.json": {
+		"instancePath": "/identifiers/0/scope",
+		"keyword": "false schema"
+	},
+	"entity.identifier-sku-without-scope.json": {
+		"instancePath": "/identifiers/0",
+		"keyword": "required",
+		"params": {
+			"missingProperty": "scope"
+		}
+	},
+	"entity.item-with-children.json": {
+		"instancePath": "/children",
+		"keyword": "false schema"
+	},
+	"entity.item-without-variant.json": {
+		"instancePath": "/parents",
+		"keyword": "required",
+		"params": {
+			"missingProperty": "variant"
+		}
+	},
+	"entity.lang-on-markets.json": {
+		"instancePath": "/claims/0/lang",
+		"keyword": "false schema"
+	},
+	"entity.lang-on-number.json": {
+		"instancePath": "/claims/0/value",
+		"keyword": "oneOf"
+	},
+	"entity.markets-as-list.json": {
+		"instancePath": "/claims/0/value",
+		"keyword": "type"
+	},
+	"entity.media-digest-mismatch.json": {
+		"instancePath": "/claims/0/value/media_url",
+		"keyword": "digest"
+	},
+	"entity.media-value-not-stored.json": {
+		"instancePath": "/claims/0/value",
+		"keyword": "required",
+		"params": {
+			"missingProperty": "sha256"
+		}
+	},
+	"entity.opid-uppercase.json": {
+		"instancePath": "/opid",
+		"keyword": "pattern"
+	},
+	"entity.property-two-dots.json": {
+		"instancePath": "/claims/0/property",
+		"keyword": "pattern"
+	},
+	"entity.property-unknown-prefix.json": {
+		"instancePath": "/claims/0/property",
+		"keyword": "pattern"
+	},
+	"entity.seen-at-not-datetime.json": {
+		"instancePath": "/claims/0/seen_at",
+		"keyword": "format"
+	},
+	"entity.self-merged-from.json": {
+		"instancePath": "/merged_from/0",
+		"keyword": "self-reference"
+	},
+	"entity.self-parent.json": {
+		"instancePath": "/parents/family",
+		"keyword": "self-reference"
+	},
+	"entity.unknown-kind.json": {
+		"instancePath": "/kind",
+		"keyword": "enum"
+	},
+	"entity.variant-with-variant-parent.json": {
+		"instancePath": "/parents/variant",
+		"keyword": "false schema"
+	},
+	"entity.version-missing.json": {
+		"instancePath": "",
+		"keyword": "required",
+		"params": {
+			"missingProperty": "version"
+		}
+	},
+	"entity.withdrawn-before-seen.json": {
+		"instancePath": "/claims/0/withdrawn_at",
+		"keyword": "order"
+	},
+	"feed.domain-ip-literal.json": {
+		"instancePath": "/domain",
+		"keyword": "pattern"
+	},
+	"feed.domain-single-label.json": {
+		"instancePath": "/domain",
+		"keyword": "pattern"
+	},
+	"feed.domain-uppercase.json": {
+		"instancePath": "/domain",
+		"keyword": "pattern"
+	},
+	"feed.domain-with-scheme.json": {
+		"instancePath": "/domain",
+		"keyword": "pattern"
+	},
+	"feed.feeds-empty.json": {
+		"instancePath": "/feeds",
+		"keyword": "minItems"
+	},
+	"feed.too-many-feeds.json": {
+		"instancePath": "/feeds",
+		"keyword": "maxItems"
+	},
+	"feed.version-not-one.json": {
+		"instancePath": "/version",
+		"keyword": "const"
+	},
+	"item.gtin-all-zero.json": {
+		"instancePath": "/identifiers/0/value",
+		"keyword": "gtin"
+	},
+	"item.gtin-check-digit.json": {
+		"instancePath": "/identifiers/0/value",
+		"keyword": "gtin"
+	},
+	"item.gtin-wrong-length.json": {
+		"instancePath": "/identifiers/0/value",
+		"keyword": "pattern"
+	},
+	"item.identifier-blank.json": {
+		"instancePath": "/identifiers/0/value",
+		"keyword": "pattern"
+	},
+	"item.key-forbidden-character.json": {
+		"instancePath": "/key",
+		"keyword": "pattern"
+	},
+	"item.lone-surrogate.json": {
+		"instancePath": "/name",
+		"keyword": "storable"
+	},
+	"item.media-http-url.json": {
+		"instancePath": "/media/0/url",
+		"keyword": "pattern"
+	},
+	"item.media-no-license.json": {
+		"instancePath": "/media/0",
+		"keyword": "required",
+		"params": {
+			"missingProperty": "license"
+		}
+	},
+	"item.no-usable-identifier.json": {
+		"instancePath": "/identifiers",
+		"keyword": "identifiable"
+	},
+	"item.null-character.json": {
+		"instancePath": "/properties/madeIn",
+		"keyword": "storable"
+	},
+	"item.scheme-uppercase.json": {
+		"instancePath": "/identifiers/0/scheme",
+		"keyword": "pattern"
+	},
+	"item.unknown-field.json": {
+		"instancePath": "",
+		"keyword": "additionalProperties"
+	},
+	"source.authoritative-lapsed.json": {
+		"instancePath": "/trust",
+		"keyword": "enum"
+	},
+	"source.dataset-authoritative.json": {
+		"instancePath": "/trust",
+		"keyword": "const"
+	},
+	"source.dataset-lapsed.json": {
+		"instancePath": "/lapsed",
+		"keyword": "const"
+	},
+	"source.dataset-name-no-prefix.json": {
+		"instancePath": "/name",
+		"keyword": "pattern"
+	},
+	"source.dataset-name-reserved-ldh.json": {
+		"instancePath": "/name",
+		"keyword": "pattern"
+	},
+	"source.dataset-name-uppercase.json": {
+		"instancePath": "/name",
+		"keyword": "pattern"
+	},
+	"source.dataset-via-dns-txt.json": {
+		"instancePath": "/last_crawl/via",
+		"keyword": "const"
+	},
+	"source.domain-via-import.json": {
+		"instancePath": "/last_crawl/via",
+		"keyword": "not"
+	},
+	"source.http-status-out-of-range.json": {
+		"instancePath": "/last_crawl/http_status",
+		"keyword": "minimum"
+	},
+	"source.import-not-success.json": {
+		"instancePath": "/last_crawl/outcome",
+		"keyword": "const"
+	},
+	"source.import-with-http-status.json": {
+		"instancePath": "/last_crawl/http_status",
+		"keyword": "false schema"
+	},
+	"source.import-without-document-url.json": {
+		"instancePath": "/last_crawl",
+		"keyword": "required",
+		"params": {
+			"missingProperty": "document_url"
+		}
+	},
+	"source.lapsed-without-timestamp.json": {
+		"instancePath": "",
+		"keyword": "required",
+		"params": {
+			"missingProperty": "lapsed_at"
+		}
+	},
+	"source.outcome-unknown.json": {
+		"instancePath": "/last_crawl/outcome",
+		"keyword": "enum"
+	},
+	"source.success-with-failed-feeds.json": {
+		"instancePath": "/last_crawl/feeds_failed",
+		"keyword": "const"
+	},
+	"source.transport-failure-200.json": {
+		"instancePath": "/last_crawl/http_status",
+		"keyword": "oneOf"
+	},
+	"source.unverified-with-proof.json": {
+		"instancePath": "/verified_by",
+		"keyword": "false schema"
+	},
+	"source.verified-without-proof.json": {
+		"instancePath": "",
+		"keyword": "required",
+		"params": {
+			"missingProperty": "verified_by"
+		}
+	},
+	"source.version-missing.json": {
+		"instancePath": "",
+		"keyword": "required",
+		"params": {
+			"missingProperty": "version"
+		}
+	}
+}

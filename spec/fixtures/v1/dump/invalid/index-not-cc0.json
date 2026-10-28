@@ -1,0 +1,42 @@
+{
+	"$type": "org.prodid.dump",
+	"version": 1,
+	"created_at": "2026-11-02T04:41:27Z",
+	"snapshot_at": "2026-11-02T04:30:02Z",
+	"files": [
+		{
+			"name": "sources.ndjson.gz",
+			"sha256": "4f1c2a9e8b7d6c5e0f3a2b1c9d8e7f6a5b4c3d2e1f0a9b8c7d6e5f4a3b2c1d0e",
+			"bytes": 18233,
+			"lines": 412
+		},
+		{
+			"name": "entities.ndjson.gz",
+			"sha256": "a3e2d1c0b9f8e7d6c5b4a39281706f5e4d3c2b1a0f9e8d7c6b5a493827160f5e",
+			"bytes": 51207731,
+			"lines": 1830512
+		},
+		{
+			"name": "records.ndjson.gz",
+			"sha256": "0d9c8b7a6f5e4d3c2b1a0918273645f6e5d4c3b2a1908f7e6d5c4b3a29180716",
+			"bytes": 39114802,
+			"lines": 1204377
+		},
+		{
+			"name": "groupings.ndjson.gz",
+			"sha256": "7e6d5c4b3a2918070f6e5d4c3b2a1908f7e6d5c4b3a291807f6e5d4c3b2a1908",
+			"bytes": 6021944,
+			"lines": 1415020
+		},
+		{
+			"name": "merges.ndjson.gz",
+			"sha256": "c2b1a09f8e7d6c5b4a3928170f6e5d4c3b2a19087f6e5d4c3b2a190807f6e5d4",
+			"bytes": 1183,
+			"lines": 37
+		}
+	],
+	"licenses": {
+		"index": "CC-BY-4.0",
+		"claims": "source"
+	}
+}

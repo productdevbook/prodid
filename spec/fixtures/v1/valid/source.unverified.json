@@ -1,0 +1,10 @@
+{
+	"$type": "org.prodid.source",
+	"version": 1,
+	"name": "acme.prodid.org",
+	"kind": "hosted",
+	"trust": "unverified",
+	"lapsed": false,
+	"license": "CC-BY-4.0",
+	"last_crawl": { "at": "2026-09-19T06:00:11Z", "outcome": "success", "records_seen": 12, "records_changed": 0, "lines_skipped": 2 }
+}

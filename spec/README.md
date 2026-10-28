@@ -131,7 +131,7 @@ A step **succeeds** when all of this holds:
 
 - HTTP 200, after at most the one permitted redirect;
 - a JSON content type: `application/json`, or any `application/…+json`;
-- a body that validates against [`org.prodid.feed`](schemas/org.prodid.feed.json) in a version the index [accepts](#versions);
+- a body that validates against [`org.prodid.feed`](schemas/v1/org.prodid.feed.json) in a version the index [accepts](#versions);
 - the `domain` rule below.
 
 Anything else is not an answer: a 404, a 200 carrying an HTML fallback page, a single-page app that answers every path, a document served as `text/html`.
@@ -216,9 +216,9 @@ Machine-readable vectors, one file per case: [`fixtures/txt/`](fixtures/txt).
 
 ### Feeds
 
-The discovery document ([schema](schemas/org.prodid.feed.json), [example](examples/prodid.json), [delegated example](examples/prodid.delegated.json)) lists the feeds, each served from the same host as the document itself. Both hosts are normalized the same way as a delegation's `host` before they are compared. A document listing a feed on any other host, or listing more than 100 feeds, is rejected whole: no feed from it is fetched, and discovery ends with no acceptable document. Serving feeds from a separate CDN hostname is not supported in v1.
+The discovery document ([schema](schemas/v1/org.prodid.feed.json), [example](fixtures/v1/examples/prodid.json), [delegated example](fixtures/v1/examples/prodid.delegated.json)) lists the feeds, each served from the same host as the document itself. Both hosts are normalized the same way as a delegation's `host` before they are compared. A document listing a feed on any other host, or listing more than 100 feeds, is rejected whole: no feed from it is fetched, and discovery ends with no acceptable document. Serving feeds from a separate CDN hostname is not supported in v1.
 
-A feed is NDJSON: one [`org.prodid.item`](schemas/org.prodid.item.json) record per line ([one record](examples/item.jacket.json), [a feed](examples/items.ndjson)). The index validates every line and records each field as a claim made by the source domain.
+A feed is NDJSON: one [`org.prodid.item`](schemas/v1/org.prodid.item.json) record per line ([one record](fixtures/v1/examples/item.jacket.json), [a feed](fixtures/v1/examples/items.ndjson)). The index validates every line and records each field as a claim made by the source domain.
 
 A line that is over the size cap, unparseable or invalid is skipped and counted. Because a skipped line's key is unknown, a feed with skipped lines withdraws nothing — but only for seven days. After seven days of crawls that keep skipping lines, absent keys are withdrawn as usual: a broken line may delay withdrawal, it may not disable it. The count is public in the source's status, so this never happens silently.
 
@@ -260,7 +260,7 @@ An open dataset that publishes no discovery document of its own enters the index
 
 - **Name.** A dataset source is named `dataset:<slug>`. The slug is 3 to 32 lowercase letters, digits and hyphens, begins and ends with a letter or a digit, and has no `--` in its third and fourth places — the grammar of a hosted slug. A hostname cannot contain `:`, so a dataset's name never collides with a domain or a slug host. `/source/dataset:<slug>` answers its status like any other source's.
 - **Trust.** A dataset source is always `unverified`. An import proves nothing about who is speaking: the operator mapped someone else's export into records, and nobody at the dataset took part.
-- **Import.** The export is mapped into [`org.prodid.item`](schemas/org.prodid.item.json) records, and those are ingested exactly as a feed's are: the same [record rules](#feeds), the same claims, identifiers and grouping. A full import withdraws the keys absent from it, as a feed fetched whole does. Each import is reported as the source's `last_crawl`, with `via` set to `import`; [A source's status](#a-sources-status) says what else it carries.
+- **Import.** The export is mapped into [`org.prodid.item`](schemas/v1/org.prodid.item.json) records, and those are ingested exactly as a feed's are: the same [record rules](#feeds), the same claims, identifiers and grouping. A full import withdraws the keys absent from it, as a feed fetched whole does. Each import is reported as the source's `last_crawl`, with `via` set to `import`; [A source's status](#a-sources-status) says what else it carries.
 - **Licence.** The source's `license` is the dataset's own, and every claim the source makes carries it.
 - **No discovery.** A dataset source is never discovered, so it is never pinged and it never lapses. `dataset:<slug>` is not a hostname, and a ping naming it is an `invalid-request` like any other name that is not one.
 
@@ -435,7 +435,7 @@ A published record becomes one claim per fact, under these names and no others:
 | `variant.<axis>` | key of `variant` | that axis's value |
 | `properties.<name>` | key of `properties` | that property's value |
 
-`<axis>` and `<name>` are exactly the publisher's own keys, which [`org.prodid.item`](schemas/org.prodid.item.json) already restricts to `^[a-z][A-Za-z0-9]*$`. The two prefixes are not decoration: flattened, a publisher property called `name` or `brand` would collide with the built-in claim of the same name, and a `variant` axis would collide with a `properties` entry of the same name. There is exactly one dot, and v1 defines no other property names.
+`<axis>` and `<name>` are exactly the publisher's own keys, which [`org.prodid.item`](schemas/v1/org.prodid.item.json) already restricts to `^[a-z][A-Za-z0-9]*$`. The two prefixes are not decoration: flattened, a publisher property called `name` or `brand` would collide with the built-in claim of the same name, and a `variant` axis would collide with a `properties` entry of the same name. There is exactly one dot, and v1 defines no other property names.
 
 `markets` and `media` are sets, so each element is its own claim, as the table says: `["TR", "DE"]` is two `markets` claims carrying `"TR"` and `"DE"`. Reordering the list in the feed then changes nothing, and a market added or dropped withdraws exactly one claim instead of rewriting the set.
 
@@ -482,7 +482,7 @@ An `opid` that was merged into another answers `308 Permanent Redirect` to `/id/
 
 ### An entity
 
-[Schema](schemas/org.prodid.entity.json). [Item](examples/entity.item.json), [family](examples/entity.family.json).
+[Schema](schemas/v1/org.prodid.entity.json). [Item](fixtures/v1/examples/entity.item.json), [family](fixtures/v1/examples/entity.family.json).
 
 ```json
 {
@@ -522,7 +522,7 @@ The conformance harness checks all three.
 
 ### A source's status
 
-[Schema](schemas/org.prodid.source.json). [Example](examples/source.json).
+[Schema](schemas/v1/org.prodid.source.json). [Example](fixtures/v1/examples/source.json).
 
 ```json
 {
@@ -695,7 +695,7 @@ https://dumps.prodid.org/v1/<YYYY-MM-DD>/manifest.json
 https://dumps.prodid.org/v1/latest.json
 ```
 
-A dump is a directory named after the UTC date of its `snapshot_at`, under the version it is written in: `v1/` holds v1 dumps, whose manifest and whose source and entity lines are v1 documents. The v0 dumps written before v1 stay under `v0/`, under the same retention, and `v0/latest.json` keeps naming the last of them. It holds five data files and a [manifest](schemas/org.prodid.dump.json) ([example](fixtures/dump/valid/manifest.json)). `latest.json` is a copy of the newest dump's `manifest.json`, and it is written last, after every file of that dump and its manifest are in place: a reader that starts from `latest.json` never finds a manifest naming a file that is not there yet, and finds the directory from the manifest's own `snapshot_at`.
+A dump is a directory named after the UTC date of its `snapshot_at`, under the version it is written in: `v1/` holds v1 dumps, whose manifest and whose source and entity lines are v1 documents. The v0 dumps written before v1 stay under `v0/`, under the same retention, and `v0/latest.json` keeps naming the last of them. It holds five data files and a [manifest](schemas/v1/org.prodid.dump.json) ([example](fixtures/v1/dump/valid/manifest.json)). `latest.json` is a copy of the newest dump's `manifest.json`, and it is written last, after every file of that dump and its manifest are in place: a reader that starts from `latest.json` never finds a manifest naming a file that is not there yet, and finds the directory from the manifest's own `snapshot_at`.
 
 ### Files
 
@@ -711,7 +711,7 @@ Every data file is NDJSON compressed with gzip, one JSON object per line. **All 
 
 An `opid` that was merged answers `308` at the resolver, so it has no document of its own to copy. Its line is the document it would answer were it not merged — its own identifiers and claims stay on it, which is what makes a merge reversible — with one more member, `merged_into`, the `opid` of its survivor. Without `merged_into` the line validates as `org.prodid.entity`. `merged_into` is never the line's own `opid`, and names an entity that is not itself merged, because merges do not chain.
 
-A **record** line is one record as the index keeps it. `source` is the source's name; `key` is the record's key in that source; `feed` is the URL of the feed it was read from, absent for a record a [dataset import](#dataset-sources) wrote; `opid` is the item it resolved to; `body` is the [`org.prodid.item`](schemas/org.prodid.item.json) the publisher sent, unchanged; `first_seen` and `last_seen` are when the index first and last read it; `withdrawn_at` is present exactly when the record is withdrawn. Every time is UTC, ISO 8601.
+A **record** line is one record as the index keeps it. `source` is the source's name; `key` is the record's key in that source; `feed` is the URL of the feed it was read from, absent for a record a [dataset import](#dataset-sources) wrote; `opid` is the item it resolved to; `body` is the [`org.prodid.item`](schemas/v1/org.prodid.item.json) the publisher sent, unchanged; `first_seen` and `last_seen` are when the index first and last read it; `withdrawn_at` is present exactly when the record is withdrawn. Every time is UTC, ISO 8601.
 
 A **grouping** line says which entity a source's grouping resolved to: `source` is the source's name, `kind` is `family` or `variant`, and `opid` is that entity. `key` is what the source's records are grouped on, written out rather than digested, so that another implementation can match its own grouping to it:
 
@@ -743,7 +743,7 @@ The manifest's `licenses` says what the contents are under, and the rule is the 
 
 ### Manifest
 
-`org.prodid.dump` names each of the five files exactly once, with the SHA-256 and the size of the file as served, compressed, and its number of lines once decompressed. A reader checks each file against its digest before loading it. `created_at` is when the manifest was written and is never before `snapshot_at`, a rule the schema cannot state. Vectors: [`fixtures/dump/`](fixtures/dump).
+`org.prodid.dump` names each of the five files exactly once, with the SHA-256 and the size of the file as served, compressed, and its number of lines once decompressed. A reader checks each file against its digest before loading it. `created_at` is when the manifest was written and is never before `snapshot_at`, a rule the schema cannot state. Vectors: [`fixtures/v1/dump/`](fixtures/v1/dump).
 
 ### Retention
 
@@ -751,20 +751,24 @@ A daily dump is kept for 7 days. The first dump of each UTC month is kept for go
 
 ## Conformance
 
-`bun run check` in this directory validates every example and fixture against the schemas, and runs the vector sets through reference implementations of the rules above.
+`bun run check` in this directory validates every example and fixture against the schemas of its version, and runs the vector sets through reference implementations of the rules above.
 
 | path | what it holds |
 | --- | --- |
-| [`fixtures/valid/`](fixtures/valid) | records that must validate |
-| [`fixtures/invalid/`](fixtures/invalid) | records that must be rejected, each for one defect |
+| [`schemas/v1/`](schemas/v1) | the v1 schemas, each `$id` under `https://prodid.org/schemas/v1/` |
+| [`fixtures/v1/examples/`](fixtures/v1/examples) | the v1 documents this text links as examples |
+| [`fixtures/v1/valid/`](fixtures/v1/valid) | v1 documents and records that must validate |
+| [`fixtures/v1/invalid/`](fixtures/v1/invalid) | v1 documents and records that must be rejected, each for one defect |
+| [`fixtures/v1/dump/`](fixtures/v1/dump) | v1 dump manifests that must validate (`valid/`) and must be rejected (`invalid/`) |
 | [`fixtures/txt/`](fixtures/txt) | `_prodid` TXT record values |
 | [`fixtures/gtin/`](fixtures/gtin) | GTIN classification |
 | [`fixtures/brand/`](fixtures/brand) | brand normalization |
 | [`fixtures/ndjson/`](fixtures/ndjson) | a feed and the line numbers that must be skipped |
 | [`fixtures/merchant/`](fixtures/merchant) | a Merchant file and the records it must produce |
-| [`fixtures/dump/`](fixtures/dump) | dump manifests that must validate (`valid/`) and must be rejected (`invalid/`) |
 
-Every file in `fixtures/invalid/` has an entry in [`fixtures/expected.json`](fixtures/expected.json), and every file in `fixtures/dump/invalid/` one in [`fixtures/dump/expected.json`](fixtures/dump/expected.json), naming the instance path, the schema keyword and, where it disambiguates, the error parameters that must reject it. A fixture that fails for a new and unrelated reason is a failure, not a pass. Six of the keywords name rules that live on top of the schemas rather than inside them, because JSON Schema cannot express them: `storable` for a string that cannot be stored, `gtin` for a value that is not a GTIN, `identifiable` for a record with no identifier the index can store, `self-reference` for an entity that lists its own `opid`, `order` for a `withdrawn_at` before its `seen_at` or a dump's `snapshot_at` after its `created_at`, and `digest` for a `media_url` that does not address its claim's `sha256`.
+The TXT, GTIN, brand, NDJSON and Merchant vectors hold for v0 and v1 alike, because v1 changed none of those rules; the harness runs the NDJSON and Merchant sets under the item schemas of both versions. v0 is kept beside v1, unchanged: its schemas are the files directly in [`schemas/`](schemas), its examples are [`examples/`](examples), and its vectors are [`fixtures/valid/`](fixtures/valid), [`fixtures/invalid/`](fixtures/invalid) and [`fixtures/dump/`](fixtures/dump), which a reader of v0 documents, a kept v0 dump among them, still checks against.
+
+Every file in `fixtures/v1/invalid/` has an entry in [`fixtures/v1/expected.json`](fixtures/v1/expected.json), and every file in `fixtures/v1/dump/invalid/` one in [`fixtures/v1/dump/expected.json`](fixtures/v1/dump/expected.json), as their v0 counterparts in `fixtures/expected.json` and `fixtures/dump/expected.json` do, naming the instance path, the schema keyword and, where it disambiguates, the error parameters that must reject it. A fixture that fails for a new and unrelated reason is a failure, not a pass. Six of the keywords name rules that live on top of the schemas rather than inside them, because JSON Schema cannot express them: `storable` for a string that cannot be stored, `gtin` for a value that is not a GTIN, `identifiable` for a record with no identifier the index can store, `self-reference` for an entity that lists its own `opid`, `order` for a `withdrawn_at` before its `seen_at` or a dump's `snapshot_at` after its `created_at`, and `digest` for a `media_url` that does not address its claim's `sha256`.
 
 A TXT vector is `{ "value": [...], "outcome": "delegation" | "ignored" | "malformed", "host": "..." }`, where `value` is the RR's character-strings in order and `host` is the normalized host, present exactly when the outcome is `delegation`. The three outcomes are behavioural, not cosmetic: `ignored` means the RR is not a prodid record and discovery carries on without it, `malformed` means discovery fails.
 
@@ -774,7 +778,7 @@ The Merchant fixture is derived, not asserted by hand: `bun run validate.ts --em
 
 ## Appendix: importing a Merchant feed
 
-The first publishers arrive with a spreadsheet, not a web server. A [Google Merchant](https://support.google.com/merchants/answer/7052112) product file is the format they already keep, so the hosted publisher imports one and writes [`org.prodid.item`](schemas/org.prodid.item.json) lines out of it. This appendix is the mapping, against Google's current product data specification.
+The first publishers arrive with a spreadsheet, not a web server. A [Google Merchant](https://support.google.com/merchants/answer/7052112) product file is the format they already keep, so the hosted publisher imports one and writes [`org.prodid.item`](schemas/v1/org.prodid.item.json) lines out of it. This appendix is the mapping, against Google's current product data specification.
 
 A Merchant file describes **offers**: what a seller sells, at what price, where, today. prodid records what a product **is**. The mapping is mostly a matter of keeping the second and dropping the first.
 
