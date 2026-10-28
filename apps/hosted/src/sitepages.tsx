@@ -258,6 +258,7 @@ export function SitePage(props: SiteView) {
 			<Upload {...props} />
 			<Domain {...props} />
 			<Settings {...props} />
+			<Export {...props} />
 		</Layout>
 	)
 }
@@ -345,6 +346,22 @@ function Settings(props: SiteView) {
 				<PublisherFields values={values} />
 				<button type="submit">Save settings</button>
 			</form>
+		</section>
+	)
+}
+
+function Export(props: SiteView) {
+	return (
+		<section id="export">
+			<h2>Export</h2>
+			<p class="soft">
+				A zip of this site's settings (<span class="mono">site.json</span>) and every feed, exactly as stored here. Built when you ask.
+			</p>
+			<p>
+				<a class="button" href={`/sites/${props.site.slug}/export`} download>
+					Download everything
+				</a>
+			</p>
 		</section>
 	)
 }

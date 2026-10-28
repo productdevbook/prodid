@@ -41,7 +41,8 @@ import {
 	type UploadResult,
 	type UploadValues,
 } from './sitepages'
-import { feedKey, parseSiteInput, readSite, removeFeed, type Site, siteDocument, storeFeed, writeSite } from './sites'
+import { feedKey, parseSiteInput, readSite, removeFeed, type Site, siteDocument, siteKey, storeFeed, writeSite } from './sites'
+import { zipStream } from './zip'
 
 const UPLOAD_DEFAULTS: UploadValues = { feed: 'items.ndjson', lang: '', markets: '', media: 'none' }
 const TOO_LARGE = `A feed is at most ${MAX_FEED_BYTES / 1024 / 1024} MiB. Split a larger catalogue across feeds.`
@@ -354,6 +355,26 @@ export function selfService(build: (env: Env) => Services): Hono<App> {
 		await writeSite(services.blobs, updated)
 		announce(c, updated)
 		return c.redirect(`/sites/${site.slug}#settings`, 303)
+	})
+
+	app.get('/sites/:slug/export', async (c) => {
+		const account = await signedIn(c)
+		if (account === null) return c.redirect('/', 303)
+		const site = await ownedSite(c, account)
+		if (site === null) return noSite(c, account)
+		const blobs = c.get('services').blobs
+		const entry = (name: string, key: string) => ({
+			name,
+			async open() {
+				const object = await blobs.get(key)
+				return object === null ? null : { body: object.body, modified: object.uploaded }
+			},
+		})
+		const entries = [entry('site.json', siteKey(site.slug)), ...site.feeds.map((name) => entry(`feeds/${name}`, feedKey(site.slug, name)))]
+		return c.body(zipStream(entries), 200, {
+			'content-type': 'application/zip',
+			'content-disposition': `attachment; filename="${siteHost(site.slug, c.get('services').zone)}.zip"`,
+		})
 	})
 
 	app.all('*', async (c) => {

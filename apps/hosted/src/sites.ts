@@ -40,7 +40,7 @@ export interface Site {
 	updatedAt: string
 }
 
-const siteKey = (slug: string): string => `sites/${slug}/site.json`
+export const siteKey = (slug: string): string => `sites/${slug}/site.json`
 export const feedKey = (slug: string, name: string): string => `sites/${slug}/feeds/${name}`
 
 export async function readSite(blobs: Blobs, slug: string): Promise<Site | null> {
