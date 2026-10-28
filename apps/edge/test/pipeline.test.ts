@@ -349,16 +349,25 @@ describe.skipIf(!reachable)('the resolver', () => {
 		expect((await edge!.fetch('/schemas/v0/nothing.json')).status).toBe(404)
 	})
 
-	test('every schema, the dump manifest included, answers the same way', async () => {
-		for (const name of ['dump', 'entity', 'feed', 'item', 'source']) {
-			const file = `org.prodid.${name}.json`
-			const response = await edge!.fetch(`/schemas/v0/${file}`)
-			expect(response.status).toBe(200)
-			expect(response.headers.get('content-type')).toBe('application/schema+json; charset=utf-8')
-			expect(response.headers.get('cache-control')).toBe('public, max-age=3600')
-			expect(response.headers.get('access-control-allow-origin')).toBe('*')
-			expect(await response.json()).toEqual(await Bun.file(new URL(`../../../spec/schemas/${file}`, import.meta.url)).json())
+	test('every schema of both versions, the dump manifest included, answers the same way', async () => {
+		for (const [version, directory] of [
+			['v0', 'schemas'],
+			['v1', 'schemas/v1'],
+		] as const) {
+			for (const name of ['dump', 'entity', 'feed', 'item', 'source']) {
+				const file = `org.prodid.${name}.json`
+				const response = await edge!.fetch(`/schemas/${version}/${file}`)
+				expect(response.status).toBe(200)
+				expect(response.headers.get('content-type')).toBe('application/schema+json; charset=utf-8')
+				expect(response.headers.get('cache-control')).toBe('public, max-age=3600')
+				expect(response.headers.get('access-control-allow-origin')).toBe('*')
+				const schema = await json<{ $id: string }>(response)
+				expect(schema.$id).toBe(`https://prodid.org/schemas/${version}/${file}`)
+				expect(schema).toEqual(await Bun.file(new URL(`../../../spec/${directory}/${file}`, import.meta.url)).json())
+			}
 		}
+		expect((await edge!.fetch('/schemas/v1/nothing.json')).status).toBe(404)
+		expect((await edge!.fetch('/schemas/v2/org.prodid.entity.json')).status).toBe(404)
 	})
 })
 

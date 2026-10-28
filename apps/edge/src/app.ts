@@ -4,6 +4,11 @@ import entitySchema from '@prodid/spec/schemas/org.prodid.entity.json'
 import feedSchema from '@prodid/spec/schemas/org.prodid.feed.json'
 import itemSchema from '@prodid/spec/schemas/org.prodid.item.json'
 import sourceSchema from '@prodid/spec/schemas/org.prodid.source.json'
+import dumpSchemaV1 from '@prodid/spec/schemas/v1/org.prodid.dump.json'
+import entitySchemaV1 from '@prodid/spec/schemas/v1/org.prodid.entity.json'
+import feedSchemaV1 from '@prodid/spec/schemas/v1/org.prodid.feed.json'
+import itemSchemaV1 from '@prodid/spec/schemas/v1/org.prodid.item.json'
+import sourceSchemaV1 from '@prodid/spec/schemas/v1/org.prodid.source.json'
 import { findMedia, readEntity, readEntityByGtin, readSourceStatus } from '@prodid/store'
 import { type Context, Hono } from 'hono'
 
@@ -23,14 +28,29 @@ const RESOLVER_CACHE = 'public, max-age=60, stale-while-revalidate=300'
 const SOURCE_CACHE = 'public, max-age=60'
 const SCHEMA_CACHE = 'public, max-age=3600'
 
-// A Map, not an object: `/schemas/v0/__proto__` and `/constructor` are paths a stranger can ask for,
+// Maps, not objects: `/schemas/v0/__proto__` and `/constructor` are paths a stranger can ask for,
 // and a plain property lookup answers both of them with something.
-const SCHEMAS = new Map<string, unknown>([
-	['org.prodid.dump.json', dumpSchema],
-	['org.prodid.entity.json', entitySchema],
-	['org.prodid.feed.json', feedSchema],
-	['org.prodid.item.json', itemSchema],
-	['org.prodid.source.json', sourceSchema],
+const SCHEMAS = new Map<string, ReadonlyMap<string, unknown>>([
+	[
+		'v0',
+		new Map<string, unknown>([
+			['org.prodid.dump.json', dumpSchema],
+			['org.prodid.entity.json', entitySchema],
+			['org.prodid.feed.json', feedSchema],
+			['org.prodid.item.json', itemSchema],
+			['org.prodid.source.json', sourceSchema],
+		]),
+	],
+	[
+		'v1',
+		new Map<string, unknown>([
+			['org.prodid.dump.json', dumpSchemaV1],
+			['org.prodid.entity.json', entitySchemaV1],
+			['org.prodid.feed.json', feedSchemaV1],
+			['org.prodid.item.json', itemSchemaV1],
+			['org.prodid.source.json', sourceSchemaV1],
+		]),
+	],
 ])
 
 function executionContext(c: Context<App>): Lifetime | undefined {
@@ -71,7 +91,7 @@ export function createApp(build: ServicesFactory): Hono<App> {
 
 	// The record is open: a page on any origin may read the JSON, never the HTML. A 308 has no body,
 	// so it is JSON when the request asked for JSON.
-	for (const path of ['/id/*', '/01/*', '/source/*', '/schemas/v0/*']) {
+	for (const path of ['/id/*', '/01/*', '/source/*', '/schemas/v0/*', '/schemas/v1/*']) {
 		app.use(path, async (c, next) => {
 			await next()
 			const type = c.res.headers.get('content-type')
@@ -126,8 +146,8 @@ export function createApp(build: ServicesFactory): Hono<App> {
 		return await respond(c.req.raw, status, () => renderSource(status), { cacheControl: SOURCE_CACHE })
 	})
 
-	app.get('/schemas/v0/:file', async (c) => {
-		const schema = SCHEMAS.get(c.req.param('file'))
+	app.get('/schemas/:version/:file', async (c) => {
+		const schema = SCHEMAS.get(c.req.param('version'))?.get(c.req.param('file'))
 		if (schema === undefined) return problemResponse(c.req.raw, 'not-found')
 		return new Response(`${JSON.stringify(schema, null, '\t')}\n`, {
 			headers: { 'content-type': 'application/schema+json; charset=utf-8', 'cache-control': SCHEMA_CACHE },

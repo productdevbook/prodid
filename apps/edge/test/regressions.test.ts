@@ -224,10 +224,12 @@ describe.skipIf(!reachable)('review round seven', () => {
 	// 15 — `/schemas/v0/__proto__` answered 200 with something.
 	test('a schema path that is not a schema is a 404, whatever it is named', async () => {
 		for (const name of ['__proto__', 'constructor', 'toString', 'hasOwnProperty', 'prototype']) {
-			const response = await edge!.fetch(`/schemas/v0/${name}`)
-			expect(response.status).toBe(404)
-			expect(await json<{ type: string }>(response)).toMatchObject({ type: 'https://prodid.org/problem/not-found' })
-			expect(response.headers.get('cache-control')).toBe('no-store')
+			for (const path of [`/schemas/v0/${name}`, `/schemas/v1/${name}`, `/schemas/${name}/org.prodid.entity.json`]) {
+				const response = await edge!.fetch(path)
+				expect(response.status).toBe(404)
+				expect(await json<{ type: string }>(response)).toMatchObject({ type: 'https://prodid.org/problem/not-found' })
+				expect(response.headers.get('cache-control')).toBe('no-store')
+			}
 		}
 	})
 

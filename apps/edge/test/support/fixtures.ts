@@ -1,4 +1,4 @@
-import type { FeedRecord, ItemRecord } from '@prodid/core'
+import type { FeedRecord, ItemRecord, SpecVersion } from '@prodid/core'
 import { gtinCheckDigit } from '@prodid/core'
 
 /** A GTIN-13 from a 12-digit body, with the check digit core computes. */
@@ -21,10 +21,11 @@ export function document(options: {
 	feeds: string[]
 	license?: string
 	publisher?: { name: string; contact?: string }
+	version?: SpecVersion
 }): FeedRecord {
 	const record: FeedRecord = {
 		$type: 'org.prodid.feed',
-		version: 0,
+		version: options.version ?? 0,
 		publisher: options.publisher ?? { name: 'Acme', contact: 'data@acme.example' },
 		license: options.license ?? 'CC0-1.0',
 		feeds: options.feeds,

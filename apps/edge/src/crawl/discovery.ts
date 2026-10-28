@@ -1,4 +1,4 @@
-import { acceptDiscovery, type DiscoveryVia, type FeedRecord, planDiscovery, TXT_PREFIX } from '@prodid/core'
+import { acceptDiscovery, acceptsV0Discovery, type DiscoveryVia, type FeedRecord, planDiscovery, TXT_PREFIX } from '@prodid/core'
 import type { FeedRow } from '@prodid/store'
 
 import type { Decision } from '../limits/client'
@@ -43,6 +43,8 @@ export interface DiscoveryInput {
 	unconditional: boolean
 	/** Feed URLs remembered from the last successful crawl, used when the document answers 304. */
 	knownFeeds: (documentUrl: string) => string[]
+	/** Decides whether a v0 document is still accepted. */
+	crawlStartedAt: Date
 }
 
 /**
@@ -63,7 +65,7 @@ export async function runDiscovery(input: DiscoveryInput): Promise<DiscoveryResu
 
 	const url = plan.plan.documentUrl
 	const via = plan.plan.via
-	const previous = input.unconditional ? undefined : input.feedState.get(url)
+	const previous = input.unconditional || mayBeV0(input, url) ? undefined : input.feedState.get(url)
 	const deadline = AbortSignal.timeout(input.caps.documentMs)
 	const response = await input.fetcher.fetch(url, {
 		headers: conditional(previous),
@@ -153,6 +155,7 @@ async function acceptResponse(
 		status: response.status,
 		contentType: response.headers.get('content-type'),
 		body,
+		crawlStartedAt: input.crawlStartedAt,
 	})
 	if (!decision.ok) {
 		return {
@@ -176,6 +179,16 @@ async function acceptResponse(
 		document: decision.document,
 		feeds: decision.feeds,
 	}
+}
+
+/**
+ * The document state is saved with the start of the crawl that accepted it, so a state older than
+ * the cut-off may stand for a v0 document that a 304 would carry past it.
+ */
+function mayBeV0(input: DiscoveryInput, url: string): boolean {
+	if (acceptsV0Discovery(input.crawlStartedAt)) return false
+	const accepted = input.feedState.get(url)?.last_fetched_at
+	return accepted == null || acceptsV0Discovery(accepted)
 }
 
 export function conditional(state: FeedRow | undefined): Record<string, string> {

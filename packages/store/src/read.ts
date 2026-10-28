@@ -109,6 +109,7 @@ export async function buildEntities(sql: Reader, rows: readonly EntityRow[], opt
 	return rows.map((row) => {
 		const entity: EntityRecord = {
 			$type: 'org.prodid.entity',
+			version: 1,
 			opid: row.opid,
 			kind: row.kind,
 			identifiers: identifiersOf.get(row.opid) ?? [],
@@ -273,6 +274,7 @@ async function readSourceStatuses(
 function toStatus(row: SourceStatusRow): SourceRecord {
 	const status: SourceRecord = {
 		$type: 'org.prodid.source',
+		version: 1,
 		name: row.name,
 		kind: row.kind,
 		trust: row.trust,

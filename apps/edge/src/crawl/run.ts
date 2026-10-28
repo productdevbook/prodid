@@ -79,6 +79,7 @@ export async function runDiscover(services: Services, domain: string): Promise<C
 		unconditional,
 		knownFeeds: (documentUrl) =>
 			[...feedState.values()].filter((row) => row.url !== documentUrl && row.retired_at === null).map((row) => row.url),
+		crawlStartedAt: startedAt,
 	})
 
 	if (discovery.kind === 'deferred') return { kind: 'deferred', retryAfterMs: discovery.retryAfterMs }

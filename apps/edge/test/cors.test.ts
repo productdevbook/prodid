@@ -95,14 +95,16 @@ describe.skipIf(!reachable)('resolver JSON is readable from any origin, HTML is 
 		expect(origin(asHtml)).toBeNull()
 	})
 
-	test('/schemas/v0: the schema and its problem carry it', async () => {
-		const schema = await edge!.fetch('/schemas/v0/org.prodid.entity.json')
-		expect(schema.headers.get('content-type')).toContain('application/schema+json')
-		expect(origin(schema)).toBe('*')
-		const missing = await edge!.fetch('/schemas/v0/org.prodid.nothing.json', { headers: JSON_ACCEPT })
-		expect(missing.status).toBe(404)
-		expect(origin(missing)).toBe('*')
-	})
+	for (const version of ['v0', 'v1']) {
+		test(`/schemas/${version}: the schema and its problem carry it`, async () => {
+			const schema = await edge!.fetch(`/schemas/${version}/org.prodid.entity.json`)
+			expect(schema.headers.get('content-type')).toContain('application/schema+json')
+			expect(origin(schema)).toBe('*')
+			const missing = await edge!.fetch(`/schemas/${version}/org.prodid.nothing.json`, { headers: JSON_ACCEPT })
+			expect(missing.status).toBe(404)
+			expect(origin(missing)).toBe('*')
+		})
+	}
 
 	test('a resolver path on the media host is not a resolver answer and does not carry it', async () => {
 		const onMedia = await edge!.fetchMedia(`/id/${navy}`, { headers: JSON_ACCEPT })
