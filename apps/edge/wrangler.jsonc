@@ -98,5 +98,7 @@
 		// control of a slug, not of a domain. The index only classifies them; `apps/hosted` serves
 		// them, and the crawler reaches it over DNS and HTTPS like any other host.
 		"HOSTING_ZONE": "prodid.org",
+		// The only host that serves `/sha256/*`, and the only thing it serves.
+		"MEDIA_HOST": "media.prodid.org",
 	},
 }

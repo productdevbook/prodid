@@ -28,6 +28,8 @@ export interface Edge {
 	limits: LocalLimiter
 	services: Services
 	fetch(path: string, init?: RequestInit): Promise<Response>
+	/** The same app as `media.prodid.org` sees it. */
+	fetchMedia(path: string, init?: RequestInit): Promise<Response>
 	/** Discovery and every message it leads to, the way the consumer would run them. */
 	crawl(domain: string): Promise<CrawlStep>
 	/** Runs every queued message whose delay has elapsed. */
@@ -71,6 +73,7 @@ function build(sql: Sql, clock: TestClock): Edge {
 		now: clock.now,
 		crawlIntervalMs: 6 * 3_600_000,
 		hostingZone: 'prodid.org',
+		mediaHost: 'media.prodid.org',
 	}
 
 	const app = createApp(() => services)
@@ -113,6 +116,9 @@ function build(sql: Sql, clock: TestClock): Edge {
 		services,
 		async fetch(path, init) {
 			return await app.fetch(new Request(`https://prodid.org${path}`, init), {} as Env)
+		},
+		async fetchMedia(path, init) {
+			return await app.fetch(new Request(`https://media.prodid.org${path}`, init), {} as Env)
 		},
 		async crawl(domain) {
 			const started = await consumeCrawl(services, { kind: 'discover', domain })

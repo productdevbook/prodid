@@ -94,6 +94,8 @@ export interface Services {
 	crawlIntervalMs: number
 	/** Names under this zone are hosted slugs, whatever they serve. */
 	hostingZone: string
+	/** The host `/sha256/*` answers on; nothing else answers there. */
+	mediaHost: string
 	/** Released when the invocation that built these services is over. */
 	close?: () => Promise<void>
 }
@@ -132,6 +134,7 @@ export function productionServices(env: Env): Services {
 		now: () => new Date(),
 		crawlIntervalMs: Number(env.CRAWL_INTERVAL_MINUTES) * 60_000,
 		hostingZone: env.HOSTING_ZONE,
+		mediaHost: env.MEDIA_HOST,
 	}
 }
 

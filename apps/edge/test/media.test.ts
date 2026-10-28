@@ -239,7 +239,7 @@ describe.skipIf(!reachable)('media.prodid.org', () => {
 		const [key] = [...edge!.media.objects.keys()]
 		const hex = key!.slice('sha256/'.length)
 
-		const response = await edge!.fetch(`/sha256/${hex}`)
+		const response = await edge!.fetchMedia(`/sha256/${hex}`)
 		expect(response.status).toBe(200)
 		expect(response.headers.get('content-type')).toBe('image/png')
 		expect(response.headers.get('x-content-type-options')).toBe('nosniff')
@@ -247,7 +247,7 @@ describe.skipIf(!reachable)('media.prodid.org', () => {
 		expect(response.headers.get('access-control-allow-origin')).toBe('*')
 		expect(response.headers.get('cache-control')).toContain('immutable')
 
-		const revalidated = await edge!.fetch(`/sha256/${hex}`, { headers: { 'if-none-match': response.headers.get('etag')! } })
+		const revalidated = await edge!.fetchMedia(`/sha256/${hex}`, { headers: { 'if-none-match': response.headers.get('etag')! } })
 		expect(revalidated.status).toBe(304)
 	})
 
@@ -259,7 +259,7 @@ describe.skipIf(!reachable)('media.prodid.org', () => {
 		const hex = key!.slice('sha256/'.length)
 
 		await blockMedia(edge!.sql, { sha256: hex, now: edge!.clock.now() })
-		const response = await edge!.fetch(`/sha256/${hex}`)
+		const response = await edge!.fetchMedia(`/sha256/${hex}`)
 		expect(response.status).toBe(410)
 		expect(await json<{ type: string }>(response)).toMatchObject({ type: 'https://prodid.org/problem/blocked-media' })
 	})
@@ -332,7 +332,7 @@ describe.skipIf(!reachable)('the cap comes from what the bytes are', () => {
 		expect(object.options.contentType).toBe('application/pdf')
 		// A document is downloaded, never rendered in place.
 		const hex = [...edge!.media.objects.keys()][0]!.slice('sha256/'.length)
-		const served = await edge!.fetch(`/sha256/${hex}`)
+		const served = await edge!.fetchMedia(`/sha256/${hex}`)
 		expect(served.headers.get('content-disposition')).toBe('attachment')
 		expect(served.headers.get('content-security-policy')).toBe("default-src 'none'; sandbox")
 
@@ -489,6 +489,47 @@ describe.skipIf(!reachable)('one file behind many records', () => {
 		}
 		expect(edge!.media.objects.size).toBe(1)
 		expect(await mediaFailed()).toBe(0)
+	})
+})
+
+describe.skipIf(!reachable)('one origin for media, one for documents', () => {
+	beforeEach(async () => {
+		await edge!.reset()
+		edge!.clock.advance(TEN_MINUTES)
+	})
+
+	async function stored(): Promise<string> {
+		serve([{ url: IMAGE, license: 'CC-BY-4.0', kind: 'image' }])
+		await edge!.crawl('acme.example')
+		await edge!.drainMedia()
+		const [key] = [...edge!.media.objects.keys()]
+		return key!.slice('sha256/'.length)
+	}
+
+	test('prodid.org/sha256/<hex> is a not-found problem even for a stored file', async () => {
+		const hex = await stored()
+		expect((await edge!.fetchMedia(`/sha256/${hex}`)).status).toBe(200)
+
+		const response = await edge!.fetch(`/sha256/${hex}`)
+		expect(response.status).toBe(404)
+		expect(response.headers.get('content-type')).toContain('application/problem+json')
+		expect(await json<{ status: number }>(response)).toMatchObject({ status: 404 })
+	})
+
+	test('media.prodid.org answers no resolver route', async () => {
+		await stored()
+		const entity = await json<EntityRecord>(await edge!.fetch(`/01/${GTINS.navy}`))
+		expect((await edge!.fetch(`/id/${entity.opid}`)).status).toBe(200)
+
+		for (const path of [`/id/${entity.opid}`, `/01/${GTINS.navy}`, '/source/acme.example', '/schemas/v0/org.prodid.item.json']) {
+			const response = await edge!.fetchMedia(path)
+			expect(response.status).toBe(404)
+			expect(response.headers.get('content-type')).toContain('application/problem+json')
+		}
+		const queued = edge!.queue.sent.length
+		const ping = await edge!.fetchMedia('/ping', { method: 'POST', body: JSON.stringify({ domains: ['acme.example'] }) })
+		expect(ping.status).toBe(404)
+		expect(edge!.queue.sent).toHaveLength(queued)
 	})
 })
 

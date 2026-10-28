@@ -60,6 +60,13 @@ export function createApp(build: ServicesFactory): Hono<App> {
 		}
 	})
 
+	// One origin for active-content-free bytes, one for documents.
+	app.use('*', async (c, next) => {
+		const onMediaHost = new URL(c.req.url).hostname === c.get('services').mediaHost
+		if (onMediaHost !== c.req.path.startsWith('/sha256/')) return problemResponse(c.req.raw, 'not-found')
+		await next()
+	})
+
 	app.get('/id/:opid', async (c) => {
 		const opid = c.req.param('opid')
 		if (!isOpid(opid)) return problemResponse(c.req.raw, 'unknown-opid')
