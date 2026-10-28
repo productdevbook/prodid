@@ -6,305 +6,445 @@ import { examples } from '@/lib/spec'
 const DESCRIPTION =
 	'prodid gives every physical product a permanent open identifier. GTIN, MPN and every other code resolve to it, and every fact is a claim attributed to its source.'
 
+interface ExampleClaim {
+	property: string
+	value: unknown
+	lang?: string
+	source: { name: string; trust: string; lapsed: boolean }
+	seen_at: string
+}
+
+interface ExampleEntity {
+	opid: string
+	parents: { family: string; variant: string }
+	identifiers: { scheme: string; value: string; scope?: string }[]
+	claims: ExampleClaim[]
+}
+
+const entity = JSON.parse(examples.entityItem) as ExampleEntity
+
+function show(value: unknown): string {
+	if (typeof value === 'string') return value
+	if (typeof value === 'object' && value !== null && 'value' in value && 'unit' in value) {
+		const measured = value as { value: number; unit: string }
+		return `${measured.value} ${measured.unit}`
+	}
+	if (typeof value === 'object' && value !== null && 'kind' in value && 'license' in value) {
+		const media = value as { kind: string; license: string }
+		return `${media.kind} · ${media.license}`
+	}
+	return JSON.stringify(value)
+}
+
+const markets = entity.claims.filter((claim) => claim.property === 'markets').map((claim) => show(claim.value))
+const rows = [
+	...entity.claims.filter((claim) => claim.property !== 'markets'),
+	...(markets.length > 0 ? [{ ...entity.claims.find((claim) => claim.property === 'markets')!, value: markets.join(', ') }] : []),
+]
+	.map((claim) => ({
+		property: claim.property.replace(/^properties\./, ''),
+		value: show(claim.value),
+		source: claim.source.name,
+		trust: claim.source.trust,
+		lapsed: claim.source.lapsed,
+		seen: claim.seen_at.slice(0, 10),
+	}))
+	.sort((a, b) => Number(a.lapsed) - Number(b.lapsed))
+
+const heroRows = [
+	rows.find((row) => row.property === 'material'),
+	rows.find((row) => row.property === 'weight'),
+	rows.find((row) => row.lapsed),
+].filter((row) => row !== undefined)
+
+const brand = rows.find((row) => row.property === 'brand')?.value ?? ''
+const name = rows.find((row) => row.property === 'name' && !row.lapsed)?.value ?? ''
+const gtin = entity.identifiers.find((identifier) => identifier.scheme === 'gtin')?.value ?? ''
+
+const codes = [
+	{ value: gtin, note: 'retail unit for DE and TR' },
+	{ value: 'another GTIN', note: 'the same jacket in a two-pack' },
+	{ value: 'another GTIN', note: 'next year’s packaging' },
+	{ value: 'TJ-2041-NVY-M', note: 'manufacturer part number' },
+]
+
 const model = [
-	{
-		kind: 'family',
-		title: 'Acme Trail Jacket',
-		opid: '5c8nt0we1qv7hj2b',
-		note: 'the product as people talk about it',
-	},
-	{
-		kind: 'variant',
-		title: 'navy · size M',
-		opid: '9htb4e0qmr75w2xk',
-		note: 'one combination of variant axes',
-	},
-	{
-		kind: 'item',
-		title: 'retail unit for DE and TR',
-		opid: '7qk2m9x4rb3fhd80',
-		note: 'the thing that carries a barcode',
-	},
+	{ kind: 'family', opid: entity.parents.family, title: 'Acme Trail Jacket', note: 'The product as people talk about it.' },
+	{ kind: 'variant', opid: entity.parents.variant, title: 'navy · size M', note: 'One combination of colour, size and the like.' },
+	{ kind: 'item', opid: entity.opid, title: 'Retail unit for DE and TR', note: 'The thing that carries a barcode.' },
 ]
 
-const indents = ['pl-0', 'pl-5 sm:pl-10', 'pl-10 sm:pl-20']
-
-const identifiers = [
-	{ scheme: 'gtin', value: '09506000134352', note: 'printed on the box, in the barcode and the QR code' },
-	{ scheme: 'mpn', value: 'TJ-2041-NVY-M', note: 'the manufacturer part number, scoped to the brand' },
-	{ scheme: 'sku', value: 'ACM-TJ-NVY-M', note: 'a retailer stock code, scoped to that retailer' },
-]
-
-const steps = [
-	{
-		verb: 'Publish',
-		body: 'A manufacturer serves one file on its own domain listing feeds of the products it makes, and publishes one DNS TXT record naming the host that serves it. DNS is checked first, because only the domain owner can write it. A software vendor that hosts thousands of merchants does the same on each merchant domain; a manufacturer that cannot serve files at all points the record at a host that can.',
-		link: { href: '/publish', label: 'How to publish' },
-	},
-	{
-		verb: 'Index',
-		body: 'prodid fetches the file and the feeds, validates every line against the published schemas, assigns or matches an opid, and records each field as a claim attributed to that domain. Retailers, registries and open datasets are sources in exactly the same way: their claims sit beside the manufacturer, never on top of it.',
-		link: { href: '/spec#claims', label: 'How claims work' },
-	},
-	{
-		verb: 'Resolve',
-		body: 'The code on the box becomes an address. prodid.org/01/{gtin} is GS1 Digital Link syntax, which means it can be the QR code printed on the product itself. Ask for HTML and you get a page a shopper can read; ask for JSON and you get the record, every claim carrying its source.',
-		link: { href: '/spec#the-resolver', label: 'How resolving works' },
-	},
+const trust = [
+	{ level: 'authoritative', meaning: 'Controls the domain and is confirmed as the brand owner.' },
+	{ level: 'verified', meaning: 'Proved control of a domain through DNS or its own website.' },
+	{ level: 'unverified', meaning: 'A hosted name without a domain, a dataset, or a contribution.' },
 ]
 
 const audiences = [
 	{
-		title: 'Manufacturers and exporters',
-		body: 'State your product data once, on your own domain, in a form every buyer, marketplace and customs desk can read. Publishing it yourself means no buyer has to take a reseller listing as the truth about what you make, and no marketplace owns the canonical description of your own product.',
+		title: 'Manufacturers',
+		body: 'State your product data once, on your own domain. No reseller listing or marketplace owns the description of what you make.',
 	},
 	{
 		title: 'E-commerce, ERP and PIM vendors',
-		body: 'You already hold this data for your customers. Publishing it is one discovery document per merchant domain and one feed, generated from what you have. Your customers get a public, attributed, machine-readable record without a new integration for every buyer who asks.',
+		body: 'One discovery document and one feed per merchant domain, generated from data you already hold.',
 	},
 	{
-		title: 'Developers and data consumers',
-		body: 'Resolve any barcode to a stable identifier that survives repackaging and market changes. Every fact carries the source that made it, when it was seen and whether that source has lapsed, so you decide what to trust rather than inheriting somebody else’s merge. The schemas, the identifiers and the mappings between them are CC0.',
+		title: 'Developers',
+		body: 'Resolve any code to an identifier that survives repackaging. Every fact says who said it, when, and whether that source still stands behind it.',
 	},
 ]
 
-const request = `GET /01/09506000134352 HTTP/1.1
+const request = `GET /01/${gtin} HTTP/1.1
 Host: prodid.org
 Accept: application/json
 
 HTTP/1.1 200 OK
 Content-Type: application/json
-Content-Location: /id/kq7m3v9dn2hb4t5x`
+Content-Location: /id/${entity.opid}`
+
+const eyebrow = 'font-mono text-xs tracking-[0.18em] text-accent uppercase'
+const heading = 'mt-4 text-2xl font-semibold tracking-tight text-balance sm:text-[2.1rem] sm:leading-[1.15]'
 ---
 
 <Layout title="prodid — open identity for every physical product" description={DESCRIPTION}>
-	<section class="shell">
-		<div class="max-w-3xl pt-16 pb-14 sm:pt-24 sm:pb-20">
-			<p class="font-mono text-xs tracking-[0.18em] text-soft uppercase">Open product identity</p>
-			<h1 class="mt-5 text-[2rem] leading-[1.12] font-semibold tracking-tight sm:text-[3.1rem]">
-				An open identity and data layer for every physical product.
-			</h1>
-			<p class="mt-6 max-w-2xl text-lg leading-relaxed text-soft sm:text-xl">
-				prodid gives every product a permanent open identifier. Barcodes, part numbers and catalogue codes resolve to it.
-				Every fact about the product is a claim, and every claim carries the source that made it.
+	<section class="shell grid items-center gap-12 pt-14 pb-16 sm:pt-20 sm:pb-24 lg:grid-cols-[1.05fr_1fr] [&>*]:min-w-0">
+		<div>
+			<p class="inline-flex items-center gap-2 rounded-full border border-line bg-surface px-3 py-1.5 text-xs text-soft">
+				<span class="size-2 rounded-full bg-ok" aria-hidden="true"></span>
+				Spec v0 draft · live, no feed crawled yet
 			</p>
-			<div class="mt-9 flex flex-wrap items-center gap-3">
+			<h1 class="mt-6 text-[2.3rem] leading-[1.06] font-semibold tracking-tight sm:text-[3.4rem]">
+				A barcode is not a product. <span class="text-accent">prodid is.</span>
+			</h1>
+			<p class="mt-6 max-w-xl text-lg leading-relaxed text-soft">
+				A permanent, open identifier for every physical product. Every barcode and part number resolves to it, and every fact
+				about it names the source that said it.
+			</p>
+			<div class="mt-9 flex flex-wrap gap-3">
 				<a
 					href="/publish"
-					class="rounded-md bg-ink px-5 py-2.5 text-sm font-medium text-bg transition-opacity hover:opacity-85"
+					class="inline-flex min-h-11 items-center rounded-md bg-ink px-5 text-sm font-medium text-bg transition-opacity hover:opacity-85"
 				>
 					Publish your products
 				</a>
 				<a
 					href="/spec"
-					class="rounded-md border border-rule px-5 py-2.5 text-sm font-medium transition-colors hover:border-accent hover:text-accent"
+					class="inline-flex min-h-11 items-center rounded-md border border-rule bg-surface px-5 text-sm font-medium transition-colors hover:border-accent hover:text-accent"
 				>
 					Read the specification
 				</a>
 			</div>
-			<p class="mt-8 text-sm text-soft">
-				Specification <strong class="font-medium text-ink">v0 draft</strong>. Reference implementation in progress — the
-				resolver is not live yet.
-			</p>
 		</div>
-	</section>
 
-	<section aria-labelledby="problem" class="border-t border-line">
-		<div class="shell py-16 sm:py-20">
-			<div class="max-w-3xl">
-				<p class="font-mono text-xs tracking-[0.18em] text-soft uppercase">The problem</p>
-				<h2 id="problem" class="mt-4 text-2xl font-semibold tracking-tight sm:text-3xl">A barcode is not a product.</h2>
-				<div class="mt-6 grid gap-5 text-base leading-relaxed sm:text-lg [&>*]:min-w-0">
-					<p>
-						The same jacket carries one barcode in Germany and another in Türkiye. A third when it ships in a two-pack.
-						A fourth when the packaging changes next year. None of those numbers means <em>this product</em>; each one
-						means <em>this trade item, in this packaging, for this market, this year</em>.
-					</p>
-					<p>
-						Meanwhile what anyone actually wants to know — the material, the weight, the energy label, the manual, the
-						recall notice — sits somewhere else for every one of those codes: in the manufacturer’s PIM, in a
-						retailer’s catalogue, in a national registry, in an open database somebody scraped. Nothing joins them, and
-						nothing records who said what.
-					</p>
-					<p>
-						prodid does two things about that. It gives the product itself an identifier that does not change when the
-						barcode does. And it keeps every fact as a claim, attributed to the source that made it, so disagreement is
-						visible instead of silently overwritten.
-					</p>
+		<figure class="w-full">
+			<div class="overflow-hidden rounded-xl border border-line bg-surface shadow-[0_1px_2px_rgb(0_0_0/0.04),0_8px_24px_-12px_rgb(0_0_0/0.12)]">
+				<div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-line bg-sunken px-4 py-3 font-mono text-xs text-soft">
+					<span>prodid.org/01/{gtin}</span>
+					<span>→ /id/{entity.opid}</span>
 				</div>
-			</div>
-		</div>
-	</section>
-
-	<section aria-labelledby="model" class="border-t border-line">
-		<div class="shell py-16 sm:py-20">
-			<div class="max-w-3xl">
-				<p class="font-mono text-xs tracking-[0.18em] text-soft uppercase">The model</p>
-				<h2 id="model" class="mt-4 text-2xl font-semibold tracking-tight sm:text-3xl">
-					Family, variant, item — then the codes.
-				</h2>
-				<p class="mt-6 text-base leading-relaxed text-soft sm:text-lg">
-					Three kinds of entity, each with its own <code class="chip">opid</code>: 16 opaque characters that encode
-					nothing, are never reused and never deleted. Identifiers are not entities. They point at one.
-				</p>
-			</div>
-
-			<div class="mt-10 overflow-hidden rounded-xl border border-line bg-surface">
-				<ol class="divide-y divide-line">
+				<div class="flex items-start gap-4 px-4 py-5 sm:px-5">
+					<div class="grid size-16 shrink-0 place-items-center rounded-lg bg-accent-bg text-accent" aria-hidden="true">
+						<svg viewBox="0 0 24 24" class="size-7" fill="none" stroke="currentColor" stroke-width="1.6">
+							<path d="M8 3 4 6v4l2 1v10h12V11l2-1V6l-4-3-2 2h-4L8 3Z" stroke-linejoin="round"></path>
+						</svg>
+					</div>
+					<div class="min-w-0">
+						<p class="text-xs tracking-wider text-soft uppercase">Item · {brand}</p>
+						<p class="mt-1 text-xl font-semibold tracking-tight">{name}</p>
+						<p class="mt-1 text-sm text-soft">navy · M · sold in {markets.join(', ')}</p>
+					</div>
+				</div>
+				<ul class="border-t border-line text-sm">
 					{
-						model.map((level, i) => (
-							<li class:list={['px-5 py-4 sm:px-6', indents[i]]}>
-								<div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-									<span class="w-16 shrink-0 font-mono text-[0.7rem] tracking-wider text-soft uppercase">{level.kind}</span>
-									<span class="font-medium">{level.title}</span>
-									<span class="font-mono text-[0.8125rem] text-soft">{level.opid}</span>
-								</div>
-								<p class="mt-1 pl-0 text-sm text-soft sm:pl-19">{level.note}</p>
+						heroRows.map((row) => (
+							<li
+								class:list={[
+									'grid grid-cols-[6.5rem_minmax(0,1fr)] items-baseline gap-x-3 gap-y-1 border-b border-line px-4 py-3 last:border-b-0 sm:grid-cols-[6.5rem_minmax(0,1fr)_auto] sm:px-5',
+									row.lapsed && 'bg-warn-bg',
+								]}
+							>
+								<span class="font-mono text-xs text-soft">{row.property}</span>
+								<span class:list={[row.lapsed && 'text-soft line-through']}>{row.value}</span>
+								<span class:list={['col-start-2 text-xs sm:col-start-auto', row.lapsed ? 'text-warn' : 'text-ok']}>
+									{row.lapsed ? `lapsed · ${row.source}` : `✓ ${row.source}`}
+								</span>
 							</li>
 						))
 					}
-				</ol>
-				<div class="border-t border-line bg-sunken px-5 py-4 sm:px-6">
-					<p class="text-xs font-semibold tracking-wider text-soft uppercase">Identifiers that resolve to that item</p>
-					<ul class="mt-3 grid gap-2.5 [&>*]:min-w-0">
-						{
-							identifiers.map((id) => (
-								<li class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-									<span class="w-16 shrink-0 font-mono text-[0.7rem] tracking-wider text-soft uppercase">{id.scheme}</span>
-									<span class="font-mono text-[0.875rem]">{id.value}</span>
-									<span class="text-sm text-soft">{id.note}</span>
-								</li>
-							))
-						}
-					</ul>
-				</div>
+				</ul>
 			</div>
-			<p class="mt-4 max-w-3xl text-sm leading-relaxed text-soft">
-				Change the packaging and a new item appears with a new barcode, under the same variant and the same family. The
-				old <code class="chip">opid</code> keeps resolving. Nothing that ever pointed at it breaks.
-			</p>
+			<figcaption class="mt-3 text-sm text-soft">
+				What scanning the code on the label returns. The record is the specification’s own example.
+			</figcaption>
+		</figure>
+	</section>
+
+	<section aria-labelledby="problem" class="border-y border-line bg-surface">
+		<div class="shell grid items-center gap-12 py-16 sm:py-24 lg:grid-cols-[1fr_1.15fr] [&>*]:min-w-0">
+			<div>
+				<p class={eyebrow}>The problem</p>
+				<h2 id="problem" class={heading}>Four codes, one jacket, and nothing joining them.</h2>
+				<p class="mt-5 text-base leading-relaxed text-soft sm:text-lg">
+					A product gets a new barcode for every market, pack size and packaging change, and its data sits in a different
+					system for each one. When two of them disagree, one is quietly overwritten.
+				</p>
+				<p class="mt-4 text-base leading-relaxed text-soft sm:text-lg">
+					prodid gives the product itself an identifier that does not change when the barcode does.
+				</p>
+			</div>
+
+			<figure aria-label="Several codes resolving to one variant" class="flex flex-col items-stretch gap-4 sm:flex-row sm:items-center">
+				<ul class="grid flex-1 gap-2.5">
+					{
+						codes.map((code) => (
+							<li class="rounded-lg border border-line bg-bg px-4 py-3">
+								<p class:list={['font-mono text-sm', code.value === 'another GTIN' && 'text-soft italic']}>{code.value}</p>
+								<p class="mt-0.5 text-xs text-soft">{code.note}</p>
+							</li>
+						))
+					}
+				</ul>
+				<svg viewBox="0 0 48 24" class="h-6 w-12 shrink-0 rotate-90 self-center text-accent sm:rotate-0" aria-hidden="true">
+					<path d="M2 12h40m-9-9 9 9-9 9" fill="none" stroke="currentColor" stroke-width="2"></path>
+				</svg>
+				<div class="flex-1 rounded-xl border-2 border-accent bg-accent-bg p-5">
+					<p class="text-xs tracking-wider text-accent uppercase">One variant</p>
+					<p class="mt-2 font-mono text-lg font-medium">{entity.parents.variant}</p>
+					<p class="mt-2 text-sm leading-relaxed text-soft">Never reused, never deleted. Every code that ever pointed here keeps working.</p>
+				</div>
+			</figure>
 		</div>
 	</section>
 
-	<section aria-labelledby="how" class="border-t border-line">
-		<div class="shell py-16 sm:py-20">
-			<div class="max-w-3xl">
-				<p class="font-mono text-xs tracking-[0.18em] text-soft uppercase">How it works</p>
-				<h2 id="how" class="mt-4 text-2xl font-semibold tracking-tight sm:text-3xl">Publish, index, resolve.</h2>
-			</div>
-			<ol class="mt-10 grid gap-px overflow-hidden rounded-xl border border-line bg-line md:grid-cols-3 [&>*]:min-w-0">
-				{
-					steps.map((step, i) => (
-						<li class="flex flex-col bg-surface p-6">
-							<p class="font-mono text-xs text-soft">{String(i + 1).padStart(2, '0')}</p>
-							<h3 class="mt-3 text-lg font-semibold tracking-tight">{step.verb}</h3>
-							<p class="mt-3 flex-1 text-[0.9375rem] leading-relaxed text-soft">{step.body}</p>
-							<a href={step.link.href} class="mt-5 rounded-sm text-sm font-medium text-accent underline-offset-4 hover:underline">
-								{step.link.label} →
-							</a>
+	<section aria-labelledby="model" class="shell py-16 sm:py-24">
+		<div class="max-w-2xl">
+			<p class={eyebrow}>The model</p>
+			<h2 id="model" class={heading}>Family, variant, item. Codes point at them; they are not them.</h2>
+			<p class="mt-5 text-base leading-relaxed text-soft sm:text-lg">
+				Each level has its own <code class="chip">opid</code>: 16 characters that encode nothing, so nothing about the product
+				can make them wrong.
+			</p>
+		</div>
+
+		<ol class="mt-10 grid gap-3 md:grid-cols-[1fr_auto_1fr_auto_1fr] md:items-stretch [&>*]:min-w-0">
+			{
+				model.map((level, index) => (
+					<>
+						{index > 0 && (
+							<li aria-hidden="true" class="grid place-items-center text-rule">
+								<svg viewBox="0 0 24 24" class="size-5 rotate-90 md:rotate-0" fill="none" stroke="currentColor" stroke-width="2">
+									<path d="M5 12h14m-6-6 6 6-6 6"></path>
+								</svg>
+							</li>
+						)}
+						<li class:list={['rounded-xl border bg-surface p-5', index === 2 ? 'border-accent' : 'border-line']}>
+							<p class="font-mono text-xs text-soft">
+								<span class="tracking-wider uppercase">{level.kind}</span> · {level.opid}
+							</p>
+							<p class="mt-3 text-lg font-semibold tracking-tight">{level.title}</p>
+							<p class="mt-1.5 text-sm leading-relaxed text-soft">{level.note}</p>
+							{index === 2 && (
+								<ul class="mt-4 grid gap-1.5 border-t border-line pt-4 [&>*]:min-w-0">
+									{entity.identifiers.map((identifier) => (
+										<li class="flex flex-wrap items-baseline gap-x-2 text-sm">
+											<span class="w-10 shrink-0 font-mono text-[0.7rem] tracking-wider text-soft uppercase">{identifier.scheme}</span>
+											<span class="font-mono text-[0.8125rem] break-all">{identifier.value}</span>
+										</li>
+									))}
+								</ul>
+							)}
 						</li>
-					))
-				}
+					</>
+				))
+			}
+		</ol>
+		<p class="mt-5 max-w-2xl text-sm leading-relaxed text-soft">
+			New packaging adds a new item with a new barcode, under the same variant and the same family. Nothing that pointed at the
+			old one breaks.
+		</p>
+	</section>
+
+	<section id="how" aria-labelledby="how-heading" class="border-y border-line bg-[oklch(0.2_0.01_265)] text-[oklch(0.95_0.005_85)]">
+		<div class="shell py-16 sm:py-24">
+			<p class="font-mono text-xs tracking-[0.18em] uppercase opacity-70">How it works</p>
+			<h2 id="how-heading" class={heading}>Publish on your domain. prodid indexes it. Anyone resolves it.</h2>
+
+			<ol class="mt-12 grid gap-4 lg:grid-cols-3 [&>*]:min-w-0">
+				<li class="flex flex-col rounded-xl border border-white/15 p-6">
+					<p class="font-mono text-xs opacity-70">01 · Publish</p>
+					<p class="mt-3 text-lg font-semibold">Three things on your domain</p>
+					<ul class="mt-4 grid gap-2 font-mono text-[0.8125rem] [&>*]:min-w-0">
+						<li class="rounded-md bg-white/10 px-3 py-2 break-all">/.well-known/prodid.json</li>
+						<li class="rounded-md bg-white/10 px-3 py-2 break-all">/prodid/items.ndjson</li>
+						<li class="rounded-md bg-white/10 px-3 py-2 break-all">_prodid TXT "v=prodid0; host=…"</li>
+					</ul>
+					<p class="mt-4 flex-1 text-sm leading-relaxed opacity-75">
+						A discovery document, a feed with one product per line, and a DNS record that proves the domain is yours.
+					</p>
+					<a href="/publish" class="mt-5 text-sm font-medium underline-offset-4 hover:underline">How to publish →</a>
+				</li>
+				<li class="flex flex-col rounded-xl border border-white/15 p-6">
+					<p class="font-mono text-xs opacity-70">02 · Index</p>
+					<p class="mt-3 text-lg font-semibold">Checked, matched, attributed</p>
+					<ul class="mt-4 grid gap-2 text-sm [&>*]:min-w-0">
+						<li class="flex items-center gap-2"><span aria-hidden="true">✓</span> every line validated against the schema</li>
+						<li class="flex items-center gap-2"><span aria-hidden="true">✓</span> matched to an existing opid, or a new one</li>
+						<li class="flex items-center gap-2"><span aria-hidden="true">✓</span> each field stored as a claim by your domain</li>
+					</ul>
+					<p class="mt-4 flex-1 text-sm leading-relaxed opacity-75">
+						Retailers, registries and open datasets are sources the same way: beside the maker, never on top of it.
+					</p>
+					<a href="/spec#claims" class="mt-5 text-sm font-medium underline-offset-4 hover:underline">How claims work →</a>
+				</li>
+				<li class="flex flex-col rounded-xl border border-white/15 p-6">
+					<p class="font-mono text-xs opacity-70">03 · Resolve</p>
+					<p class="mt-3 text-lg font-semibold">One URL, printed on the product</p>
+					<div class="mt-4 grid gap-2 text-sm">
+						<p class="rounded-md bg-white/10 px-3 py-2 font-mono text-[0.8125rem] break-all">prodid.org/01/{gtin}</p>
+						<div class="grid grid-cols-2 gap-2">
+							<p class="rounded-md border border-white/15 px-3 py-2">Browser → a page</p>
+							<p class="rounded-md border border-white/15 px-3 py-2">API → the JSON record</p>
+						</div>
+					</div>
+					<p class="mt-4 flex-1 text-sm leading-relaxed opacity-75">
+						The path is GS1 Digital Link syntax, so it can be the QR code on the label itself.
+					</p>
+					<a href="/spec#the-resolver" class="mt-5 text-sm font-medium underline-offset-4 hover:underline">How resolving works →</a>
+				</li>
 			</ol>
 		</div>
 	</section>
 
-	<section aria-labelledby="example" class="border-t border-line">
-		<div class="shell py-16 sm:py-20">
-			<div class="max-w-3xl">
-				<p class="font-mono text-xs tracking-[0.18em] text-soft uppercase">An example</p>
-				<h2 id="example" class="mt-4 text-2xl font-semibold tracking-tight sm:text-3xl">
-					One URL, printed on the product.
-				</h2>
-				<p class="mt-6 text-base leading-relaxed text-soft sm:text-lg">
-					<code class="chip">https://prodid.org/01/09506000134352</code> is a GS1 Digital Link, so it can be the QR code
-					printed on the label itself. A shopper scanning it gets a page; a system asking for JSON gets the record below,
-					every value inside a claim that names its source.
-				</p>
-			</div>
-			<div class="mt-10 grid max-w-3xl gap-5 [&>*]:min-w-0">
-				<CodeSample code={request} lang="http" label="Request and response headers" />
-				<p class="text-[0.9375rem] leading-relaxed text-soft">
-					The specification's own example, rendered from that file. Nothing in it is a bare field: every value sits inside a
-					claim carrying the source that made it, that source’s trust, and whether it has lapsed. Scroll to the seventh claim
-					and you will find a second <code class="chip">name</code>, from a shop that has since stopped publishing — kept,
-					attributed and marked rather than deleted or quietly overruled.
-				</p>
-				<CodeSample
-					code={examples.entityItem}
-					lang="json"
-					label="spec/examples/entity.item.json"
-					badge="application/json"
-					scroll
-				/>
-			</div>
-			<p class="mt-6 max-w-3xl rounded-lg border border-line bg-surface p-5 text-[0.9375rem] leading-relaxed text-soft">
-				<strong class="font-medium text-ink">On the EU Digital Product Passport.</strong> ESPR requires a passport that is
-				reachable from a data carrier on the product and tied to a unique product identifier, and GS1 Digital Link is one of
-				the carrier syntaxes being standardised for that. prodid is not a passport service, and publishing here is not
-				compliance with anything. It is the same underlying work: one machine-readable record per product, at a stable
-				address, that you control.
+	<section aria-labelledby="claims" class="shell py-16 sm:py-24">
+		<div class="max-w-2xl">
+			<p class={eyebrow}>Claims</p>
+			<h2 id="claims" class={heading}>Every fact names its source. Disagreement stays visible.</h2>
+			<p class="mt-5 text-base leading-relaxed text-soft sm:text-lg">
+				Nothing is merged into one “truth”. When a source stops publishing, its claims are kept and marked lapsed, not deleted.
 			</p>
 		</div>
+
+		<div class="mt-10 overflow-x-auto rounded-xl border border-line bg-surface">
+			<table class="w-full min-w-[40rem] text-left text-sm">
+				<caption class="sr-only">The claims in the specification’s example item</caption>
+				<thead class="bg-sunken text-xs tracking-wider text-soft uppercase">
+					<tr>
+						<th scope="col" class="px-4 py-3 font-medium">Property</th>
+						<th scope="col" class="px-4 py-3 font-medium">Value</th>
+						<th scope="col" class="px-4 py-3 font-medium">Source</th>
+						<th scope="col" class="px-4 py-3 font-medium">Trust</th>
+						<th scope="col" class="px-4 py-3 font-medium">Seen</th>
+					</tr>
+				</thead>
+				<tbody>
+					{
+						rows.map((row) => (
+							<tr class:list={['border-t border-line', row.lapsed && 'bg-warn-bg']}>
+								<td class="px-4 py-3 font-mono text-[0.8125rem]">{row.property}</td>
+								<td class:list={['px-4 py-3', row.lapsed && 'text-soft line-through']}>{row.value}</td>
+								<td class="px-4 py-3">{row.source}</td>
+								<td class:list={['px-4 py-3 font-medium', row.lapsed || row.trust === 'unverified' ? 'text-warn' : 'text-ok']}>
+									{row.trust}
+									{row.lapsed && ' · lapsed'}
+								</td>
+								<td class="px-4 py-3 whitespace-nowrap text-soft">{row.seen}</td>
+							</tr>
+						))
+					}
+				</tbody>
+			</table>
+		</div>
+
+		<dl class="mt-8 grid gap-6 sm:grid-cols-3 [&>*]:min-w-0">
+			{
+				trust.map((entry) => (
+					<div>
+						<dt class="font-mono text-sm font-medium">{entry.level}</dt>
+						<dd class="mt-1.5 text-sm leading-relaxed text-soft">{entry.meaning}</dd>
+					</div>
+				))
+			}
+		</dl>
+
+		<details class="group mt-10 max-w-3xl rounded-xl border border-line bg-surface">
+			<summary class="flex min-h-12 cursor-pointer list-none items-center justify-between gap-4 px-5 text-sm font-medium">
+				See the request and the full JSON record
+				<span class="text-soft transition-transform group-open:rotate-180" aria-hidden="true">▾</span>
+			</summary>
+			<div class="grid gap-4 border-t border-line p-4 sm:p-5 [&>*]:min-w-0">
+				<CodeSample code={request} lang="http" label="Request and response headers" />
+				<CodeSample code={examples.entityItem} lang="json" label="spec/examples/entity.item.json" badge="application/json" scroll />
+			</div>
+		</details>
 	</section>
 
-	<section aria-labelledby="who" class="border-t border-line">
-		<div class="shell py-16 sm:py-20">
-			<div class="max-w-3xl">
-				<p class="font-mono text-xs tracking-[0.18em] text-soft uppercase">Who it is for</p>
-				<h2 id="who" class="mt-4 text-2xl font-semibold tracking-tight sm:text-3xl">
-					The people who make the data, and the people who need it.
-				</h2>
-			</div>
-			<div class="mt-10 grid gap-8 sm:grid-cols-2 lg:grid-cols-3 [&>*]:min-w-0">
+	<section aria-labelledby="who" class="border-t border-line bg-surface">
+		<div class="shell py-16 sm:py-24">
+			<p class={eyebrow}>Who it is for</p>
+			<h2 id="who" class={heading}>The people who make the data, and the people who need it.</h2>
+			<div class="mt-10 grid gap-10 md:grid-cols-3 [&>*]:min-w-0">
 				{
 					audiences.map((audience) => (
-						<div class="border-t border-rule pt-5">
+						<div class="border-t-2 border-ink pt-5">
 							<h3 class="text-base font-semibold tracking-tight">{audience.title}</h3>
 							<p class="mt-3 text-[0.9375rem] leading-relaxed text-soft">{audience.body}</p>
 						</div>
 					))
 				}
 			</div>
+			<p class="mt-12 max-w-3xl rounded-lg border border-line bg-bg p-5 text-sm leading-relaxed text-soft">
+				<strong class="font-medium text-ink">On the EU Digital Product Passport.</strong> ESPR asks for a passport reachable from a
+				data carrier on the product, and GS1 Digital Link is one of the carrier syntaxes being standardised for it. prodid is not a
+				passport service and publishing here is not compliance with anything; it is the same groundwork: one machine-readable
+				record per product, at a stable address you control.
+			</p>
 		</div>
 	</section>
 
 	<section aria-labelledby="status" class="border-t border-line">
-		<div class="shell py-16 sm:py-20">
-			<div class="max-w-3xl">
-				<p class="font-mono text-xs tracking-[0.18em] text-soft uppercase">Status</p>
-				<h2 id="status" class="mt-4 text-2xl font-semibold tracking-tight sm:text-3xl">Where this actually stands.</h2>
-				<ul class="mt-8 grid gap-5 [&>*]:min-w-0">
-					<li class="border-l-2 border-rule pl-5">
-						<p class="font-medium">The specification is a v0 draft.</p>
-						<p class="mt-1 text-[0.9375rem] leading-relaxed text-soft">
-							Anything in it may change until v1, including the record schemas and the shape of a resolver response.{' '}
-							<a href="/spec" class="rounded-sm text-accent underline underline-offset-4">Read it</a> and say where it
-							is wrong.
-						</p>
-					</li>
-					<li class="border-l-2 border-rule pl-5">
-						<p class="font-medium">The reference implementation is in progress.</p>
-						<p class="mt-1 text-[0.9375rem] leading-relaxed text-soft">
-							The resolver, the index and the crawler are being built. <code class="chip">prodid.org/01/…</code> does not
-							resolve yet, and no feed has been crawled. Every URL shown on this site is the specified shape, not a live
-							endpoint.
-						</p>
-					</li>
-					<li class="border-l-2 border-rule pl-5">
-						<p class="font-medium">The index is meant to be replaceable.</p>
-						<p class="mt-1 text-[0.9375rem] leading-relaxed text-soft">
-							The specification, the schemas, the <code class="chip">opid</code>s and the mappings from every other code to
-							them are <a href="/spec#licensing" class="rounded-sm text-accent underline underline-offset-4">CC0</a>. The product
-							data itself is not prodid's to give away: every claim carries the licence of the source that made it, so a copy of
-							the index comes with those obligations attached rather than with none. What makes this replaceable is not a licence
-							on somebody else's facts — it is that the facts are published by the domains that own them. If this index is run
-							badly, the same domains can be crawled by someone else, and the identifiers already printed on products keep meaning
-							what they meant.
-						</p>
-					</li>
-				</ul>
+		<div class="shell grid gap-10 py-16 sm:py-20 lg:grid-cols-[1fr_2fr] [&>*]:min-w-0">
+			<div>
+				<p class={eyebrow}>Status</p>
+				<h2 id="status" class={heading}>Where this actually stands.</h2>
 			</div>
+			<ul class="divide-y divide-line">
+				<li class="grid gap-1 py-5 sm:grid-cols-[8rem_1fr] sm:gap-4">
+					<span class="text-sm font-medium text-warn">Draft</span>
+					<p class="text-[0.9375rem] leading-relaxed">
+						<strong class="font-semibold">Specification v0.</strong>{' '}
+						<span class="text-soft"
+							>The schemas and the resolver’s response may change until v1. <a
+								href="/spec"
+								class="rounded-sm text-accent underline underline-offset-4">Read it</a
+							> and say where it is wrong.</span
+						>
+					</p>
+				</li>
+				<li class="grid gap-1 py-5 sm:grid-cols-[8rem_1fr] sm:gap-4">
+					<span class="text-sm font-medium text-ok">Live</span>
+					<p class="text-[0.9375rem] leading-relaxed">
+						<strong class="font-semibold">Resolver, crawler and hosted publishing.</strong>{' '}
+						<span class="text-soft"
+							>They run on prodid.org, and the index is empty: <code class="chip">prodid.org/01/…</code> answers 404 for every
+							code until the first publisher pings.</span
+						>
+					</p>
+				</li>
+				<li class="grid gap-1 py-5 sm:grid-cols-[8rem_1fr] sm:gap-4">
+					<span class="text-sm font-medium text-soft">By design</span>
+					<p class="text-[0.9375rem] leading-relaxed">
+						<strong class="font-semibold">The index is replaceable.</strong>{' '}
+						<span class="text-soft"
+							>The spec, the schemas, the opids and the code mappings are <a
+								href="/spec#licensing"
+								class="rounded-sm text-accent underline underline-offset-4">CC0</a
+							>. Each claim keeps its source’s licence. The facts live on the domains that publish them, so anyone can crawl them
+							again and printed codes keep their meaning.</span
+						>
+					</p>
+				</li>
+			</ul>
 		</div>
 	</section>
 </Layout>

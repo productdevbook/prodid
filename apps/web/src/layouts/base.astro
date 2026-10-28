@@ -37,6 +37,13 @@ const canonical = new URL(path, Astro.site).href
 		<meta name="twitter:description" content={description} />
 
 		<meta name="color-scheme" content="light dark" />
+		<script is:inline>
+			// Before first paint, so a stored choice never flashes the other theme.
+			try {
+				const theme = localStorage.getItem('theme')
+				if (theme === 'light' || theme === 'dark') document.documentElement.dataset.theme = theme
+			} catch {}
+		</script>
 		<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
 		<link rel="alternate" type="application/xml" href="/sitemap.xml" title="Sitemap" />
 	</head>

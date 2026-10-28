@@ -13,6 +13,10 @@
 	--color-rule: var(--rule);
 	--color-accent: var(--accent);
 	--color-accent-bg: var(--accent-bg);
+	--color-ok: var(--ok);
+	--color-ok-bg: var(--ok-bg);
+	--color-warn: var(--warn);
+	--color-warn-bg: var(--warn-bg);
 }
 
 :root {
@@ -26,10 +30,15 @@
 	--rule: oklch(0.84 0.006 265);
 	--accent: oklch(0.47 0.13 252);
 	--accent-bg: oklch(0.955 0.018 252);
+	--ok: oklch(0.45 0.11 150);
+	--ok-bg: oklch(0.955 0.03 150);
+	--warn: oklch(0.5 0.13 55);
+	--warn-bg: oklch(0.96 0.03 65);
 }
 
+/* The system decides unless the reader picked a theme, which `data-theme` on <html> records. */
 @media (prefers-color-scheme: dark) {
-	:root {
+	:root:not([data-theme='light']) {
 		--bg: oklch(0.165 0.008 265);
 		--surface: oklch(0.205 0.009 265);
 		--sunken: oklch(0.225 0.01 265);
@@ -39,7 +48,32 @@
 		--rule: oklch(0.36 0.012 265);
 		--accent: oklch(0.79 0.1 252);
 		--accent-bg: oklch(0.26 0.035 252);
+		--ok: oklch(0.8 0.12 150);
+		--ok-bg: oklch(0.27 0.04 150);
+		--warn: oklch(0.82 0.11 65);
+		--warn-bg: oklch(0.28 0.04 60);
 	}
+}
+
+:root[data-theme='dark'] {
+	color-scheme: dark;
+	--bg: oklch(0.165 0.008 265);
+	--surface: oklch(0.205 0.009 265);
+	--sunken: oklch(0.225 0.01 265);
+	--ink: oklch(0.93 0.005 85);
+	--soft: oklch(0.7 0.012 265);
+	--line: oklch(0.28 0.01 265);
+	--rule: oklch(0.36 0.012 265);
+	--accent: oklch(0.79 0.1 252);
+	--accent-bg: oklch(0.26 0.035 252);
+	--ok: oklch(0.8 0.12 150);
+	--ok-bg: oklch(0.27 0.04 150);
+	--warn: oklch(0.82 0.11 65);
+	--warn-bg: oklch(0.28 0.04 60);
+}
+
+:root[data-theme='light'] {
+	color-scheme: light;
 }
 
 @layer base {
@@ -100,10 +134,15 @@
 }
 
 @media (prefers-color-scheme: dark) {
-	.astro-code,
-	.astro-code span {
+	:root:not([data-theme='light']) .astro-code,
+	:root:not([data-theme='light']) .astro-code span {
 		color: var(--shiki-dark);
 	}
+}
+
+:root[data-theme='dark'] .astro-code,
+:root[data-theme='dark'] .astro-code span {
+	color: var(--shiki-dark);
 }
 
 .table-scroll {
@@ -278,4 +317,32 @@
 	.heading-anchor {
 		opacity: 0.45;
 	}
+}
+
+/* The toggle shows where a press takes you: a moon in light, a sun in dark. */
+.theme-icon-sun {
+	display: none;
+}
+
+@media (prefers-color-scheme: dark) {
+	:root:not([data-theme='light']) .theme-icon-sun {
+		display: block;
+	}
+
+	:root:not([data-theme='light']) .theme-icon-moon {
+		display: none;
+	}
+}
+
+:root[data-theme='dark'] .theme-icon-sun {
+	display: block;
+}
+
+:root[data-theme='dark'] .theme-icon-moon {
+	display: none;
+}
+
+[data-spec-toc] a[aria-current='location'] {
+	color: var(--accent);
+	font-weight: 500;
 }

@@ -15,4 +15,4 @@ export const examples = {
 	source: source.trimEnd(),
 }
 
-export const SPEC_STATUS = 'Spec v0 draft · reference implementation in progress'
+export const SPEC_STATUS = 'Spec v0 draft · reference implementation live'
