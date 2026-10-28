@@ -14,6 +14,7 @@ export {
 	LATEST_KEY,
 	runDump,
 } from './dump'
+export { type LoadDumpOptions, LoadDumpError, MAX_DUMP_LINE_BYTES, runLoadDump } from './load'
 export { convertMerchant, type DroppedValues, type MerchantConversion, type SkippedRow } from './merchant'
 export {
 	databaseEnv,

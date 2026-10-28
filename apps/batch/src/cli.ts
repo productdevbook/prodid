@@ -3,9 +3,11 @@ import { basename, extname } from 'node:path'
 import { parseArgs } from 'node:util'
 
 import type { MerchantDeclaration } from '@prodid/core'
+import { DumpError } from '@prodid/store'
 
 import { checkDocument, checkFeed, type CheckResult, formatProblem } from './check'
 import { bucketEnv, bucketTarget, directoryTarget, DumpCommandError, dumpDatabaseEnv, runDump } from './dump'
+import { LoadDumpError, runLoadDump } from './load'
 import { convertMerchant, type MerchantConversion } from './merchant'
 import { databaseEnv, MergeError, mergeEnv, parseLimit, parseOpid, parseReason, runCandidates, runMerge, runUnmerge } from './merge'
 import { OperatorClient, OperatorError, type SiteSettings } from './operator'
@@ -71,8 +73,16 @@ const USAGE = `prodid-batch <command>
       R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY and R2_DUMPS_BUCKET, or with --out to the same layout
       under DIR. Needs DATABASE_URL; it only reads the index.
 
-block-media, merge, unmerge, candidates and dump print the database host first; block-media, merge
-and unmerge write to it directly.
+  load-dump <dir|url>
+      Load a dump into an empty index migrated to the same version, in one transaction. <dir|url>
+      is a dump's dated directory, its manifest.json, or a latest.json, local or over HTTPS (e.g.
+      https://dumps.prodid.org/v0/latest.json). Every file is checked against the manifest's
+      sha256, bytes and lines before anything is written; a remote dump is downloaded to a
+      temporary directory first. A database that is not empty is refused. PRODID_OPERATOR is
+      recorded as the decider of the loaded merges. Needs DATABASE_URL and PRODID_OPERATOR.
+
+block-media, merge, unmerge, candidates, dump and load-dump print the database host first;
+block-media, merge, unmerge and load-dump write to it directly.
 
 site, feed, publish, assign, verify, show, remove-feed and remove-site call the operator endpoint,
 PRODID_OPERATOR_URL (default https://publish.prodid.org), authenticated with PRODID_OPERATOR_TOKEN.`
@@ -187,6 +197,11 @@ async function main(argv: string[]): Promise<void> {
 			await runDump(databaseUrl, target)
 			return
 		}
+		case 'load-dump': {
+			const location = need(rest[0], 'dir|url')
+			await runLoadDump(mergeEnv(process.env), location)
+			return
+		}
 		default:
 			throw new UsageError(`unknown command ${command}`)
 	}
@@ -248,7 +263,9 @@ main(process.argv.slice(2)).catch((error: unknown) => {
 		error instanceof OperatorError ||
 		error instanceof TakedownError ||
 		error instanceof MergeError ||
-		error instanceof DumpCommandError
+		error instanceof DumpCommandError ||
+		error instanceof LoadDumpError ||
+		error instanceof DumpError
 	)
 		console.error(error.message)
 	else console.error(error)
