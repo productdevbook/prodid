@@ -1,6 +1,15 @@
 {
 	"name": "prodid",
 	"private": true,
+	"homepage": "https://prodid.org",
+	"bugs": {
+		"url": "https://github.com/productdevbook/prodid/issues"
+	},
+	"license": "Apache-2.0",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/productdevbook/prodid.git"
+	},
 	"workspaces": [
 		"spec",
 		"db",
