@@ -1,4 +1,4 @@
-import type { EntityRecord, SourceRecord } from '@prodid/core'
+import type { EntityRecord, ProblemBody, SourceRecord } from '@prodid/core'
 
 import { type EntityView, entityView, type MediaView, type PropertyView, type ValueView } from './view'
 
@@ -7,13 +7,6 @@ import { type EntityView, entityView, type MediaView, type PropertyView, type Va
  * `apps/web` replaces it with a designed rendering of the same `EntityView`, and nothing outside
  * this file should have to change when it does.
  */
-export interface ProblemBody {
-	type: string
-	title: string
-	status: number
-	detail?: string
-}
-
 export function renderEntity(entity: EntityRecord): string {
 	const view = entityView(entity)
 	const sections = [

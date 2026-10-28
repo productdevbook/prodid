@@ -1,34 +1,6 @@
-import { canonicalize, sha256Hex } from '@prodid/core'
+import { canonicalize, ifNoneMatch, problem, type ProblemDocument, type ProblemType, sha256Hex } from '@prodid/core'
 
-import { type ProblemBody, renderProblem } from './render'
-
-export const PROBLEM_BASE = 'https://prodid.org/problem/'
-
-export type ProblemType =
-	| 'unknown-opid'
-	| 'unknown-gtin'
-	| 'invalid-gtin'
-	| 'restricted-gtin'
-	| 'unknown-source'
-	| 'invalid-request'
-	| 'rate-limited'
-	| 'not-found'
-	| 'blocked-media'
-
-/** The spec's problem table: one status per type, and only these two may ever be cached. */
-const PROBLEMS: Record<ProblemType, { title: string; status: number }> = {
-	'unknown-opid': { title: 'No entity with that opid', status: 404 },
-	'unknown-gtin': { title: 'No entity with that GTIN', status: 404 },
-	'restricted-gtin': { title: 'A restricted circulation number identifies nothing globally', status: 404 },
-	'unknown-source': { title: 'No source with that name', status: 404 },
-	'not-found': { title: 'Not found', status: 404 },
-	'blocked-media': { title: 'This file has been taken down', status: 410 },
-	'invalid-gtin': { title: 'Not a GTIN', status: 400 },
-	'invalid-request': { title: 'Malformed request', status: 400 },
-	'rate-limited': { title: 'Over the request budget', status: 429 },
-}
-
-const CACHEABLE = new Set<ProblemType>(['invalid-gtin', 'restricted-gtin'])
+import { renderProblem } from './render'
 
 export type Variant = 'json' | 'html'
 
@@ -93,32 +65,24 @@ export async function respond(request: Request, json: unknown, html: () => strin
 		...options.headers,
 	})
 
-	if (matchesEtag(request.headers.get('if-none-match'), etag)) {
+	if (ifNoneMatch(request.headers.get('if-none-match'), etag)) {
 		return new Response(null, { status: 304, headers })
 	}
 	return new Response(body, { status: options.status ?? 200, headers })
 }
 
-export function problemResponse(request: Request, type: ProblemType, detail?: string, extra?: Record<string, string>): Response {
-	const { title, status } = PROBLEMS[type]
-	const body: ProblemBody = { type: `${PROBLEM_BASE}${type}`, title, status }
-	if (detail !== undefined) body.detail = detail
-	const variant = chooseVariant(request.headers.get('accept'))
-	const headers = new Headers({
-		'content-type': variant === 'json' ? 'application/problem+json; charset=utf-8' : 'text/html; charset=utf-8',
-		vary: 'Accept',
-		// Only what the request alone decides may be cached: a 404 today is the answer for an opid
-		// or a domain that may exist tomorrow.
-		'cache-control': CACHEABLE.has(type) ? 'public, max-age=86400' : 'no-store',
-		...extra,
-	})
-	return new Response(variant === 'json' ? `${JSON.stringify(body)}\n` : renderProblem(body), { status, headers })
+export function problemResponse(request: Request, type: Exclude<ProblemType, 'rate-limited'>, detail?: string): Response {
+	return problemAnswer(request, problem(type, detail === undefined ? {} : { detail }))
 }
 
-function matchesEtag(header: string | null, etag: string): boolean {
-	if (header === null) return false
-	return header
-		.split(',')
-		.map((candidate) => candidate.trim())
-		.some((candidate) => candidate === '*' || candidate === etag || candidate === `W/${etag}`)
+export function rateLimitedResponse(request: Request, retryAfterSeconds: number): Response {
+	return problemAnswer(request, problem('rate-limited', { retryAfterSeconds }))
+}
+
+function problemAnswer(request: Request, document: ProblemDocument): Response {
+	const variant = chooseVariant(request.headers.get('accept'))
+	const headers = new Headers({ ...document.headers, vary: 'Accept' })
+	if (variant === 'html') headers.set('content-type', 'text/html; charset=utf-8')
+	const body = variant === 'json' ? `${JSON.stringify(document.body)}\n` : renderProblem(document.body)
+	return new Response(body, { status: document.status, headers })
 }

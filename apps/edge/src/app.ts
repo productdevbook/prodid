@@ -6,7 +6,7 @@ import sourceSchema from '@prodid/spec/schemas/org.prodid.source.json'
 import { findMedia, readEntity, readEntityByGtin, readSourceStatus } from '@prodid/store'
 import { type Context, Hono } from 'hono'
 
-import { problemResponse, respond } from './http'
+import { problemResponse, rateLimitedResponse, respond } from './http'
 import { callerKey } from './limits/policy'
 import { mediaKey } from './media/store'
 import { IMMUTABLE } from './media/store'
@@ -160,9 +160,7 @@ export function createApp(build: ServicesFactory): Hono<App> {
 		const caller = callerKey(c.req.header('cf-connecting-ip') ?? null)
 		const allowed = await services.limits.caller(caller, now)
 		if (!allowed.ok) {
-			return problemResponse(c.req.raw, 'rate-limited', undefined, {
-				'retry-after': String(Math.ceil(allowed.retryAfterMs / 1000)),
-			})
+			return rateLimitedResponse(c.req.raw, allowed.retryAfterMs / 1000)
 		}
 
 		let body: unknown
