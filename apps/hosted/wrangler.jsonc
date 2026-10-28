@@ -26,7 +26,7 @@
 	],
 	"send_email": [{ "name": "MAIL", "allowed_sender_addresses": ["notify@prodid.org"] }],
 	"triggers": {
-		// Daily: re-read every claimed domain's `_prodid` record.
+		// Daily: re-read every claimed domain's `_prodid` record; remind and release sites with no feed.
 		"crons": ["17 3 * * *"],
 	},
 	"vars": {

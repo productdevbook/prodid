@@ -3,6 +3,7 @@ import { readIndexView } from './crawl'
 import { resolveTxt } from './dns'
 import type { Blobs } from './sites'
 import { d1Sql } from './sql'
+import { releaseUnused } from './unused'
 
 /** The one sender `send_email` allows in wrangler.jsonc. */
 const MAIL_FROM = 'notify@prodid.org'
@@ -87,6 +88,8 @@ export default {
 	fetch: app.fetch,
 
 	async scheduled(_controller: ScheduledController, env: Env): Promise<void> {
-		await reverifyAll(productionServices(env))
+		const services = productionServices(env)
+		const results = await Promise.allSettled([reverifyAll(services), releaseUnused(services)])
+		for (const result of results) if (result.status === 'rejected') throw result.reason
 	},
 } satisfies ExportedHandler<Env>
