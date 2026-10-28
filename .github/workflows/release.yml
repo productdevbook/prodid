@@ -1,0 +1,119 @@
+name: release
+
+on:
+  push:
+    tags:
+      - 'core-v*'
+      - 'spec-v*'
+
+permissions: {}
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    services:
+      postgres:
+        image: postgres:18.6
+        env:
+          POSTGRES_USER: prodid
+          POSTGRES_PASSWORD: prodid
+          POSTGRES_DB: prodid
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U prodid -d prodid"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 30
+    env:
+      DATABASE_URL: postgres://prodid:prodid@localhost:5432/prodid
+      PRODID_REQUIRE_DB: '1'
+    outputs:
+      dir: ${{ steps.tag.outputs.dir }}
+      mode: ${{ steps.tag.outputs.mode }}
+      dist_tag: ${{ steps.tag.outputs.dist_tag }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "$GITHUB_REF_NAME" in
+            core-v*) dir=packages/core name=@prodid/core version=${GITHUB_REF_NAME#core-v} ;;
+            spec-v*) dir=spec name=@prodid/spec version=${GITHUB_REF_NAME#spec-v} ;;
+            *) echo "::error::tag $GITHUB_REF_NAME names no package"; exit 1 ;;
+          esac
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::tag $GITHUB_REF_NAME does not carry a semver version"
+            exit 1
+          fi
+          pkg_name=$(jq -r .name "$dir/package.json")
+          pkg_version=$(jq -r .version "$dir/package.json")
+          if [[ "$pkg_name" != "$name" ]]; then
+            echo "::error::$dir/package.json is $pkg_name, not $name"
+            exit 1
+          fi
+          base=${version%%[-.]dryrun*}
+          if [[ "$version" == "$pkg_version" ]]; then
+            mode=publish
+          elif [[ "$base" != "$version" && "$base" == "$pkg_version" ]]; then
+            mode=dry-run
+          else
+            echo "::error::tag version $version does not match $name $pkg_version"
+            exit 1
+          fi
+          dist_tag=latest
+          if [[ "$pkg_version" == *-* ]]; then dist_tag=next; fi
+          echo "$name $pkg_version from $GITHUB_REF_NAME: $mode, dist-tag $dist_tag"
+          {
+            echo "dir=$dir"
+            echo "mode=$mode"
+            echo "dist_tag=$dist_tag"
+          } >> "$GITHUB_OUTPUT"
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: package.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 26.13.0
+      - run: bun install --frozen-lockfile
+      - run: bun run check
+      - run: npm --version
+      - working-directory: ${{ steps.tag.outputs.dir }}
+        env:
+          DIST_TAG: ${{ steps.tag.outputs.dist_tag }}
+        run: npm publish --dry-run --access public --tag "$DIST_TAG"
+
+  publish:
+    needs: verify
+    if: needs.verify.outputs.mode == 'publish'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: package.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 26.13.0
+      - run: bun install --frozen-lockfile
+      - run: bun run build
+      - working-directory: ${{ needs.verify.outputs.dir }}
+        env:
+          DIST_TAG: ${{ needs.verify.outputs.dist_tag }}
+        run: npm publish --provenance --access public --tag "$DIST_TAG"
