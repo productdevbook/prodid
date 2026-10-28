@@ -1,3 +1,4 @@
+export { type AuthorityGrant, type GrantInput, grantAuthority, listAuthority, revokeAuthority } from './authority'
 export { type CandidateSide, DEFAULT_CANDIDATE_LIMIT, findMergeCandidates, type MergeCandidate } from './candidates'
 export { createClient, DEFAULT_ATTEMPTS, isRetryable, type Sql, type TransactionSql, withRetry } from './client'
 export {

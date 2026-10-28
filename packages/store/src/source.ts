@@ -39,7 +39,7 @@ export interface FeedRow {
 	retired_at: Date | null
 }
 
-const SOURCE_COLUMNS = `id::text, kind, name, trust, verified_by, verified_at, verified_crawl::text,
+const SOURCE_COLUMNS = `id::text, kind, name, source_trust(source) as trust, verified_by, verified_at, verified_crawl::text,
 	lapsed_at, failing_since, feed_host, license, last_crawled_at, queued_at, created_at`
 
 export async function findSourceByName(sql: Sql, name: string): Promise<SourceRow | null> {
@@ -291,7 +291,6 @@ export interface VerificationInput {
 	source: string
 	verifiedBy: VerifiedBy
 	crawl: string
-	trust?: Extract<Trust, 'verified' | 'authoritative'>
 	feedHost?: string | null
 	verifiedAt: Date
 }
@@ -300,7 +299,7 @@ export interface VerificationInput {
 export async function recordVerification(sql: Sql, input: VerificationInput): Promise<void> {
 	await sql`
 		update source set
-			trust = ${input.trust ?? 'verified'},
+			trust = 'verified',
 			verified_by = ${input.verifiedBy},
 			verified_at = ${input.verifiedAt},
 			verified_crawl = ${input.crawl},

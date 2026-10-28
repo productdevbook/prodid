@@ -186,7 +186,7 @@ async function readIdentifiers(sql: Reader, opids: readonly string[]): Promise<{
 async function readClaims(sql: Reader, opids: readonly string[], history: boolean): Promise<{ opid: string; value: EntityClaim }[]> {
 	const rows = await sql<ClaimRow[]>`
 		select c.opid, c.property, c.value::text as value, c.lang, c.seen_at, c.withdrawn_at,
-			s.name as source_name, s.trust, (s.lapsed_at is not null) as lapsed
+			s.name as source_name, source_trust(s) as trust, (s.lapsed_at is not null) as lapsed
 		from claim c
 		join source s on s.id = c.source
 		where c.opid = any(${opids as string[]}::text[]) ${history ? sql`` : sql`and c.withdrawn_at is null`}
@@ -246,7 +246,7 @@ async function readSourceStatuses(
 	filter: { name: string } | { after: string | null; limit: number },
 ): Promise<SourceRecord[]> {
 	const rows = await sql<SourceStatusRow[]>`
-		select s.name, s.kind, s.trust, s.verified_by, s.verified_at, s.lapsed_at, s.license,
+		select s.name, s.kind, source_trust(s) as trust, s.verified_by, s.verified_at, s.lapsed_at, s.license,
 			coalesce(s.feed_host, s.name) as verified_host,
 			c.finished_at as crawl_at, c.via as crawl_via, c.document_url as crawl_document_url,
 			c.outcome as crawl_outcome, c.http_status as crawl_http_status,

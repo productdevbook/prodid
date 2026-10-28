@@ -153,7 +153,7 @@ function build(sql: Sql, clock: TestClock): Edge {
 			mail.failures = 0
 			// `media` belongs here too: it is keyed by digest and shared by every source, so a row
 			// left behind — a blocked hash above all — decides the next test's answer.
-			await sql`truncate claim, record, grouping, identifier, merge, entity, crawl, feed, source, media restart identity cascade`
+			await sql`truncate authority, claim, record, grouping, identifier, merge, entity, crawl, feed, source, media restart identity cascade`
 		},
 	}
 	return edge

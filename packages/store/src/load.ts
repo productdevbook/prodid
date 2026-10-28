@@ -206,9 +206,10 @@ async function insertSource(tx: TransactionSql, status: SourceRecord, now: Date)
 		proof = await insertCrawl(tx, id, { at, via: status.verified_by, outcome: 'success' })
 		if (last !== undefined) await insertCrawl(tx, id, last)
 	}
+	// A dump carries no grant, so a source that was authoritative loads as verified.
 	await tx`
 		update source set
-			trust = ${status.trust},
+			trust = 'verified',
 			verified_by = ${status.verified_by},
 			verified_at = ${status.verified_at},
 			verified_crawl = ${proof},
