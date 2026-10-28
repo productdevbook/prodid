@@ -1,0 +1,30 @@
+name: Spec change
+description: Propose a change to the protocol in spec/README.md, its schemas or its fixtures.
+labels: ['area:spec']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The spec leads: a rule changes in `spec/` (text, schema and fixtures) before or with the code. See [CONTRIBUTING.md](https://github.com/productdevbook/prodid/blob/main/CONTRIBUTING.md).
+  - type: input
+    id: section
+    attributes:
+      label: Which section
+      description: The section of spec/README.md, as a link to its heading.
+      placeholder: https://github.com/productdevbook/prodid/blob/main/spec/README.md#the-_prodid-txt-record
+    validations:
+      required: true
+  - type: textarea
+    id: change
+    attributes:
+      label: The change
+      description: What the rule says today, what it should say, and why. Name what breaks for existing publishers or readers, if anything.
+    validations:
+      required: true
+  - type: textarea
+    id: fixtures
+    attributes:
+      label: Fixtures affected
+      description: The fixtures or vectors in spec/fixtures/ that change, and the new ones the rule needs, with the instance path and keyword that must reject each new invalid one. "None" if none.
+    validations:
+      required: true

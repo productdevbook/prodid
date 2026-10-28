@@ -1,0 +1,44 @@
+name: Report a publisher
+description: A source publishes data that infringes your rights, impersonates someone, or is abusive.
+labels: ['area:ops']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Every claim on prodid.org is attributed to the source that made it, and trust is about who controls a domain, not about whether the data is right. A source publishing wrong data is reported to that source, through the `publisher.contact` its discovery document gives. Use this form for data that should not be served at all.
+
+        A vulnerability in the index, such as becoming the source for a domain you do not control, is not reported here: see [SECURITY.md](https://github.com/productdevbook/prodid/blob/main/SECURITY.md).
+  - type: input
+    id: source
+    attributes:
+      label: Source
+      description: The source's name or its status page.
+      placeholder: https://prodid.org/source/example.com
+    validations:
+      required: true
+  - type: textarea
+    id: where
+    attributes:
+      label: Where it appears
+      description: The entity or media URLs, GTINs or opids that show it.
+      placeholder: https://prodid.org/01/04006381333931
+    validations:
+      required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What is wrong
+      options:
+        - It infringes my copyright or trademark
+        - It impersonates a brand or a person
+        - It is illegal or abusive content
+        - Something else
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: Details
+      description: What is wrong, and how you know. If you act for the rights holder, say so.
+    validations:
+      required: true

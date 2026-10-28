@@ -1,0 +1,44 @@
+name: Bug
+description: Something on prodid.org or in this repository does not do what the spec or the docs say.
+labels: ['bug']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A security problem does not belong here: report it privately, as [SECURITY.md](https://github.com/productdevbook/prodid/blob/main/SECURITY.md) says.
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where
+      options:
+        - The index on prodid.org (resolver, source status, ping, schemas)
+        - Media on media.prodid.org
+        - A hosted site on <slug>.prodid.org
+        - The website prodid.org
+        - The operator CLI (apps/batch)
+        - The code or the tests in this repository
+        - Somewhere else
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: The request, URL or command, and what came back. Paste output as text, not a screenshot.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+      description: Link the section of the spec or the docs that says so, if there is one.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: How to reproduce
+      description: Steps someone else can follow. For the code, the commit and the output of `bun run check`.
+    validations:
+      required: true

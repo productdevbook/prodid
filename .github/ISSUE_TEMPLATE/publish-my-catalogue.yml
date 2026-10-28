@@ -1,0 +1,55 @@
+name: Publish my catalogue
+description: Ask for your product data to be published on a hosted site, <slug>.prodid.org. Hosting is operator-assisted for now.
+labels: ['area:hosted']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        An operator sets up the site and publishes your file, then answers here. **This issue is public**: give only a contact address you are happy to publish, since it also appears in your site's discovery document.
+
+        If you can serve a file on your own domain, you do not need this: see the [publisher guide](https://prodid.org/publish).
+  - type: input
+    id: slug
+    attributes:
+      label: Slug wanted
+      description: Your site will be <slug>.prodid.org. 3 to 32 characters, lowercase letters, digits and hyphens, not starting or ending with a hyphen.
+      placeholder: acme
+    validations:
+      required: true
+  - type: input
+    id: publisher
+    attributes:
+      label: Publisher name
+      description: The name readers see for your catalogue.
+      placeholder: Acme Tools Ltd
+    validations:
+      required: true
+  - type: input
+    id: contact
+    attributes:
+      label: Contact
+      description: An email address for notices about your catalogue, such as a lapse.
+      placeholder: products@example.com
+    validations:
+      required: true
+  - type: input
+    id: license
+    attributes:
+      label: Licence
+      description: An SPDX identifier for your data. Images and documents are ingested only under one of the [licences the spec lists](https://github.com/productdevbook/prodid/blob/main/spec/README.md#licences-that-can-be-ingested).
+      placeholder: CC-BY-4.0
+    validations:
+      required: true
+  - type: textarea
+    id: file
+    attributes:
+      label: Your file
+      description: A Google Merchant product file (.csv or .tsv) or an NDJSON feed of org.prodid.item records, attached here or linked. For a Merchant file, say its language and the markets it is for.
+    validations:
+      required: true
+  - type: input
+    id: domain
+    attributes:
+      label: Your domain, if any
+      description: With a domain, your catalogue speaks for it once you add a TXT record at _prodid.<domain>; the operator tells you its value. Leave empty to publish under the slug alone, unverified.
+      placeholder: example.com
