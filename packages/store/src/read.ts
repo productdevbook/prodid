@@ -1,5 +1,6 @@
 import type {
 	CrawlStatus,
+	CrawlVia,
 	EntityClaim,
 	EntityIdentifier,
 	EntityKind,
@@ -214,7 +215,7 @@ interface SourceStatusRow {
 	license: string | null
 	verified_host: string
 	crawl_at: Date | null
-	crawl_via: VerifiedBy | null
+	crawl_via: CrawlVia | null
 	crawl_document_url: string | null
 	crawl_outcome: CrawlOutcome | null
 	crawl_http_status: number | null
@@ -289,7 +290,10 @@ function toStatus(row: SourceStatusRow): SourceRecord {
 			outcome: classifyOutcome(row.crawl_outcome),
 		}
 		if (row.crawl_via !== null) crawl.via = row.crawl_via
-		if (hostOf(row.crawl_document_url) === row.verified_host) {
+		// An import is not a fetch anyone can aim, so its export's URL is always shown and it has no status.
+		if (row.crawl_via === 'import') {
+			if (row.crawl_document_url !== null) crawl.document_url = row.crawl_document_url
+		} else if (hostOf(row.crawl_document_url) === row.verified_host) {
 			if (row.crawl_document_url !== null) crawl.document_url = row.crawl_document_url
 			if (row.crawl_http_status !== null) crawl.http_status = row.crawl_http_status
 		}

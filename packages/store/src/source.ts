@@ -1,4 +1,4 @@
-import type { SourceKind, Trust, VerifiedBy } from '@prodid/core'
+import type { CrawlVia, SourceKind, Trust, VerifiedBy } from '@prodid/core'
 
 import type { Sql } from './client'
 import { withRetry } from './client'
@@ -72,7 +72,7 @@ export function findOrCreateSource(sql: Sql, identity: { kind: SourceKind; name:
 
 export async function startCrawl(
 	sql: Sql,
-	input: { source: string; via?: VerifiedBy | null; documentUrl?: string | null; startedAt: Date },
+	input: { source: string; via?: CrawlVia | null; documentUrl?: string | null; startedAt: Date },
 ): Promise<string> {
 	const rows = await sql<{ id: string }[]>`
 		insert into crawl (source, via, document_url, started_at)
@@ -414,6 +414,7 @@ export async function claimDueSources(
 			select id from source
 			where (last_crawled_at is null or last_crawled_at <= ${cutoff})
 				and (queued_at is null or queued_at <= ${lease})
+				and kind <> 'dataset'
 			order by last_crawled_at nulls first, id
 			limit ${input.limit}
 			for update skip locked
@@ -434,7 +435,8 @@ export async function finalizeStaleCrawls(
 ): Promise<{ finished: number; notices: LapseNotice[] }> {
 	const cutoff = new Date(input.now.getTime() - input.olderThanMs)
 	const stale = await sql<{ id: string; source: string }[]>`
-		select id::text, source::text from crawl where finished_at is null and started_at <= ${cutoff}
+		select id::text, source::text from crawl
+		where finished_at is null and started_at <= ${cutoff} and via is distinct from 'import'
 	`
 	const notices: LapseNotice[] = []
 	for (const row of stale) {

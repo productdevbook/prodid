@@ -1,6 +1,15 @@
 export { type CandidateSide, DEFAULT_CANDIDATE_LIMIT, findMergeCandidates, type MergeCandidate } from './candidates'
 export { createClient, DEFAULT_ATTEMPTS, isRetryable, type Sql, type TransactionSql, withRetry } from './client'
 export {
+	datasetSourceName,
+	ensureDatasetSource,
+	finishImport,
+	type ImportOutcome,
+	importRecords,
+	type ImportRun,
+	startImport,
+} from './dataset'
+export {
 	DUMP_FILES,
 	DUMP_PAGE,
 	type DumpFile,
