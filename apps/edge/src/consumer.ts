@@ -1,10 +1,11 @@
+import { sha256Hex } from '@prodid/core'
 import { countMediaFailure, finalizeStaleCrawls, lapseSweep, QUEUE_LEASE_MS, touchMediaClaim } from '@prodid/store'
 
 import { type CrawlStep, runDiscover, runFeedStep, runFinalize } from './crawl/run'
 import { POLICY } from './limits/policy'
 import { runMediaStep } from './media/ingest'
 import { claimDueSources } from './schedule'
-import type { CrawlMessage, MediaMessage, Services } from './services'
+import type { CrawlMessage, MediaDeadLetter, MediaMessage, Services } from './services'
 
 /** A limiter that cannot be reached is the crawler's own limit saying no, not the publisher failing. */
 export class LimiterUnavailable extends Error {}
@@ -62,9 +63,10 @@ function isLimiterFailure(error: unknown): boolean {
 }
 
 /**
- * A file held back by the per-host budget comes back later; anything else about it is final. A
- * refusal or a failure is logged and dropped: the record keeps its other claims, and the crawl that
- * found the file has long since finished.
+ * A file held back by the per-host budget comes back later, and past the cap goes to the dead letter
+ * queue with the reason; anything else about it is final. A refusal or a failure is logged and
+ * dropped: the record keeps its other claims, and the crawl that found the file has long since
+ * finished.
  */
 export async function consumeMedia(services: Services, message: MediaMessage): Promise<void> {
 	let result
@@ -77,7 +79,7 @@ export async function consumeMedia(services: Services, message: MediaMessage): P
 	if (result.kind === 'deferred') {
 		const deferrals = (message.deferrals ?? 0) + 1
 		if (deferrals > POLICY.maxDeferrals) {
-			console.warn('media deferred past the cap', message.entry.url, message.source)
+			await services.mediaDead.send({ ...message, deferrals }, `held back by the crawler's own limits ${deferrals} times`)
 			return
 		}
 		const delaySeconds = Math.min(POLICY.maxDeferralSeconds, Math.max(1, Math.ceil(result.retryAfterMs / 1000)))
@@ -117,6 +119,25 @@ export function consumeDeadLetter(letter: { reason: string; message: CrawlMessag
 			step: letter.message.kind,
 			crawl: letter.message.kind === 'discover' ? null : letter.message.plan.crawl,
 			deferrals: letter.message.deferrals ?? 0,
+		}),
+	)
+}
+
+/**
+ * `prodid-media-dlq` holds two shapes: a letter the consumer sent with its reason, and a bare message
+ * the queue moved there after its retries ran out. The URL is a publisher's and is logged by digest.
+ * A dead-lettered entry is retried on the next crawl of its record, like any other failed entry.
+ */
+export async function consumeMediaDeadLetter(body: MediaDeadLetter | MediaMessage): Promise<void> {
+	const letter: MediaDeadLetter = 'reason' in body ? body : { reason: 'failed on every retry of prodid-media-ingest', message: body }
+	const url = letter.message?.entry?.url
+	console.warn(
+		JSON.stringify({
+			event: 'media.dead-letter',
+			url_sha256: typeof url === 'string' ? await sha256Hex(url) : null,
+			source: letter.message?.source ?? null,
+			reason: letter.reason,
+			attempts: letter.message?.deferrals ?? 0,
 		}),
 	)
 }

@@ -19,7 +19,15 @@ import {
 } from '../../src/limits/window'
 import type { ObjectStore, PutOptions } from '../../src/media/store'
 import type { AddressLookup, LookupFailure, Network, NetworkRequest, NetworkResponse, TxtLookup } from '../../src/net/types'
-import type { CrawlMessage, CrawlProducer, DeadLetters, MediaMessage, MediaProducer } from '../../src/services'
+import type {
+	CrawlMessage,
+	CrawlProducer,
+	DeadLetters,
+	MediaDeadLetter,
+	MediaDeadLetters,
+	MediaMessage,
+	MediaProducer,
+} from '../../src/services'
 
 export class TestClock {
 	constructor(private at: Date) {}
@@ -294,6 +302,14 @@ export class MemoryDeadLetters implements DeadLetters {
 	readonly letters: { reason: string; message: CrawlMessage }[] = []
 
 	async send(message: CrawlMessage, reason: string): Promise<void> {
+		this.letters.push({ reason, message })
+	}
+}
+
+export class MemoryMediaDeadLetters implements MediaDeadLetters {
+	readonly letters: MediaDeadLetter[] = []
+
+	async send(message: MediaMessage, reason: string): Promise<void> {
 		this.letters.push({ reason, message })
 	}
 }

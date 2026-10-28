@@ -49,6 +49,8 @@
 			// message, so it never reaches the consumer's dead letter queue on its own.
 			{ "binding": "CRAWL_DLQ", "queue": "prodid-crawl-dlq" },
 			{ "binding": "MEDIA_INGEST", "queue": "prodid-media-ingest" },
+			// Written to directly for the same reason as `CRAWL_DLQ`.
+			{ "binding": "MEDIA_DLQ", "queue": "prodid-media-dlq" },
 		],
 		"consumers": [
 			{
@@ -72,6 +74,12 @@
 			{
 				// An operator reads this one; nothing re-drives it automatically.
 				"queue": "prodid-crawl-dlq",
+				"max_batch_size": 10,
+				"max_batch_timeout": 30,
+				"max_retries": 1,
+			},
+			{
+				"queue": "prodid-media-dlq",
 				"max_batch_size": 10,
 				"max_batch_timeout": 30,
 				"max_retries": 1,

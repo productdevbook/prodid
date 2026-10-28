@@ -1,9 +1,11 @@
-import { afterAll, beforeEach, describe, expect, test } from 'bun:test'
+import { afterAll, beforeEach, describe, expect, spyOn, test } from 'bun:test'
 
-import { type EntityRecord, validateEntity } from '@prodid/core'
+import { type EntityRecord, sha256Hex, validateEntity } from '@prodid/core'
 import { blockMedia } from '@prodid/store'
 import { databaseReachable } from '@prodid/store/testing'
 
+import { consumeMedia, consumeMediaDeadLetter } from '../src/consumer'
+import { POLICY } from '../src/limits/policy'
 import { IMMUTABLE } from '../src/media/store'
 import { document, GTINS, item, pdf, png, svg } from './support/fixtures'
 import { json, startEdge } from './support/harness'
@@ -645,5 +647,79 @@ describe.skipIf(!reachable)('the thirty-day re-check', () => {
 		await edge!.crawl('acme.example')
 		await edge!.drainMedia()
 		expect(edge!.net.fetched.filter((url) => url === IMAGE).length).toBe(fetched)
+	})
+})
+
+describe.skipIf(!reachable)('media dead letters', () => {
+	beforeEach(async () => {
+		await edge!.reset()
+		edge!.clock.advance(TEN_MINUTES)
+	})
+
+	async function logged(body: Parameters<typeof consumeMediaDeadLetter>[0]): Promise<Record<string, unknown>[]> {
+		const warn = spyOn(console, 'warn').mockImplementation(() => {})
+		try {
+			await consumeMediaDeadLetter(body)
+			return warn.mock.calls.map((call) => JSON.parse(String(call[0])) as Record<string, unknown>)
+		} finally {
+			warn.mockRestore()
+		}
+	}
+
+	async function exhaustCdn(): Promise<void> {
+		const now = edge!.clock.now()
+		for (let attempt = 0; attempt < 20; attempt += 1) await edge!.limits.hostFetch('cdn.example', false, now, `z${attempt}.example`)
+	}
+
+	test('a file held back past the cap goes to the media dead letter queue, not nowhere', async () => {
+		serve([{ url: IMAGE, license: 'CC-BY-4.0' }])
+		await edge!.crawl('acme.example')
+		const [message] = edge!.mediaQueue.ready()
+		await exhaustCdn()
+
+		await consumeMedia(edge!.services, { ...message!, deferrals: POLICY.maxDeferrals })
+
+		expect(edge!.mediaQueue.pending).toHaveLength(0)
+		expect(edge!.mediaDead.letters).toHaveLength(1)
+		expect(edge!.mediaDead.letters[0]?.reason).toContain('held back')
+		expect(edge!.mediaDead.letters[0]?.message).toMatchObject({
+			source: message!.source,
+			entry: { url: IMAGE },
+			deferrals: POLICY.maxDeferrals + 1,
+		})
+		expect(edge!.media.objects.size).toBe(0)
+	})
+
+	test('a deferral under the cap is sent again, not dead-lettered', async () => {
+		serve([{ url: IMAGE, license: 'CC-BY-4.0' }])
+		await edge!.crawl('acme.example')
+		await exhaustCdn()
+		await edge!.drainMedia()
+		expect(edge!.mediaDead.letters).toHaveLength(0)
+		expect(edge!.mediaQueue.pending).toHaveLength(1)
+	})
+
+	test('the consumer logs one media.dead-letter line with the URL by digest', async () => {
+		serve([{ url: IMAGE, license: 'CC-BY-4.0' }])
+		await edge!.crawl('acme.example')
+		const [message] = edge!.mediaQueue.ready()
+
+		const reason = "held back by the crawler's own limits 13 times"
+		const lines = await logged({ reason, message: { ...message!, deferrals: 13 } })
+		expect(lines).toEqual([
+			{ event: 'media.dead-letter', url_sha256: await sha256Hex(IMAGE), source: message!.source, reason, attempts: 13 },
+		])
+		expect(JSON.stringify(lines)).not.toContain(IMAGE)
+	})
+
+	test('a message the queue moved there after its retries is logged too', async () => {
+		serve([{ url: IMAGE, license: 'CC-BY-4.0' }])
+		await edge!.crawl('acme.example')
+		const [message] = edge!.mediaQueue.ready()
+
+		const lines = await logged(message!)
+		expect(lines).toHaveLength(1)
+		expect(lines[0]).toMatchObject({ event: 'media.dead-letter', url_sha256: await sha256Hex(IMAGE), source: message!.source, attempts: 0 })
+		expect(lines[0]?.reason).toContain('retry')
 	})
 })

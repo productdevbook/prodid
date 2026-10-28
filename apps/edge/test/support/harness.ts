@@ -5,7 +5,16 @@ import { consumeCrawl, consumeMedia } from '../../src/consumer'
 import type { CrawlStep } from '../../src/crawl/run'
 import { DEFAULT_CAPS } from '../../src/net/guard'
 import type { Services } from '../../src/services'
-import { FakeNetwork, LocalLimiter, MemoryBucket, MemoryDeadLetters, MemoryMediaQueue, MemoryQueue, TestClock } from './fakes'
+import {
+	FakeNetwork,
+	LocalLimiter,
+	MemoryBucket,
+	MemoryDeadLetters,
+	MemoryMediaDeadLetters,
+	MemoryMediaQueue,
+	MemoryQueue,
+	TestClock,
+} from './fakes'
 
 export interface Edge {
 	sql: Sql
@@ -15,6 +24,7 @@ export interface Edge {
 	mediaQueue: MemoryMediaQueue
 	media: MemoryBucket
 	dead: MemoryDeadLetters
+	mediaDead: MemoryMediaDeadLetters
 	limits: LocalLimiter
 	services: Services
 	fetch(path: string, init?: RequestInit): Promise<Response>
@@ -42,6 +52,7 @@ function build(sql: Sql, clock: TestClock): Edge {
 	const mediaQueue = new MemoryMediaQueue(clock)
 	const media = new MemoryBucket()
 	const dead = new MemoryDeadLetters()
+	const mediaDead = new MemoryMediaDeadLetters()
 
 	const services: Services = {
 		sql,
@@ -55,6 +66,7 @@ function build(sql: Sql, clock: TestClock): Edge {
 		mediaQueue,
 		media,
 		dead,
+		mediaDead,
 		caps: { ...DEFAULT_CAPS },
 		now: clock.now,
 		crawlIntervalMs: 6 * 3_600_000,
@@ -94,6 +106,7 @@ function build(sql: Sql, clock: TestClock): Edge {
 		mediaQueue,
 		media,
 		dead,
+		mediaDead,
 		get limits() {
 			return limits
 		},
@@ -117,6 +130,7 @@ function build(sql: Sql, clock: TestClock): Edge {
 			mediaQueue.sent.length = 0
 			media.objects.clear()
 			dead.letters.length = 0
+			mediaDead.letters.length = 0
 			// `media` belongs here too: it is keyed by digest and shared by every source, so a row
 			// left behind — a blocked hash above all — decides the next test's answer.
 			await sql`truncate claim, record, grouping, identifier, merge, entity, crawl, feed, source, media restart identity cascade`

@@ -67,6 +67,16 @@ export interface DeadLetters {
 	send(message: CrawlMessage, reason: string): Promise<void>
 }
 
+export interface MediaDeadLetter {
+	reason: string
+	message: MediaMessage
+}
+
+/** Where a file goes when it has been held back so long that an operator should see it. */
+export interface MediaDeadLetters {
+	send(message: MediaMessage, reason: string): Promise<void>
+}
+
 /** Everything with a side effect, in one bag, so a test can replace all of it and nothing else. */
 export interface Services {
 	sql: Sql
@@ -77,6 +87,7 @@ export interface Services {
 	/** Where stored files live. `media.prodid.org` serves this bucket. */
 	media: ObjectStore
 	dead: DeadLetters
+	mediaDead: MediaDeadLetters
 	caps: Caps
 	/** The only clock. Nothing below this reads the wall clock. */
 	now: () => Date
@@ -116,6 +127,7 @@ export function productionServices(env: Env): Services {
 		mediaQueue: mediaProducer(env.MEDIA_INGEST),
 		media: r2Store(env.MEDIA),
 		dead: deadLetters(env.CRAWL_DLQ),
+		mediaDead: mediaDeadLetters(env.MEDIA_DLQ),
 		caps: DEFAULT_CAPS,
 		now: () => new Date(),
 		crawlIntervalMs: Number(env.CRAWL_INTERVAL_MINUTES) * 60_000,
@@ -153,6 +165,14 @@ function mediaProducer(queue: Queue<MediaMessage>): MediaProducer {
 }
 
 function deadLetters(queue: Queue<{ reason: string; message: CrawlMessage }>): DeadLetters {
+	return {
+		async send(message, reason) {
+			await queue.send({ reason, message })
+		},
+	}
+}
+
+function mediaDeadLetters(queue: Queue<MediaDeadLetter>): MediaDeadLetters {
 	return {
 		async send(message, reason) {
 			await queue.send({ reason, message })
