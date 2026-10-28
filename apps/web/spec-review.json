@@ -1,6 +1,6 @@
 {
 	"note": "Rules these pages state in their own words. The build fails when a recorded section changes; read the diff, fix the page, then run `bun run spec:review`.",
-	"reviewed": "2026-09-19",
+	"reviewed": "2026-10-28",
 	"sections": [
 		{
 			"anchor": "identity",
@@ -70,7 +70,7 @@
 		{
 			"anchor": "lapse",
 			"pages": ["/publish"],
-			"sha256": "50694960b96d544290dd30a0843b225f38fcaf90a80fdef58371ca859b4377fe"
+			"sha256": "2112b9744446849d4478c89ffd1a0e0b57ac48aff9aaa84c4d1299e5ee2e0db4"
 		},
 		{
 			"anchor": "identity-continuity",

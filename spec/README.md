@@ -328,6 +328,21 @@ A feed that cannot be read is therefore not a free pass. The feeds that did answ
 
 While a source is lapsed it makes no new claims, its existing claims stay readable and stay marked, and its `publisher.contact` is notified. A crawl of a lapsed source writes nothing until it has succeeded in full; only then is the lapse cleared and the source ingested again. After 30 days of continuous lapse its records and their active claims are withdrawn together; they remain as history. Those 30 days are the window in which a publisher can notice and put the record, the document or the feed back.
 
+**The lapse notice.** Every successful crawl keeps the `publisher.contact` of the document it accepted, or keeps no address when that document has none; a crawl that does not succeed leaves what was kept as it was. When a source lapses, the index sends that address one notice. It is one per lapse: a source that is already lapsed is not notified again however many crawls fail, and a lapse that is cleared and later starts again is a new lapse with a new notice. A source whose last accepted document carried no contact is not notified at all.
+
+The notice says no more than the source's [status](#a-sources-status) already does, in this order:
+
+1. the source's name and when the lapse started, in UTC, ISO 8601;
+2. the outcome of the crawl that lapsed it, `definite-negative` or `transport-failure`, and what that outcome means;
+3. the day its records and active claims will be withdrawn if nothing changes, 30 days after the lapse started;
+4. its status page, `https://prodid.org/source/<name>`;
+5. what to do: put the record, the document or the feed back, then [ping](#crawling);
+6. why this address received it: it is the `publisher.contact` of the source's own discovery document.
+
+It never contains the crawler's error text, an HTTP status the status does not show, who asked for a crawl or how often, or anything about a host other than the one the source was last verified at.
+
+The kept address is never published. The status has no field for it, and no answer the index serves carries it. Because the address is whatever the document says, a notice can reach someone who never asked for one; that is why there is one per lapse, why only a source that has been discovered successfully can lapse, and why the notice says where the address came from.
+
 Recovery does not depend on anything changing. Once discovery succeeds again, everything the source publishes at that moment is asserted again, whether or not a single byte moved: a publisher that comes back serving the identical document and the identical feed gets its catalogue back. Conditional requests are an optimization the index gives up whenever it has nothing live from a source, never a reason for a returning publisher to stay withdrawn.
 
 Claims re-asserted after such a withdrawal are new assertions, with a new `seen_at`: for the length of the gap nobody verifiable stood behind them, and saying otherwise would date a fact to a time when it had no source. The withdrawn rows stay, so `?history=1` shows the gap.

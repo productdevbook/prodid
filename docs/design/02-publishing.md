@@ -46,8 +46,9 @@ Normative text: spec section *Publishing* and *Security considerations*.
 
 ### Lapse notification
 
-- **[New]** The spec says "its `publisher.contact` is notified". No code sends anything and the
-  index does not keep the contact address. This closes that gap.
+- **[New]** The spec's *Lapse* states the notice: one per lapse, to the `publisher.contact` of the
+  last accepted document, what it says and never says, and that the address is never published.
+  No code sends anything and the index does not keep the contact address. This closes that gap.
 - **Storing the contact.** Migration `0002_source_contact.sql` adds `source.contact text null`. Each
   successful crawl writes the accepted document's `publisher.contact` (or null when absent). It is
   never shown in `/source/{name}` and never in a dump: the spec's status schema has no such field.
