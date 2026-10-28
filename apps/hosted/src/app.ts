@@ -5,8 +5,9 @@ import type { IndexView } from './crawl'
 import type { TxtLookup } from './dns'
 import { checkFeed, MAX_FEED_BYTES } from './feeds'
 import { checkSlug, isFeedName, resolveHost, siteHost, type Target } from './names'
-import { releaseSite } from './owners'
+import { assignSite, releaseSite, SITES_PER_ACCOUNT } from './owners'
 import { SELF_SERVICE, selfService } from './selfservice'
+import { normalizeEmail } from './signin'
 import {
 	type Blobs,
 	deleteSite,
@@ -176,6 +177,29 @@ export function createApp(build: (env: Env) => Services): Hono<App> {
 		await releaseSite(services.accounts, site.slug, services.now())
 		announce(c, site)
 		return new Response(null, { status: 204 })
+	})
+
+	app.put('/sites/:slug/owner', async (c) => {
+		const site = await operatorSite(c)
+		if (site === null) return operatorError(404, 'no such site')
+		let body: unknown
+		try {
+			body = await c.req.json()
+		} catch {
+			return operatorError(400, 'body is not JSON')
+		}
+		const raw = typeof body === 'object' && body !== null && 'email' in body ? body.email : undefined
+		const email = typeof raw === 'string' ? normalizeEmail(raw) : null
+		if (email === null) return operatorError(400, 'email is not an email address')
+
+		const services = c.get('services')
+		const assigned = await assignSite(services.accounts, site.slug, email, services.now())
+		if (!assigned.ok) {
+			return operatorError(409, assigned.reason === 'owned' ? 'site has another owner' : `${email} already owns ${SITES_PER_ACCOUNT} sites`)
+		}
+		const owned: Site = { ...site, owner: assigned.accountId }
+		if (site.owner !== assigned.accountId) await writeSite(services.blobs, owned)
+		return siteAnswer(c, owned, 200)
 	})
 
 	app.put('/sites/:slug/feeds/:name', async (c) => {

@@ -28,6 +28,10 @@ const USAGE = `prodid-batch <command>
           [--lang TAG] [--market CC]... [--name NAME.ndjson]
       merchant, site and feed in one step, then verify when a domain is given.
 
+  assign <slug> <email>
+      Give a site to the self-service account of <email>, made if there is none yet; it then
+      appears in that account's sites at https://publish.prodid.org/sites.
+
   verify <slug>         Re-read the claimed domain's _prodid record.
   show <slug>           Print a site's settings and its served document.
   remove-feed <slug> <name>
@@ -40,7 +44,7 @@ const USAGE = `prodid-batch <command>
       DATABASE_URL, R2_ENDPOINT, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_MEDIA_BUCKET,
       CLOUDFLARE_API_TOKEN (Cache Purge) and CLOUDFLARE_ZONE_ID; never the operator token.
 
-site, feed, publish, verify, show, remove-feed and remove-site call the operator endpoint,
+site, feed, publish, assign, verify, show, remove-feed and remove-site call the operator endpoint,
 PRODID_OPERATOR_URL (default https://publish.prodid.org), authenticated with PRODID_OPERATOR_TOKEN.`
 
 const OPTIONS = {
@@ -106,6 +110,9 @@ async function main(argv: string[]): Promise<void> {
 			if (values.domain !== undefined) print(await client.verify(slug))
 			return
 		}
+		case 'assign':
+			print(await operator().assign(need(rest[0], 'slug'), need(rest[1], 'email')))
+			return
 		case 'verify':
 			print(await operator().verify(need(rest[0], 'slug')))
 			return

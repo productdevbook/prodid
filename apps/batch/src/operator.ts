@@ -31,6 +31,10 @@ export class OperatorClient {
 		return this.call('PUT', `/sites/${encodeURIComponent(slug)}`, JSON.stringify(settings), 'application/json')
 	}
 
+	assign(slug: string, email: string): Promise<unknown> {
+		return this.call('PUT', `/sites/${encodeURIComponent(slug)}/owner`, JSON.stringify({ email }), 'application/json')
+	}
+
 	removeSite(slug: string): Promise<unknown> {
 		return this.call('DELETE', `/sites/${encodeURIComponent(slug)}`)
 	}
