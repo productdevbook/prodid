@@ -1,0 +1,37 @@
+{
+	"file-missing.json": {
+		"instancePath": "/files",
+		"keyword": "minItems"
+	},
+	"file-twice.json": {
+		"instancePath": "/files",
+		"keyword": "contains"
+	},
+	"file-unknown.json": {
+		"instancePath": "/files/0/name",
+		"keyword": "enum"
+	},
+	"index-not-cc0.json": {
+		"instancePath": "/licenses/index",
+		"keyword": "const"
+	},
+	"no-licenses.json": {
+		"instancePath": "",
+		"keyword": "required",
+		"params": {
+			"missingProperty": "licenses"
+		}
+	},
+	"sha256-uppercase.json": {
+		"instancePath": "/files/1/sha256",
+		"keyword": "pattern"
+	},
+	"snapshot-after-created.json": {
+		"instancePath": "/snapshot_at",
+		"keyword": "order"
+	},
+	"version-not-zero.json": {
+		"instancePath": "/version",
+		"keyword": "const"
+	}
+}

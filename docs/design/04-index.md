@@ -96,7 +96,10 @@ Normative text: `ARCHITECTURE.md` *Index contract* and *Semantics*.
   record carries the licence its source declares in `sources.ndjson.gz`. In the manifest this is
   `"licenses": { "index": "CC0-1.0", "claims": "source" }`.
 - **Spec.** *Dumps* states the files, the line of each, the exclusions, the licences and the
-  retention; the schema, `examples/dump.json` and the `dump.*` fixtures go with it.
+  retention; the schema, `examples/dump.json` and `fixtures/dump/` go with it. The dump fixtures
+  have a directory of their own because core's record test sends every fixture outside `item.`,
+  `entity.` and `source.` to `validateFeed`; they can join `fixtures/valid/` and
+  `fixtures/invalid/` once `validateDump` exists (P-060).
 - **Grouping keys and the loader.** The store's `grouping.key` is the SHA-256 of a key that
   includes the internal `source.id` (`groupingKeys`, `packages/core/src/claims.ts`), and `sku` and
   `rcn` scopes are that id too. A dump carries neither, so `load-dump` assigns its own source ids and

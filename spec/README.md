@@ -712,7 +712,7 @@ The manifest's `licenses` says what the contents are under, and the rule is the 
 
 ### Manifest
 
-`org.prodid.dump` names each of the five files exactly once, with the SHA-256 and the size of the file as served, compressed, and its number of lines once decompressed. A reader checks each file against its digest before loading it. `created_at` is when the manifest was written and is never before `snapshot_at`, a rule the schema cannot state.
+`org.prodid.dump` names each of the five files exactly once, with the SHA-256 and the size of the file as served, compressed, and its number of lines once decompressed. A reader checks each file against its digest before loading it. `created_at` is when the manifest was written and is never before `snapshot_at`, a rule the schema cannot state. Vectors: [`fixtures/dump/`](fixtures/dump).
 
 ### Retention
 
@@ -731,8 +731,9 @@ A daily dump is kept for 7 days. The first dump of each UTC month is kept for go
 | [`fixtures/brand/`](fixtures/brand) | brand normalization |
 | [`fixtures/ndjson/`](fixtures/ndjson) | a feed and the line numbers that must be skipped |
 | [`fixtures/merchant/`](fixtures/merchant) | a Merchant file and the records it must produce |
+| [`fixtures/dump/`](fixtures/dump) | dump manifests that must validate (`valid/`) and must be rejected (`invalid/`) |
 
-Every file in `fixtures/invalid/` has an entry in [`fixtures/expected.json`](fixtures/expected.json) naming the instance path, the schema keyword and, where it disambiguates, the error parameters that must reject it. A fixture that fails for a new and unrelated reason is a failure, not a pass. Six of the keywords name rules that live on top of the schemas rather than inside them, because JSON Schema cannot express them: `storable` for a string that cannot be stored, `gtin` for a value that is not a GTIN, `identifiable` for a record with no identifier the index can store, `self-reference` for an entity that lists its own `opid`, `order` for a `withdrawn_at` before its `seen_at` or a dump's `snapshot_at` after its `created_at`, and `digest` for a `media_url` that does not address its claim's `sha256`.
+Every file in `fixtures/invalid/` has an entry in [`fixtures/expected.json`](fixtures/expected.json), and every file in `fixtures/dump/invalid/` one in [`fixtures/dump/expected.json`](fixtures/dump/expected.json), naming the instance path, the schema keyword and, where it disambiguates, the error parameters that must reject it. A fixture that fails for a new and unrelated reason is a failure, not a pass. Six of the keywords name rules that live on top of the schemas rather than inside them, because JSON Schema cannot express them: `storable` for a string that cannot be stored, `gtin` for a value that is not a GTIN, `identifiable` for a record with no identifier the index can store, `self-reference` for an entity that lists its own `opid`, `order` for a `withdrawn_at` before its `seen_at` or a dump's `snapshot_at` after its `created_at`, and `digest` for a `media_url` that does not address its claim's `sha256`.
 
 A TXT vector is `{ "value": [...], "outcome": "delegation" | "ignored" | "malformed", "host": "..." }`, where `value` is the RR's character-strings in order and `host` is the normalized host, present exactly when the outcome is `delegation`. The three outcomes are behavioural, not cosmetic: `ignored` means the RR is not a prodid record and discovery carries on without it, `malformed` means discovery fails.
 

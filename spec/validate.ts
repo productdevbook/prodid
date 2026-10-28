@@ -38,6 +38,7 @@ const merchantExpected = JSON.parse(readFileSync(join(root, 'fixtures', 'merchan
 	MerchantImport
 >
 const ndjsonExpected = JSON.parse(readFileSync(join(root, 'fixtures', 'ndjson', 'expected.json'), 'utf8')) as Record<string, number[]>
+const dumpExpected = JSON.parse(readFileSync(join(root, 'fixtures', 'dump', 'expected.json'), 'utf8')) as Record<string, Defect>
 const domainRule = schemas.get('org.prodid.feed')?.properties.domain as { pattern: string; maxLength: number }
 const isHost = (value: string): boolean => new RegExp(domainRule.pattern).test(value) && bytes(value) <= domainRule.maxLength
 
@@ -54,6 +55,7 @@ if (process.argv[2] === '--emit-merchant') {
 let failures = 0
 const asserted = new Set<string>()
 const ndjsonAsserted = new Set<string>()
+const dumpAsserted = new Set<string>()
 
 for (const name of readdirSync(join(root, 'examples')).sort()) {
 	const path = join(root, 'examples', name)
@@ -65,6 +67,13 @@ for (const name of jsonFiles(join(root, 'fixtures', 'valid'))) {
 }
 for (const name of jsonFiles(join(root, 'fixtures', 'invalid'))) {
 	report(join(root, 'fixtures', 'invalid', name), checkInvalidFixture(join(root, 'fixtures', 'invalid', name), name))
+}
+for (const name of jsonFiles(join(root, 'fixtures', 'dump', 'valid'))) {
+	report(join(root, 'fixtures', 'dump', 'valid', name), checkFile(join(root, 'fixtures', 'dump', 'valid', name), true))
+}
+for (const name of jsonFiles(join(root, 'fixtures', 'dump', 'invalid'))) {
+	const path = join(root, 'fixtures', 'dump', 'invalid', name)
+	report(path, checkInvalidFixture(path, name, dumpExpected, dumpAsserted))
 }
 for (const name of jsonFiles(join(root, 'fixtures', 'txt'))) {
 	report(join(root, 'fixtures', 'txt', name), checkTxtVector(join(root, 'fixtures', 'txt', name)))
@@ -87,6 +96,12 @@ report(
 	join(root, 'fixtures', 'expected.json'),
 	Object.keys(expected)
 		.filter((name) => !asserted.has(name))
+		.map((name) => `no fixture named ${name}`),
+)
+report(
+	join(root, 'fixtures', 'dump', 'expected.json'),
+	Object.keys(dumpExpected)
+		.filter((name) => !dumpAsserted.has(name))
 		.map((name) => `no fixture named ${name}`),
 )
 report(
@@ -451,10 +466,10 @@ function camelCase(name: string): string | null {
 	return /^[a-z][A-Za-z0-9]*$/.test(key) ? key : null
 }
 
-function checkInvalidFixture(path: string, name: string): string[] {
-	asserted.add(name)
-	const defect = expected[name]
-	if (!defect) return ['no expected defect in fixtures/expected.json']
+function checkInvalidFixture(path: string, name: string, defects = expected, seen = asserted): string[] {
+	seen.add(name)
+	const defect = defects[name]
+	if (!defect) return [`no expected defect in ${relative(root, join(path, '..', '..', 'expected.json'))}`]
 	const parsed = parse(readFileSync(path, 'utf8'))
 	if ('problem' in parsed) return [parsed.problem]
 	const problems = recordProblems(parsed.value)
