@@ -19,7 +19,8 @@
 		"preview": "astro preview",
 		"typecheck": "astro check",
 		"check": "astro check && astro build",
-		"spec:review": "bun run scripts/spec-review.ts"
+		"spec:review": "bun run scripts/spec-review.ts",
+		"banner": "bun run scripts/banner.ts"
 	},
 	"dependencies": {
 		"@astrojs/markdown-satteri": "0.4.5",

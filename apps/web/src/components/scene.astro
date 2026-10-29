@@ -1,0 +1,20 @@
+---
+import { DARK, LIGHT, paletteVars, scene, SCENE_STYLE } from '@/lib/scene'
+
+interface Props {
+	label: string
+	class?: string | undefined
+}
+
+const { label, class: className } = Astro.props
+const drawing = scene()
+const style = `.prodid-scene{${paletteVars(LIGHT)}}
+@media (prefers-color-scheme:dark){:root:not([data-theme='light']) .prodid-scene{${paletteVars(DARK)}}}
+:root[data-theme='dark'] .prodid-scene{${paletteVars(DARK)}}
+${SCENE_STYLE}`
+---
+
+<svg class:list={['prodid-scene block h-auto w-full', className]} viewBox={drawing.viewBox} role="img" aria-label={label}>
+	<Fragment set:html={drawing.body} />
+</svg>
+<style is:inline set:html={style}></style>

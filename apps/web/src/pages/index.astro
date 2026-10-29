@@ -1,5 +1,6 @@
 ---
 import CodeSample from '@/components/code-sample.astro'
+import Scene from '@/components/scene.astro'
 import Layout from '@/layouts/base.astro'
 import { CONTACT, examples, SPEC_STATUS } from '@/lib/spec'
 
@@ -179,6 +180,17 @@ const heading = 'mt-4 text-2xl font-semibold tracking-tight text-balance sm:text
 			</figcaption>
 		</figure>
 	</section>
+
+	<figure class="shell pb-16 sm:pb-24">
+		<Scene
+			class="mx-auto max-w-3xl"
+			label="Publishers on their own domains, hosted publishers and open datasets send claims to one open index, which resolves the code on a product and publishes the whole index as dumps."
+		/>
+		<figcaption class="mx-auto mt-4 max-w-3xl text-sm text-soft">
+			Publishers state facts on their own domains, hosted or from open datasets. The index joins every code on the label to
+			one permanent opid, and the whole index is open to download.
+		</figcaption>
+	</figure>
 
 	<section aria-labelledby="problem" class="border-y border-line bg-surface">
 		<div class="shell grid items-center gap-12 py-16 sm:py-24 lg:grid-cols-[1fr_1.15fr] [&>*]:min-w-0">
