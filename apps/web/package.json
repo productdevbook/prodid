@@ -22,15 +22,15 @@
 		"spec:review": "bun run scripts/spec-review.ts"
 	},
 	"dependencies": {
-		"@astrojs/markdown-satteri": "0.4.1",
+		"@astrojs/markdown-satteri": "0.4.5",
 		"@tailwindcss/vite": "4.3.3",
-		"astro": "7.3.3",
+		"astro": "7.4.2",
 		"satteri": "0.10.5",
 		"tailwindcss": "4.3.3"
 	},
 	"devDependencies": {
-		"@astrojs/check": "0.9.10",
+		"@astrojs/check": "0.9.12",
 		"typescript": "6.0.3",
-		"wrangler": "4.135.0"
+		"wrangler": "4.152.0"
 	}
 }

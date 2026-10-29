@@ -23,9 +23,9 @@
 		"@prodid/core": "workspace:*",
 		"@prodid/spec": "workspace:*",
 		"@prodid/store": "workspace:*",
-		"hono": "4.13.8"
+		"hono": "4.13.14"
 	},
 	"devDependencies": {
-		"wrangler": "4.135.0"
+		"wrangler": "4.152.0"
 	}
 }
