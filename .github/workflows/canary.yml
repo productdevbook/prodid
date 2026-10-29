@@ -29,60 +29,113 @@ jobs:
       MAX_CRAWL_AGE_HOURS: '12'
       DUMP_LATEST_URL: https://dumps.prodid.org/v1/latest.json
       MAX_DUMP_AGE_HOURS: '30'
+      HOSTED_WELL_KNOWN_URL: https://canary.prodid.org/.well-known/prodid.json
+      YUVA_STATUS_RESOLVER_URL: ${{ secrets.YUVA_STATUS_RESOLVER_URL }}
+      YUVA_STATUS_CRAWLER_URL: ${{ secrets.YUVA_STATUS_CRAWLER_URL }}
+      YUVA_STATUS_HOSTED_URL: ${{ secrets.YUVA_STATUS_HOSTED_URL }}
+      YUVA_STATUS_DUMPS_URL: ${{ secrets.YUVA_STATUS_DUMPS_URL }}
     steps:
       - id: probe
         shell: bash
         run: |
           set -uo pipefail
-          problems=()
+          resolver=() crawler=() hosted=() dumps=()
+          resolver_ms=0 crawler_ms=0 hosted_ms=0 dumps_ms=0
+
+          fetch() {
+            local out
+            out=$(curl -sS --max-time 30 -o "$1" -w '%{http_code} %{time_total}' "${@:3}" "$2") || out='000 0'
+            status=${out%% *}
+            ms=$(awk -v t="${out##* }" 'BEGIN { printf "%d", t * 1000 }')
+          }
+
           if [[ ! "$GTIN" =~ ^[0-9]{8,14}$ ]]; then
-            problems+=("GTIN input \`$GTIN\` is not 8 to 14 digits")
+            resolver+=("GTIN input \`$GTIN\` is not 8 to 14 digits")
           else
             item_url="$ORIGIN/01/$GTIN"
-            status=$(curl -sS -o item.json -w '%{http_code}' -H 'Accept: application/json' "$item_url") || status=000
+            fetch item.json "$item_url" -H 'Accept: application/json'
+            resolver_ms=$ms
             if [[ "$status" != 200 ]]; then
-              problems+=("\`$item_url\` answered $status, expected 200")
+              resolver+=("\`$item_url\` answered $status, expected 200")
             elif ! jq -e --arg s "$SOURCE" '[.claims[]? | select(.source.name == $s)] | length > 0' item.json >/dev/null; then
-              problems+=("\`$item_url\` has no claim from \`$SOURCE\`")
+              resolver+=("\`$item_url\` has no claim from \`$SOURCE\`")
             fi
           fi
 
           source_url="$ORIGIN/source/$SOURCE"
-          status=$(curl -sS -o source.json -w '%{http_code}' -H 'Accept: application/json' "$source_url") || status=000
+          fetch source.json "$source_url" -H 'Accept: application/json'
+          crawler_ms=$ms
           if [[ "$status" != 200 ]]; then
-            problems+=("\`$source_url\` answered $status, expected 200")
+            crawler+=("\`$source_url\` answered $status, expected 200")
           else
             outcome=$(jq -r '.last_crawl.outcome // "none"' source.json)
             at=$(jq -r '.last_crawl.at // empty' source.json)
             if [[ "$outcome" != success ]]; then
-              problems+=("last crawl of \`$SOURCE\` has outcome \`$outcome\`, expected \`success\`")
+              crawler+=("last crawl of \`$SOURCE\` has outcome \`$outcome\`, expected \`success\`")
             fi
             if [[ -z "$at" ]] || ! at_s=$(date -u -d "$at" +%s 2>/dev/null); then
-              problems+=("last crawl of \`$SOURCE\` has no readable time (\`$at\`)")
+              crawler+=("last crawl of \`$SOURCE\` has no readable time (\`$at\`)")
             else
               age_s=$(( $(date -u +%s) - at_s ))
               if (( age_s > MAX_CRAWL_AGE_HOURS * 3600 )); then
-                problems+=("last crawl of \`$SOURCE\` was at $at, older than $MAX_CRAWL_AGE_HOURS hours")
+                crawler+=("last crawl of \`$SOURCE\` was at $at, older than $MAX_CRAWL_AGE_HOURS hours")
               fi
             fi
           fi
 
-          status=$(curl -sS -o latest.json -w '%{http_code}' "$DUMP_LATEST_URL") || status=000
+          fetch well-known.json "$HOSTED_WELL_KNOWN_URL" -H 'Accept: application/json'
+          hosted_ms=$ms
           if [[ "$status" != 200 ]]; then
-            problems+=("\`$DUMP_LATEST_URL\` answered $status, expected 200")
+            hosted+=("\`$HOSTED_WELL_KNOWN_URL\` answered $status, expected 200")
+          elif ! jq -e '."$type" == "org.prodid.feed" and .version == 1' well-known.json >/dev/null 2>&1; then
+            hosted+=("\`$HOSTED_WELL_KNOWN_URL\` is not JSON with \`\$type\` \`org.prodid.feed\` and \`version\` 1")
+          fi
+
+          fetch latest.json "$DUMP_LATEST_URL"
+          dumps_ms=$ms
+          if [[ "$status" != 200 ]]; then
+            dumps+=("\`$DUMP_LATEST_URL\` answered $status, expected 200")
           elif ! created=$(jq -er '.created_at | strings' latest.json 2>/dev/null); then
-            problems+=("\`$DUMP_LATEST_URL\` is not JSON with a \`created_at\` string")
+            dumps+=("\`$DUMP_LATEST_URL\` is not JSON with a \`created_at\` string")
           elif ! created_s=$(date -u -d "$created" +%s 2>/dev/null); then
-            problems+=("\`$DUMP_LATEST_URL\` has no readable \`created_at\` (\`$created\`)")
+            dumps+=("\`$DUMP_LATEST_URL\` has no readable \`created_at\` (\`$created\`)")
           else
             age_s=$(( $(date -u +%s) - created_s ))
             if (( age_s > MAX_DUMP_AGE_HOURS * 3600 )); then
-              problems+=("latest dump was created at $created, older than $MAX_DUMP_AGE_HOURS hours")
+              dumps+=("latest dump was created at $created, older than $MAX_DUMP_AGE_HOURS hours")
             fi
           fi
 
+          push() {
+            local name=$1 url=$2 bad=$3 ms=$4
+            shift 4
+            local state=operational message='canary ok' body code
+            if (( $# > 0 )); then
+              state=$bad
+              message=$(printf -- '- %s\n' "$@")
+            fi
+            if [[ -z "$url" ]]; then
+              echo "::warning::no status monitor address for $name"
+              return 0
+            fi
+            body=$(jq -nc --arg state "$state" --arg message "$message" --argjson ms "$ms" \
+              '{state: $state, message: $message[0:1000], duration_ms: ([[$ms, 0] | max, 120000] | min)}')
+            code=$(curl -s --max-time 15 -o /dev/null -w '%{http_code}' -X POST \
+              -H 'Content-Type: application/json' --data "$body" "$url" 2>/dev/null) || code=000
+            if [[ "$code" == 2?? ]]; then
+              echo "status $name: $state"
+            else
+              echo "::warning::status push for $name answered $code"
+            fi
+          }
+          push resolver "$YUVA_STATUS_RESOLVER_URL" major_outage "$resolver_ms" "${resolver[@]}"
+          push crawler "$YUVA_STATUS_CRAWLER_URL" degraded "$crawler_ms" "${crawler[@]}"
+          push hosted "$YUVA_STATUS_HOSTED_URL" major_outage "$hosted_ms" "${hosted[@]}"
+          push dumps "$YUVA_STATUS_DUMPS_URL" degraded "$dumps_ms" "${dumps[@]}"
+
+          problems=("${resolver[@]}" "${crawler[@]}" "${hosted[@]}" "${dumps[@]}")
           if (( ${#problems[@]} == 0 )); then
-            echo "canary ok: $GTIN, $SOURCE and the latest dump"
+            echo "canary ok: $GTIN, $SOURCE, the hosted site and the latest dump"
             exit 0
           fi
           {

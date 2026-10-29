@@ -559,6 +559,18 @@ Never add the crawler's error text, an HTTP status the status page does not show
 anything about another host. Recovery needs nothing to change: once a crawl succeeds in full, the
 lapse clears and everything the source publishes is asserted again.
 
+## The canary
+
+The canary workflow (`.github/workflows/canary.yml`) runs every 30 minutes, opens or comments on
+an `incident` issue when a check fails, and reports each component to the status page
+`https://status.useyuva.com/prodid`, which is published from Yuva. Four push monitors feed it: the
+resolver (the `/01` item has a claim from `canary.prodid.org`), the crawler (that source's last
+crawl succeeded within 12 hours), the hosted publisher (`canary.prodid.org/.well-known/prodid.json`
+is an `org.prodid.feed` of version 1) and the dumps (`v1/latest.json` is under 30 hours old). A
+failure reports `major_outage` for the resolver and the hosted publisher and `degraded` for the
+crawler and the dumps, with the problem lines as the message. The monitors' addresses are GitHub
+Actions secrets (`YUVA_STATUS_*_URL`), copied from the operator's private store.
+
 ## Releasing
 
 `@prodid/core` (`packages/core`), `@prodid/spec` (`spec`) and `prodid` (`packages/prodid`, every
