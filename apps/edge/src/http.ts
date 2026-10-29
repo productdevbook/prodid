@@ -1,5 +1,6 @@
 import { canonicalize, ifNoneMatch, problem, type ProblemDocument, type ProblemType, sha256Hex } from '@prodid/core'
 
+import { chooseLocale, type Locale } from './i18n'
 import { renderProblem } from './render'
 
 export type Variant = 'json' | 'html'
@@ -50,12 +51,20 @@ export interface RespondOptions {
 
 /**
  * One body, two representations, one validator. The ETag covers the representation, so a client that
- * switches between JSON and HTML never gets a stale 304, and `Vary: Accept` says so to the cache.
+ * switches between JSON and HTML never gets a stale 304, and `Vary: Accept` says so to the cache. A
+ * page also differs by language, so its ETag names the language and its `Vary` names the header
+ * whenever the header, not the URL, chose it.
  */
-export async function respond(request: Request, json: unknown, html: () => string, options: RespondOptions): Promise<Response> {
+export async function respond(
+	request: Request,
+	json: unknown,
+	html: (locale: Locale) => string,
+	options: RespondOptions,
+): Promise<Response> {
 	const variant = chooseVariant(request.headers.get('accept'))
-	const body = variant === 'json' ? `${JSON.stringify(json)}\n` : html()
-	const etag = `"${(await sha256Hex(`${variant}:${canonicalize(json)}`)).slice(0, 32)}"`
+	const locale = variant === 'html' ? chooseLocale(request) : null
+	const body = locale === null ? `${JSON.stringify(json)}\n` : html(locale)
+	const etag = `"${(await sha256Hex(`${locale === null ? 'json' : `html:${locale.lang}`}:${canonicalize(json)}`)).slice(0, 32)}"`
 
 	const headers = new Headers({
 		'content-type': variant === 'json' ? 'application/json; charset=utf-8' : 'text/html; charset=utf-8',
@@ -64,6 +73,7 @@ export async function respond(request: Request, json: unknown, html: () => strin
 		etag,
 		...options.headers,
 	})
+	if (locale !== null) languageHeaders(headers, locale)
 
 	if (ifNoneMatch(request.headers.get('if-none-match'), etag)) {
 		return new Response(null, { status: 304, headers })
@@ -82,7 +92,14 @@ export function rateLimitedResponse(request: Request, retryAfterSeconds: number)
 function problemAnswer(request: Request, document: ProblemDocument): Response {
 	const variant = chooseVariant(request.headers.get('accept'))
 	const headers = new Headers({ ...document.headers, vary: 'Accept' })
-	if (variant === 'html') headers.set('content-type', 'text/html; charset=utf-8')
-	const body = variant === 'json' ? `${JSON.stringify(document.body)}\n` : renderProblem(document.body)
-	return new Response(body, { status: document.status, headers })
+	if (variant === 'json') return new Response(`${JSON.stringify(document.body)}\n`, { status: document.status, headers })
+	const locale = chooseLocale(request)
+	headers.set('content-type', 'text/html; charset=utf-8')
+	languageHeaders(headers, locale)
+	return new Response(renderProblem(document.body, locale), { status: document.status, headers })
+}
+
+function languageHeaders(headers: Headers, locale: Locale): void {
+	headers.set('content-language', locale.lang)
+	if (!locale.fromQuery) headers.set('vary', 'Accept, Accept-Language')
 }

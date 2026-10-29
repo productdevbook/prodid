@@ -210,7 +210,7 @@ describe('the entity page', () => {
 			{ property: 'name', value: 'Old Jacket', lang: 'en', source: SOURCE, seen_at: at, withdrawn_at: '2026-09-20T00:00:00Z' },
 		])
 		const html = renderEntity(record, { history: true })
-		expect(html).toContain('<del><span class="name-value" lang="en">Old Jacket</span></del>')
+		expect(html).toContain('<del><span class="name-value" lang="en" dir="auto">Old Jacket</span></del>')
 		expect(html).toContain('withdrawn <time datetime="2026-09-20T00:00:00Z"')
 		expect(sectionOf(html, 'footer')).toContain('href="/id/kq7m3v9dn2hb4t5x">Current claims only')
 		expect(sectionOf(renderEntity(record), 'footer')).toContain('href="/id/kq7m3v9dn2hb4t5x?history=1"')

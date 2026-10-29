@@ -13,6 +13,7 @@ import { findMedia, readEntity, readEntityByGtin, readSourceStatus } from '@prod
 import { type Context, Hono } from 'hono'
 
 import { chooseVariant, problemResponse, rateLimitedResponse, respond } from './http'
+import { matchLanguage } from './i18n'
 import { callerKey } from './limits/policy'
 import { mediaKey } from './media/store'
 import { IMMUTABLE } from './media/store'
@@ -107,18 +108,23 @@ export function createApp(build: ServicesFactory): Hono<App> {
 		const found = await readEntity(c.get('services').sql, opid, { history })
 		if (!found.found) return problemResponse(c.req.raw, 'unknown-opid')
 		if (found.merged) {
+			const query = new URLSearchParams(history ? { history: '1' } : {})
+			const lang = matchLanguage(c.req.query('lang') ?? '')
+			if (lang !== null) query.set('lang', lang)
 			// Per request, not permanent in practice: a merge is reversible, so the redirect is cached
 			// for as long as any other resolver answer and no longer.
 			return new Response(null, {
 				status: 308,
 				headers: {
-					location: `/id/${found.survivor}${history ? '?history=1' : ''}`,
+					location: `/id/${found.survivor}${query.size === 0 ? '' : `?${query}`}`,
 					'cache-control': RESOLVER_CACHE,
 					vary: 'Accept',
 				},
 			})
 		}
-		return await respond(c.req.raw, found.entity, () => renderEntity(found.entity, { history }), { cacheControl: RESOLVER_CACHE })
+		return await respond(c.req.raw, found.entity, (locale) => renderEntity(found.entity, { history, locale }), {
+			cacheControl: RESOLVER_CACHE,
+		})
 	})
 
 	// Further GS1 Digital Link segments (/10/{lot}, /21/{serial}) are accepted and ignored.
@@ -130,7 +136,7 @@ export function createApp(build: ServicesFactory): Hono<App> {
 		const history = c.req.query('history') === '1'
 		const found = await readEntityByGtin(c.get('services').sql, gtin.value, { history })
 		if (!found.found) return problemResponse(c.req.raw, 'unknown-gtin')
-		return await respond(c.req.raw, found.entity, () => renderEntity(found.entity, { history }), {
+		return await respond(c.req.raw, found.entity, (locale) => renderEntity(found.entity, { history, locale }), {
 			cacheControl: RESOLVER_CACHE,
 			headers: { 'content-location': `/id/${found.opid}` },
 		})
@@ -143,7 +149,7 @@ export function createApp(build: ServicesFactory): Hono<App> {
 		const sql = c.get('services').sql
 		const status = (await readSourceStatus(sql, name)) ?? (await readSourceStatus(sql, name.toLowerCase()))
 		if (status === null) return problemResponse(c.req.raw, 'unknown-source')
-		return await respond(c.req.raw, status, () => renderSource(status), { cacheControl: SOURCE_CACHE })
+		return await respond(c.req.raw, status, (locale) => renderSource(status, locale), { cacheControl: SOURCE_CACHE })
 	})
 
 	app.get('/schemas/:version/:file', async (c) => {

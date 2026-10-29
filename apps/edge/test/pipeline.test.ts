@@ -328,7 +328,7 @@ describe.skipIf(!reachable)('the resolver', () => {
 
 		const html = await edge!.fetch(`/id/${entity.opid}`, { headers: { accept: 'text/html,*/*;q=0.8' } })
 		expect(html.headers.get('content-type')).toStartWith('text/html')
-		expect(html.headers.get('vary')).toBe('Accept')
+		expect(html.headers.get('vary')).toBe('Accept, Accept-Language')
 		expect(await html.text()).toContain(entity.opid)
 
 		const asJson = await edge!.fetch(`/id/${entity.opid}`)
