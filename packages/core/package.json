@@ -1,7 +1,6 @@
 {
 	"name": "@prodid/core",
-	"version": "0.0.0",
-	"private": true,
+	"version": "0.0.1",
 	"homepage": "https://prodid.org",
 	"bugs": {
 		"url": "https://github.com/productdevbook/prodid/issues"

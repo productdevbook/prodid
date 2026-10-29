@@ -1,0 +1,31 @@
+{
+	"name": "prodid",
+	"version": "0.0.1",
+	"description": "prodid, an open identity and data layer for physical products: the same library as @prodid/core.",
+	"homepage": "https://prodid.org",
+	"bugs": {
+		"url": "https://github.com/productdevbook/prodid/issues"
+	},
+	"license": "Apache-2.0",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/productdevbook/prodid.git",
+		"directory": "packages/prodid"
+	},
+	"files": [
+		"index.js",
+		"index.d.ts",
+		"README.md",
+		"LICENSE"
+	],
+	"type": "module",
+	"exports": {
+		".": {
+			"types": "./index.d.ts",
+			"default": "./index.js"
+		}
+	},
+	"dependencies": {
+		"@prodid/core": "0.0.1"
+	}
+}

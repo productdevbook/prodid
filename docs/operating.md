@@ -561,8 +561,10 @@ lapse clears and everything the source publishes is asserted again.
 
 ## Releasing
 
-`@prodid/core` (`packages/core`) and `@prodid/spec` (`spec`) are published to npm by
-`.github/workflows/release.yml` when a tag is pushed: `core-v<version>` or `spec-v<version>`. The
+`@prodid/core` (`packages/core`), `@prodid/spec` (`spec`) and `prodid` (`packages/prodid`, every
+export of `@prodid/core` under the short name, at the same version) are published to npm by
+`.github/workflows/release.yml` when a tag is pushed: `core-v<version>`, `spec-v<version>` or
+`prodid-v<version>`. Release `core` before `prodid`, which depends on that exact version. The
 `verify` job runs `bun run check` against Postgres and `npm publish --dry-run`; the `publish` job,
 the only one with `id-token: write`, runs `npm publish --provenance` with a short-lived token npm
 issues for that run in exchange for the GitHub OIDC token. No npm token is stored anywhere.
@@ -570,12 +572,12 @@ issues for that run in exchange for the GitHub OIDC token. No npm token is store
 - A tag whose version equals the package's `package.json` version publishes, with dist-tag
   `latest`, or `next` for a pre-release version.
 - A tag whose version is the `package.json` version plus a pre-release part starting `dryrun`, for
-  example `core-v1.0.0-dryrun.1`, runs every step of `verify` and skips `publish`.
+  example `core-v0.0.2-dryrun.1`, runs every step of `verify` and skips `publish`.
 - Any other tag fails `verify`.
 
 ```sh
-git tag core-v1.0.0
-git push origin core-v1.0.0
+git tag core-v0.0.2
+git push origin core-v0.0.2
 ```
 
 Once, before the first release, the owner:
@@ -585,10 +587,9 @@ Once, before the first release, the owner:
 2. owns the `prodid` scope on npmjs.com (an organization named `prodid`, two-factor
    authentication on);
 3. creates each package once, because a trusted publisher can only be attached to a package that
-   exists: from a directory outside the repository holding only a `package.json` (the name,
-   version `0.0.0-bootstrap.0`, the license, the `repository` object) and a README,
-   `npm publish --access public --tag bootstrap`;
-4. on npmjs.com, for `@prodid/core` and for `@prodid/spec`, *Settings*, *Trusted publisher*:
+   exists. Done on 2026-10-29: 0.0.1 of all three was published by hand from the repository, so it
+   carries no provenance; every later version comes from the workflow;
+4. on npmjs.com, for `@prodid/core`, `@prodid/spec` and `prodid`, *Settings*, *Trusted publisher*:
    GitHub Actions, organization or user `productdevbook`, repository `prodid`, workflow filename
    `release.yml`, no environment; then *Publishing access*: require two-factor authentication and
    disallow tokens. From the CLI:

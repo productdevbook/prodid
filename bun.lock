@@ -73,7 +73,7 @@
     },
     "packages/core": {
       "name": "@prodid/core",
-      "version": "0.0.0",
+      "version": "0.0.1",
       "dependencies": {
         "ajv": "8.20.0",
         "ajv-formats": "3.0.1",
@@ -83,6 +83,13 @@
         "@prodid/spec": "workspace:*",
         "esbuild": "0.28.1",
         "tsdown": "0.23.3",
+      },
+    },
+    "packages/prodid": {
+      "name": "prodid",
+      "version": "0.0.1",
+      "dependencies": {
+        "@prodid/core": "0.0.1",
       },
     },
     "packages/store": {
@@ -95,7 +102,7 @@
     },
     "spec": {
       "name": "@prodid/spec",
-      "version": "0.0.0",
+      "version": "0.0.1",
       "devDependencies": {
         "@types/bun": "1.4.4",
         "ajv": "8.20.0",
@@ -905,6 +912,8 @@
     "prismjs": ["prismjs@1.30.0", "", {}, "sha512-DEvV2ZF2r2/63V+tK8hQvrR2ZGn10srHbXviTlcv7Kpzw8jWiNTqbVgjO3IY8RxrrOUF8VPMQQFysYYYv0YZxw=="],
 
     "process-ancestry": ["process-ancestry@0.1.0", "", {}, "sha512-tGqJW/UnclpYASFcM6Xh8D8l/BMtaQ9+CSG0vlJSJTcdMM4lDRv4c6H0Pdcsfted+bVczdYSfk2fdukg2gQkZg=="],
+
+    "prodid": ["prodid@workspace:packages/prodid"],
 
     "property-information": ["property-information@7.2.0", "", {}, "sha512-IAtzIB6sUiWaJYrX9smp3V46pBGbBeLFRGdh25kg1334VcBlD8HzhPeNIWQH9zhGmo2itIe25EHt9dQP7G5hmg=="],
 
