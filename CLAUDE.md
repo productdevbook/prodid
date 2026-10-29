@@ -42,6 +42,8 @@ fixtures) before or with the code.
 - `bun spec/validate.ts --emit-merchant`: regenerates the Merchant fixture.
 - `bun run --filter '@prodid/web' spec:review <anchor>…`: re-records reviewed spec sections the
   website restates.
+- `bun run --filter '@prodid/web' banner`: regenerates `docs/assets/banner-*.svg` from the scene the
+  landing page draws (`apps/web/src/lib/scene.ts`).
 - `bun run --filter '@prodid/edge' cf-typegen` and `bun run --filter '@prodid/hosted' cf-typegen`:
   regenerate `worker-configuration.d.ts` from `wrangler.jsonc`.
 - Deploy: `bunx wrangler deploy` in `apps/edge`, `apps/hosted`, and `apps/web` after
