@@ -8,7 +8,7 @@
 	"license": "Apache-2.0",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/productdevbook/prodid.git",
+		"url": "git+https://github.com/productdevbook/prodid.git",
 		"directory": "packages/core"
 	},
 	"files": [
