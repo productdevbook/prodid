@@ -12,6 +12,7 @@ export const en = {
 			publishShort: 'Publish',
 			data: 'Data',
 			dataShort: 'Data',
+			menu: 'Menu',
 		},
 		toDark: 'Switch to dark theme',
 		toLight: 'Switch to light theme',
@@ -54,6 +55,15 @@ export const en = {
 		lead: 'A permanent, open identifier for every physical product. Every barcode and part number resolves to it, and every fact about it names the source that said it.',
 		ctaPublish: 'Publish your products',
 		ctaSpec: 'Read the specification',
+		resolve: {
+			label: 'Try it: resolve a code from a label',
+			button: 'Resolve',
+			hint: 'Enter a code of 8 to 14 digits.',
+		},
+		close: {
+			heading: 'Give your products an identity that outlives the barcode.',
+			body: 'Two files and one DNS record on your own domain, or a hosted site with no domain at all.',
+		},
 		heroKind: (brand: string) => `Item · ${brand}`,
 		heroVariant: (markets: string) => `navy · M · sold in ${markets}`,
 		heroLapsed: (source: string) => `lapsed · ${source}`,
@@ -86,6 +96,7 @@ export const en = {
 				'New packaging adds a new item with a new barcode, under the same variant and the same family. Nothing that pointed at the old one breaks.',
 		},
 		how: {
+			start: 'Start publishing',
 			eyebrow: 'How it works',
 			heading: 'Publish on your domain. prodid indexes it. Anyone resolves it.',
 			publish: {
@@ -130,6 +141,7 @@ export const en = {
 			request: 'Request and response headers',
 		},
 		who: {
+			links: ['Publish on your domain', 'Choose a route', 'Get the data'],
 			eyebrow: 'Who it is for',
 			heading: 'The people who make the data, and the people who need it.',
 			audiences: [
@@ -231,6 +243,8 @@ export const en = {
 			delegating: 'when delegating',
 		},
 		own: {
+			copy: 'Copy',
+			copied: 'Copied',
 			eyebrow: 'Route 1',
 			heading: 'Publish on your own domain',
 			lead: 'Two files and one DNS record. A platform publishing on behalf of merchants does the same thing on each merchant domain, so every merchant keeps its own identity and its own trust level.',
@@ -411,6 +425,7 @@ export const en = {
 				body: 'Retailers, registries, open datasets and contributors are sources like any other. Their claims are attributed to them and never overwrite yours; where you disagree, both claims are visible with their sources side by side.',
 			},
 		},
+		toc: 'On this page',
 		checklist: {
 			heading: 'Before you go live',
 			items: [

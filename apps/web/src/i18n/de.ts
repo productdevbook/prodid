@@ -13,6 +13,7 @@ export const de: Copy = {
 			publishShort: 'Publizieren',
 			data: 'Daten',
 			dataShort: 'Daten',
+			menu: 'Menü',
 		},
 		toDark: 'Zum dunklen Design wechseln',
 		toLight: 'Zum hellen Design wechseln',
@@ -56,6 +57,15 @@ export const de: Copy = {
 		lead: 'Eine dauerhafte, offene Kennung für jedes physische Produkt. Jeder Barcode und jede Teilenummer löst darauf auf, und jede Angabe nennt die Quelle, die sie gemacht hat.',
 		ctaPublish: 'Produkte veröffentlichen',
 		ctaSpec: 'Spezifikation lesen',
+		resolve: {
+			label: 'Probieren Sie es aus: einen Code vom Etikett auflösen',
+			button: 'Auflösen',
+			hint: 'Geben Sie einen Code mit 8 bis 14 Ziffern ein.',
+		},
+		close: {
+			heading: 'Geben Sie Ihren Produkten eine Identität, die den Barcode überdauert.',
+			body: 'Zwei Dateien und ein DNS-Eintrag auf Ihrer eigenen Domain, oder eine gehostete Seite ganz ohne Domain.',
+		},
 		heroKind: (brand: string) => `Item · ${brand}`,
 		heroVariant: (markets: string) => `navy · M · verkauft in ${markets}`,
 		heroLapsed: (source: string) => `lapsed · ${source}`,
@@ -93,6 +103,7 @@ export const de: Copy = {
 				'Eine neue Verpackung fügt ein neues Item mit neuem Barcode hinzu, unter derselben Variante und derselben Familie. Nichts, was auf das alte gezeigt hat, geht kaputt.',
 		},
 		how: {
+			start: 'Mit dem Veröffentlichen beginnen',
 			eyebrow: 'So funktioniert es',
 			heading: 'Auf der eigenen Domain veröffentlichen. prodid indexiert. Jeder löst auf.',
 			publish: {
@@ -137,6 +148,7 @@ export const de: Copy = {
 			request: 'Anfrage- und Antwort-Header',
 		},
 		who: {
+			links: ['Auf Ihrer Domain veröffentlichen', 'Einen Weg wählen', 'Die Daten holen'],
 			eyebrow: 'Für wen',
 			heading: 'Für die, die die Daten machen, und für die, die sie brauchen.',
 			audiences: [
@@ -238,6 +250,8 @@ export const de: Copy = {
 			delegating: 'bei Delegation',
 		},
 		own: {
+			copy: 'Kopieren',
+			copied: 'Kopiert',
 			eyebrow: 'Weg 1',
 			heading: 'Auf der eigenen Domain veröffentlichen',
 			lead: 'Zwei Dateien und ein DNS-Eintrag. Eine Plattform, die für Händler veröffentlicht, tut dasselbe auf jeder Händlerdomain, sodass jeder Händler seine eigene Identität und seine eigene Vertrauensstufe behält.',
@@ -418,6 +432,7 @@ export const de: Copy = {
 				body: 'Händler, Register, offene Datensätze und Beitragende sind Quellen wie alle anderen. Ihre Claims werden ihnen zugeschrieben und überschreiben Ihre nie; wo Sie sich widersprechen, sind beide Claims mit ihren Quellen nebeneinander sichtbar.',
 			},
 		},
+		toc: 'Auf dieser Seite',
 		checklist: {
 			heading: 'Bevor Sie live gehen',
 			items: [

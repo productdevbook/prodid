@@ -87,47 +87,34 @@ const mediaCaps = ['20 MiB', '50 MiB', '60 s', '20'].map((cap, index) => ({ what
 const mediaLicences = `CC0-1.0  CC-BY-4.0  CC-BY-SA-4.0  CC-BY-ND-4.0
 CC-BY-3.0  CC-BY-SA-3.0  CC-BY-ND-3.0`
 
+const toc = [
+	{ href: '#routes', label: copy.routes.heading },
+	{ href: '#discovery', label: copy.discovery.heading },
+	{ href: '#own-domain', label: copy.own.heading },
+	{ href: '#delegated', label: copy.delegated.heading },
+	{ href: '#hosted', label: copy.hosted.heading },
+	{ href: '#trust', label: copy.trust.heading },
+	{ href: '#after', label: copy.after.heading },
+	{ href: '#checklist', label: copy.checklist.heading },
+]
+
+const stepTitle = (text: string) => (text.includes(' — ') ? text.split(' — ').slice(1).join(' — ') : text)
+
 const after = copy.after
-const simple = [after.edit, after.remove, after.retire, after.broken, after.unreadable]
+const entries = [
+	...[after.edit, after.remove, after.retire, after.broken, after.unreadable].map((entry) => ({ title: entry.title, paragraphs: [entry.body] })),
+	{ title: after.lapse.title, paragraphs: after.lapse.body },
+	{ title: after.seen.title, paragraphs: [after.seen.body] },
+]
+const summary =
+	'flex min-h-12 cursor-pointer list-none items-center justify-between gap-4 px-5 py-3 text-start font-medium [&::-webkit-details-marker]:hidden'
+const panel = 'border-t border-line px-5 py-4'
 const item = 'border-s-2 border-rule ps-5'
-const body = 'mt-1 text-[0.9375rem] leading-relaxed text-soft'
+const body = 'text-[0.9375rem] leading-relaxed text-soft'
 ---
 
 <Layout title={copy.title} description={copy.description} active="publish" code={code} page="publish">
 	<PageHeader eyebrow={copy.eyebrow} title={copy.heading} lead={copy.lead} />
-
-	<section aria-labelledby="discovery" class="border-t border-line">
-		<div class="shell py-14 sm:py-16">
-			<div class="max-w-3xl">
-				<h2 id="discovery" class="text-2xl font-semibold tracking-tight">{copy.discovery.heading}</h2>
-				<p class="mt-5 text-base leading-relaxed text-soft sm:text-lg">{copy.discovery.lead}</p>
-			</div>
-
-			<ol class="mt-9 grid max-w-3xl gap-px overflow-hidden rounded-xl border border-line bg-line [&>*]:min-w-0">
-				<li class="bg-surface p-6">
-					<p class="font-mono text-xs text-soft">{copy.discovery.first}</p>
-					<h3 class="mt-2 text-base font-semibold tracking-tight" set:html={r(copy.discovery.firstTitle)} />
-					<p class="mt-3 text-[0.9375rem] leading-relaxed text-soft" set:html={r(copy.discovery.firstBody)} />
-				</li>
-				<li class="bg-surface p-6">
-					<p class="font-mono text-xs text-soft">{copy.discovery.second}</p>
-					<h3 class="mt-2 text-base font-semibold tracking-tight">
-						<code class="chip">{wellKnown}</code>
-					</h3>
-					<p class="mt-3 text-[0.9375rem] leading-relaxed text-soft">{copy.discovery.secondBody}</p>
-				</li>
-			</ol>
-
-			<div class="mt-8 max-w-3xl">
-				<p class="text-base leading-relaxed text-soft" set:html={r(copy.discovery.why)} />
-			</div>
-
-			<div class="mt-8 grid max-w-3xl gap-4 [&>*]:min-w-0">
-				<p class="rounded-lg border border-line bg-surface p-5 text-[0.9375rem] leading-relaxed text-soft" set:html={r(copy.discovery.one)} />
-				<p class="rounded-lg border border-line bg-surface p-5 text-[0.9375rem] leading-relaxed text-soft" set:html={r(copy.discovery.answer)} />
-			</div>
-		</div>
-	</section>
 
 	<section aria-labelledby="routes" class="border-t border-line">
 		<div class="shell py-14 sm:py-16">
@@ -173,19 +160,71 @@ const body = 'mt-1 text-[0.9375rem] leading-relaxed text-soft'
 		</div>
 	</section>
 
+	<div class="border-t border-line">
+		<div class="shell lg:grid lg:grid-cols-[13rem_minmax(0,1fr)] lg:gap-12 [&>*]:min-w-0">
+			<aside class="pt-10 lg:sticky lg:top-20 lg:mt-14 lg:self-start lg:pt-0">
+				<nav aria-label={copy.toc} class="rounded-xl border border-line bg-surface p-5 lg:rounded-none lg:border-0 lg:border-s lg:bg-transparent lg:p-0 lg:ps-5">
+					<p class="font-mono text-xs tracking-[0.18em] text-soft uppercase">{copy.toc}</p>
+					<ul class="mt-4 grid gap-2.5 text-sm">
+						{
+							toc.map((entry) => (
+								<li>
+									<a href={entry.href} class="rounded-sm text-soft underline-offset-4 hover:text-accent hover:underline">{entry.label}</a>
+								</li>
+							))
+						}
+					</ul>
+				</nav>
+			</aside>
+			<div>
+	<section aria-labelledby="discovery">
+		<div class="py-14 sm:py-16">
+			<div class="max-w-3xl">
+				<h2 id="discovery" class="text-2xl font-semibold tracking-tight">{copy.discovery.heading}</h2>
+				<p class="mt-5 text-base leading-relaxed text-soft sm:text-lg">{copy.discovery.lead}</p>
+			</div>
+
+			<ol class="mt-9 grid max-w-3xl gap-px overflow-hidden rounded-xl border border-line bg-line [&>*]:min-w-0">
+				<li class="bg-surface p-6">
+					<p class="font-mono text-xs text-soft">{copy.discovery.first}</p>
+					<h3 class="mt-2 text-base font-semibold tracking-tight" set:html={r(copy.discovery.firstTitle)} />
+					<p class="mt-3 text-[0.9375rem] leading-relaxed text-soft" set:html={r(copy.discovery.firstBody)} />
+				</li>
+				<li class="bg-surface p-6">
+					<p class="font-mono text-xs text-soft">{copy.discovery.second}</p>
+					<h3 class="mt-2 text-base font-semibold tracking-tight">
+						<code class="chip">{wellKnown}</code>
+					</h3>
+					<p class="mt-3 text-[0.9375rem] leading-relaxed text-soft">{copy.discovery.secondBody}</p>
+				</li>
+			</ol>
+
+			<div class="mt-8 max-w-3xl">
+				<p class="text-base leading-relaxed text-soft" set:html={r(copy.discovery.why)} />
+			</div>
+
+			<div class="mt-8 grid max-w-3xl gap-4 [&>*]:min-w-0">
+				<p class="rounded-lg border border-line bg-surface p-5 text-[0.9375rem] leading-relaxed text-soft" set:html={r(copy.discovery.one)} />
+				<p class="rounded-lg border border-line bg-surface p-5 text-[0.9375rem] leading-relaxed text-soft" set:html={r(copy.discovery.answer)} />
+			</div>
+		</div>
+	</section>
+
 	<section aria-labelledby="own-domain" class="border-t border-line">
-		<div class="shell py-14 sm:py-16">
+		<div class="py-14 sm:py-16">
 			<div class="max-w-3xl">
 				<p class="font-mono text-xs tracking-[0.18em] text-soft uppercase">{copy.own.eyebrow}</p>
 				<h2 id="own-domain" class="mt-4 text-2xl font-semibold tracking-tight sm:text-3xl">{copy.own.heading}</h2>
 				<p class="mt-5 text-base leading-relaxed text-soft sm:text-lg">{copy.own.lead}</p>
 			</div>
 
-			<div class="mt-12 grid gap-12 [&>*]:min-w-0">
-				<div>
-					<h3 class="text-lg font-semibold tracking-tight">{copy.own.step1}</h3>
+			<ol class="mt-12 grid gap-12 [&>*]:min-w-0">
+				<li class="flex gap-4 sm:gap-5">
+					<span aria-hidden="true" class="grid size-9 shrink-0 place-items-center rounded-full bg-accent font-mono text-sm font-medium text-bg">1</span>
+					<div class="min-w-0 flex-1">
+					<h3 class="mt-1 text-lg font-semibold tracking-tight">{stepTitle(copy.own.step1)}</h3>
 					<p class="mt-3 max-w-3xl text-base leading-relaxed text-soft" set:html={r(copy.own.step1Lead(wellKnown))} />
-					<div class="mt-6 grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-start [&>*]:min-w-0">
+					<div class="mt-6 grid gap-8 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:items-start [&>*]:min-w-0">
 						<CodeSample code={examples.feed} lang="json" label=".well-known/prodid.json" badge="application/json" caption={copy.own.feedCaption} />
 						<div class="table-scroll" role="region" aria-label={copy.own.feedTable} tabindex="0">
 							<table class="data-table">
@@ -207,10 +246,13 @@ const body = 'mt-1 text-[0.9375rem] leading-relaxed text-soft'
 						</div>
 					</div>
 					<p class="mt-5 max-w-3xl text-[0.9375rem] leading-relaxed text-soft" set:html={r(copy.own.serve)} />
-				</div>
+					</div>
+				</li>
 
-				<div>
-					<h3 class="text-lg font-semibold tracking-tight">{copy.own.step2}</h3>
+				<li class="flex gap-4 sm:gap-5">
+					<span aria-hidden="true" class="grid size-9 shrink-0 place-items-center rounded-full bg-accent font-mono text-sm font-medium text-bg">2</span>
+					<div class="min-w-0 flex-1">
+					<h3 class="mt-1 text-lg font-semibold tracking-tight">{stepTitle(copy.own.step2)}</h3>
 					<p class="mt-3 max-w-3xl text-base leading-relaxed text-soft">{copy.own.step2Lead}</p>
 					<CodeSample
 						class="mt-6"
@@ -222,7 +264,7 @@ const body = 'mt-1 text-[0.9375rem] leading-relaxed text-soft'
 					/>
 					<p class="mt-6 max-w-3xl rounded-lg border border-line bg-surface p-5 text-[0.9375rem] leading-relaxed text-soft" set:html={r(copy.own.sameHost)} />
 					<p class="mt-8 max-w-3xl text-base leading-relaxed text-soft">{copy.own.firstLine}</p>
-					<div class="mt-4 grid gap-8 lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)] lg:items-start [&>*]:min-w-0">
+					<div class="mt-4 grid gap-8 xl:grid-cols-[minmax(0,26rem)_minmax(0,1fr)] xl:items-start [&>*]:min-w-0">
 						<CodeSample code={examples.itemJacket} lang="json" label={copy.own.itemLabel} />
 						<div class="table-scroll" role="region" aria-label={copy.own.itemTable} tabindex="0">
 							<table class="data-table">
@@ -245,29 +287,47 @@ const body = 'mt-1 text-[0.9375rem] leading-relaxed text-soft'
 					</div>
 					<p class="mt-6 max-w-3xl text-[0.9375rem] leading-relaxed text-soft" set:html={r(copy.own.flat)} />
 					<p class="mt-4 max-w-3xl text-[0.9375rem] leading-relaxed text-soft" set:html={r(copy.own.barcodes)} />
-				</div>
+					</div>
+				</li>
 
-				<div>
-					<h3 class="text-lg font-semibold tracking-tight">{copy.own.step3}</h3>
+				<li class="flex gap-4 sm:gap-5">
+					<span aria-hidden="true" class="grid size-9 shrink-0 place-items-center rounded-full bg-accent font-mono text-sm font-medium text-bg">3</span>
+					<div class="min-w-0 flex-1">
+					<h3 class="mt-1 text-lg font-semibold tracking-tight">{stepTitle(copy.own.step3)}</h3>
 					<p class="mt-3 max-w-3xl text-base leading-relaxed text-soft">{copy.own.step3Lead}</p>
-					<CodeSample class="mt-6 max-w-2xl" code={txtRecord} lang="ini" label="_prodid.acme.example TXT" />
+					<div class="mt-6 max-w-2xl">
+						<CodeSample code={txtRecord} lang="ini" label="_prodid.acme.example TXT" />
+						<button
+							type="button"
+							hidden
+							data-copy={txtRecord}
+							data-copied={copy.own.copied}
+							class="mt-3 min-h-10 cursor-pointer items-center rounded-md border border-rule bg-surface px-4 text-sm font-medium transition-colors hover:border-accent hover:text-accent [&:not([hidden])]:inline-flex"
+						>
+							{copy.own.copy}
+						</button>
+					</div>
 					<p class="mt-5 max-w-3xl text-[0.9375rem] leading-relaxed text-soft" set:html={r(copy.own.step3Why)} />
 					<p class="mt-4 max-w-3xl rounded-lg border border-line bg-surface p-5 text-[0.9375rem] leading-relaxed text-soft" set:html={r(copy.own.neverDelegate)} />
 					<p class="mt-4 max-w-3xl text-[0.9375rem] leading-relaxed text-soft" set:html={r(copy.own.order)} />
-				</div>
+					</div>
+				</li>
 
-				<div>
-					<h3 class="text-lg font-semibold tracking-tight">{copy.own.step4}</h3>
+				<li class="flex gap-4 sm:gap-5">
+					<span aria-hidden="true" class="grid size-9 shrink-0 place-items-center rounded-full bg-accent font-mono text-sm font-medium text-bg">4</span>
+					<div class="min-w-0 flex-1">
+					<h3 class="mt-1 text-lg font-semibold tracking-tight">{stepTitle(copy.own.step4)}</h3>
 					<p class="mt-3 max-w-3xl text-base leading-relaxed text-soft">{copy.own.step4Lead}</p>
 					<CodeSample class="mt-6 max-w-2xl" code={ping} lang="bash" label={copy.own.pingLabel} />
 					<p class="mt-4 max-w-3xl text-[0.9375rem] leading-relaxed text-soft" set:html={r(copy.own.ping)} />
-				</div>
-			</div>
+					</div>
+				</li>
+			</ol>
 		</div>
 	</section>
 
 	<section aria-labelledby="delegated" class="border-t border-line">
-		<div class="shell py-14 sm:py-16">
+		<div class="py-14 sm:py-16">
 			<div class="max-w-3xl">
 				<p class="font-mono text-xs tracking-[0.18em] text-soft uppercase">{copy.delegated.eyebrow}</p>
 				<h2 id="delegated" class="mt-4 text-2xl font-semibold tracking-tight sm:text-3xl">{copy.delegated.heading}</h2>
@@ -296,7 +356,7 @@ const body = 'mt-1 text-[0.9375rem] leading-relaxed text-soft'
 	</section>
 
 	<section aria-labelledby="hosted" class="border-t border-line">
-		<div class="shell py-14 sm:py-16">
+		<div class="py-14 sm:py-16">
 			<div class="max-w-3xl">
 				<p class="font-mono text-xs tracking-[0.18em] text-soft uppercase">{copy.hosted.eyebrow}</p>
 				<h2 id="hosted" class="mt-4 text-2xl font-semibold tracking-tight sm:text-3xl">{copy.hosted.heading}</h2>
@@ -312,7 +372,7 @@ const body = 'mt-1 text-[0.9375rem] leading-relaxed text-soft'
 	</section>
 
 	<section aria-labelledby="trust" class="border-t border-line">
-		<div class="shell py-14 sm:py-16">
+		<div class="py-14 sm:py-16">
 			<div class="max-w-3xl">
 				<h2 id="trust" class="text-2xl font-semibold tracking-tight">{copy.trust.heading}</h2>
 				<p class="mt-5 text-base leading-relaxed text-soft sm:text-lg">{copy.trust.lead}</p>
@@ -350,74 +410,88 @@ const body = 'mt-1 text-[0.9375rem] leading-relaxed text-soft'
 	</section>
 
 	<section aria-labelledby="after" class="border-t border-line">
-		<div class="shell py-14 sm:py-16">
+		<div class="py-14 sm:py-16">
 			<div class="max-w-3xl">
 				<h2 id="after" class="text-2xl font-semibold tracking-tight">{after.heading}</h2>
-				<ul class="mt-8 grid gap-6 [&>*]:min-w-0">
+				<div class="mt-8 grid gap-3 [&>*]:min-w-0">
 					{
-						simple.map((entry) => (
-							<li class={item}>
-								<p class="font-medium">{entry.title}</p>
-								<p class={body} set:html={r(entry.body)} />
-							</li>
+						entries.map((entry, index) => (
+							<details class="group rounded-xl border border-line bg-surface" open={index === 0}>
+								<summary class={summary}>
+									<span set:html={r(entry.title)} />
+									<span class="text-soft transition-transform group-open:rotate-180" aria-hidden="true">▾</span>
+								</summary>
+								<div class={panel}>
+									{entry.paragraphs.map((paragraph, at) => <p class:list={[body, at > 0 && 'mt-2']} set:html={r(paragraph)} />)}
+								</div>
+							</details>
 						))
 					}
-					<li class={item}>
-						<p class="font-medium">{after.lapse.title}</p>
-						{after.lapse.body.map((paragraph, index) => <p class:list={[body, index > 0 && 'mt-2']} set:html={r(paragraph)} />)}
-					</li>
-					<li class={item}>
-						<p class="font-medium" set:html={r(after.seen.title)} />
-						<p class={body} set:html={r(after.seen.body)} />
-					</li>
-					<li class={item}>
-						<p class="font-medium">{after.status.title}</p>
-						<p class={body} set:html={r(after.status.body)} />
-						<CodeSample class="mt-4" code={examples.source} lang="json" label="spec/fixtures/v1/examples/source.json" badge="application/json" />
-					</li>
-					<li class={item}>
-						<p class="font-medium">{after.media.title}</p>
-						<p class={body} set:html={r(after.media.sniffed)} />
-						<div class="mt-3 table-scroll" role="region" aria-label={after.media.table} tabindex="0">
-							<table class="data-table">
-								<thead>
-									<tr><th scope="col">{after.media.what}</th><th scope="col">{after.media.cap}</th></tr>
-								</thead>
-								<tbody>
-									{
-										mediaCaps.map((row) => (
-											<tr>
-												<td class="whitespace-nowrap">{row.what}</td>
-												<td class="font-mono text-[0.8125rem] whitespace-nowrap">{row.cap}</td>
-											</tr>
-										))
-									}
-								</tbody>
-							</table>
+					<details class="group rounded-xl border border-line bg-surface">
+						<summary class={summary}>
+							<span>{after.status.title}</span>
+							<span class="text-soft transition-transform group-open:rotate-180" aria-hidden="true">▾</span>
+						</summary>
+						<div class={panel}>
+							<p class={body} set:html={r(after.status.body)} />
+							<CodeSample class="mt-4" code={examples.source} lang="json" label="spec/fixtures/v1/examples/source.json" badge="application/json" />
 						</div>
-						<p class="mt-3 text-[0.9375rem] leading-relaxed text-soft">{after.media.licence}</p>
-						<CodeSample class="mt-3" code={mediaLicences} label={after.media.licences} />
-						<p class="mt-3 text-[0.9375rem] leading-relaxed text-soft" set:html={r(after.media.entry)} />
-					</li>
-					<li class={item}>
-						<p class="font-medium">{after.others.title}</p>
-						<p class={body}>{after.others.body}</p>
-					</li>
-				</ul>
+					</details>
+					<details class="group rounded-xl border border-line bg-surface">
+						<summary class={summary}>
+							<span>{after.media.title}</span>
+							<span class="text-soft transition-transform group-open:rotate-180" aria-hidden="true">▾</span>
+						</summary>
+						<div class={panel}>
+							<p class={body} set:html={r(after.media.sniffed)} />
+							<div class="mt-3 table-scroll" role="region" aria-label={after.media.table} tabindex="0">
+								<table class="data-table">
+									<thead>
+										<tr><th scope="col">{after.media.what}</th><th scope="col">{after.media.cap}</th></tr>
+									</thead>
+									<tbody>
+										{
+											mediaCaps.map((row) => (
+												<tr>
+													<td class="whitespace-nowrap">{row.what}</td>
+													<td class="font-mono text-[0.8125rem] whitespace-nowrap">{row.cap}</td>
+												</tr>
+											))
+										}
+									</tbody>
+								</table>
+							</div>
+							<p class="mt-3 text-[0.9375rem] leading-relaxed text-soft">{after.media.licence}</p>
+							<CodeSample class="mt-3" code={mediaLicences} label={after.media.licences} />
+							<p class="mt-3 text-[0.9375rem] leading-relaxed text-soft" set:html={r(after.media.entry)} />
+						</div>
+					</details>
+					<details class="group rounded-xl border border-line bg-surface">
+						<summary class={summary}>
+							<span>{after.others.title}</span>
+							<span class="text-soft transition-transform group-open:rotate-180" aria-hidden="true">▾</span>
+						</summary>
+						<div class={panel}>
+							<p class={body}>{after.others.body}</p>
+						</div>
+					</details>
+				</div>
 			</div>
 		</div>
 	</section>
 
 	<section aria-labelledby="checklist" class="border-t border-line">
-		<div class="shell py-14 sm:py-16">
+		<div class="py-14 sm:py-16">
 			<div class="max-w-3xl">
 				<h2 id="checklist" class="text-2xl font-semibold tracking-tight">{copy.checklist.heading}</h2>
 				<ul class="mt-8 grid gap-3 [&>*]:min-w-0">
 					{
 						copy.checklist.items.map((entry) => (
-							<li class="flex gap-3 text-[0.9375rem] leading-relaxed">
-								<span aria-hidden="true" class="mt-[0.45em] size-1.5 shrink-0 rounded-full bg-rule" />
-								<span class="text-soft">{entry}</span>
+							<li>
+								<label class="flex cursor-pointer gap-3 text-[0.9375rem] leading-relaxed">
+									<input type="checkbox" class="mt-[0.3em] size-4 shrink-0 cursor-pointer accent-accent" />
+									<span class="text-soft">{entry}</span>
+								</label>
 							</li>
 						))
 					}
@@ -435,4 +509,24 @@ const body = 'mt-1 text-[0.9375rem] leading-relaxed text-soft'
 			</div>
 		</div>
 	</section>
+			</div>
+		</div>
+	</div>
+
 </Layout>
+
+<script>
+	for (const button of document.querySelectorAll<HTMLButtonElement>('[data-copy]')) {
+		button.hidden = false
+		const label = button.textContent
+		button.addEventListener('click', async () => {
+			try {
+				await navigator.clipboard.writeText(button.dataset.copy ?? '')
+			} catch {
+				return
+			}
+			button.textContent = button.dataset.copied ?? label
+			setTimeout(() => (button.textContent = label), 1600)
+		})
+	}
+</script>

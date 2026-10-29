@@ -13,6 +13,7 @@ export const pt: Copy = {
 			publishShort: 'Publicar',
 			data: 'Dados',
 			dataShort: 'Dados',
+			menu: 'Menu',
 		},
 		toDark: 'Mudar para o tema escuro',
 		toLight: 'Mudar para o tema claro',
@@ -56,6 +57,15 @@ export const pt: Copy = {
 		lead: 'Um identificador aberto e permanente para cada produto físico. Todo código de barras e número de peça resolve para ele, e cada informação sobre ele indica a fonte que a disse.',
 		ctaPublish: 'Publique seus produtos',
 		ctaSpec: 'Ler a especificação',
+		resolve: {
+			label: 'Experimente: resolva um código de uma etiqueta',
+			button: 'Resolver',
+			hint: 'Digite um código de 8 a 14 dígitos.',
+		},
+		close: {
+			heading: 'Dê aos seus produtos uma identidade que sobreviva ao código de barras.',
+			body: 'Dois arquivos e um registro DNS no seu próprio domínio, ou um site hospedado sem domínio nenhum.',
+		},
 		heroKind: (brand: string) => `Item · ${brand}`,
 		heroVariant: (markets: string) => `azul-marinho · M · vendido em ${markets}`,
 		heroLapsed: (source: string) => `lapsed · ${source}`,
@@ -93,6 +103,7 @@ export const pt: Copy = {
 				'Uma embalagem nova adiciona um item novo com um código novo, sob a mesma variante e a mesma família. Nada que apontava para o antigo quebra.',
 		},
 		how: {
+			start: 'Começar a publicar',
 			eyebrow: 'Como funciona',
 			heading: 'Publique no seu domínio. O prodid indexa. Qualquer um resolve.',
 			publish: {
@@ -137,6 +148,7 @@ export const pt: Copy = {
 			request: 'Cabeçalhos de requisição e resposta',
 		},
 		who: {
+			links: ['Publique no seu domínio', 'Escolha uma via', 'Obtenha os dados'],
 			eyebrow: 'Para quem',
 			heading: 'Para quem produz os dados e para quem precisa deles.',
 			audiences: [
@@ -238,6 +250,8 @@ export const pt: Copy = {
 			delegating: 'ao delegar',
 		},
 		own: {
+			copy: 'Copiar',
+			copied: 'Copiado',
 			eyebrow: 'Caminho 1',
 			heading: 'Publique no seu próprio domínio',
 			lead: 'Dois arquivos e um registro DNS. Uma plataforma que publica em nome de lojas faz o mesmo no domínio de cada uma, então cada loja mantém a própria identidade e o próprio nível de confiança.',
@@ -418,6 +432,7 @@ export const pt: Copy = {
 				body: 'Varejistas, registros, conjuntos de dados abertos e colaboradores são fontes como qualquer outra. As afirmações deles são atribuídas a eles e nunca sobrescrevem as suas; onde vocês discordam, as duas afirmações ficam visíveis lado a lado com suas fontes.',
 			},
 		},
+		toc: 'Nesta página',
 		checklist: {
 			heading: 'Antes de ir ao ar',
 			items: [

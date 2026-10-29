@@ -13,6 +13,7 @@ export const ja: Copy = {
 			publishShort: '公開',
 			data: 'データ',
 			dataShort: 'データ',
+			menu: 'メニュー',
 		},
 		toDark: 'ダークテーマに切り替え',
 		toLight: 'ライトテーマに切り替え',
@@ -56,6 +57,15 @@ export const ja: Copy = {
 		lead: 'あらゆる物理的な製品に、永続的でオープンな識別子を。すべてのバーコードと部品番号がそこに解決され、製品についてのすべての情報には、それを述べたソースが付いています。',
 		ctaPublish: '製品を公開する',
 		ctaSpec: '仕様を読む',
+		resolve: {
+			label: '試してみる：ラベルのコードを解決する',
+			button: '解決',
+			hint: '8〜14桁のコードを入力してください。',
+		},
+		close: {
+			heading: 'バーコードより長く続く ID を、あなたの製品に。',
+			body: '自分のドメインに 2 つのファイルと 1 つの DNS レコードを置くか、ドメインなしでホスト型サイトを使います。',
+		},
 		heroKind: (brand: string) => `Item · ${brand}`,
 		heroVariant: (markets: string) => `ネイビー · M · ${markets} で販売`,
 		heroLapsed: (source: string) => `lapsed · ${source}`,
@@ -88,6 +98,7 @@ export const ja: Copy = {
 				'新しいパッケージは、同じバリアント、同じファミリーの下に、新しいバーコードを持つ新しいアイテムを追加します。古いアイテムを指していたものは何も壊れません。',
 		},
 		how: {
+			start: '公開を始める',
 			eyebrow: '仕組み',
 			heading: 'あなたのドメインで公開し、prodid がインデックスし、誰でも解決できる。',
 			publish: {
@@ -132,6 +143,7 @@ export const ja: Copy = {
 			request: 'リクエストとレスポンスのヘッダー',
 		},
 		who: {
+			links: ['自分のドメインで公開する', 'ルートを選ぶ', 'データを入手する'],
 			eyebrow: '対象',
 			heading: 'データを作る人と、データを必要とする人。',
 			audiences: [
@@ -233,6 +245,8 @@ export const ja: Copy = {
 			delegating: '委任時',
 		},
 		own: {
+			copy: 'コピー',
+			copied: 'コピーしました',
 			eyebrow: '方法 1',
 			heading: '自分のドメインで公開する',
 			lead: '2 つのファイルと 1 つの DNS レコード。加盟店に代わって公開するプラットフォームは、加盟店ドメインごとに同じことを行うので、各加盟店が自分の ID と信頼レベルを保ちます。',
@@ -412,6 +426,7 @@ export const ja: Copy = {
 				body: '小売業者、登録機関、オープンデータセット、貢献者は、他と同じソースです。彼らのクレームは彼らに帰属し、あなたのものを上書きすることはありません。意見が食い違えば、両方のクレームがそれぞれのソースとともに並んで表示されます。',
 			},
 		},
+		toc: 'このページの内容',
 		checklist: {
 			heading: '公開前のチェック',
 			items: [

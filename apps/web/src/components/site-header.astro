@@ -20,9 +20,9 @@ const starCount = stars === undefined ? undefined : formatStars(stars, current.h
 const starLabel = starCount === undefined ? copy.support.star : `${copy.support.star}, ${copy.support.stars(starCount)}`
 
 const links = [
-	{ key: 'spec', href: '/spec', label: copy.nav.spec, short: copy.nav.specShort },
-	{ key: 'publish', href: pagePath(code, 'publish'), label: copy.nav.publish, short: copy.nav.publishShort },
-	{ key: 'data', href: pagePath(code, 'data'), label: copy.nav.data, short: copy.nav.dataShort },
+	{ key: 'spec', href: '/spec', label: copy.nav.spec },
+	{ key: 'publish', href: pagePath(code, 'publish'), label: copy.nav.publish },
+	{ key: 'data', href: pagePath(code, 'data'), label: copy.nav.data },
 ] as const
 
 const languages = LOCALES.map((entry) => ({ ...entry, href: pagePath(entry.code, page ?? 'home') }))
@@ -34,7 +34,7 @@ const languages = LOCALES.map((entry) => ({ ...entry, href: pagePath(entry.code,
 			<Wordmark />
 		</a>
 		<nav aria-label={copy.primary} class="flex min-w-0 items-center gap-3 sm:gap-6">
-			<ul class="flex items-center gap-2.5 text-[0.8125rem] sm:gap-6 sm:text-sm">
+			<ul class="hidden items-center gap-6 text-sm sm:flex">
 				{
 					links.map((link) => (
 						<li>
@@ -46,21 +46,56 @@ const languages = LOCALES.map((entry) => ({ ...entry, href: pagePath(entry.code,
 									active === link.key ? 'font-medium text-accent' : 'text-soft',
 								]}
 							>
-								{link.short === link.label ? (
-									link.label
-								) : (
-									<>
-										<span class="sm:hidden">{link.short}</span>
-										<span class="hidden sm:inline">{link.label}</span>
-									</>
-								)}
+								{link.label}
 							</a>
 						</li>
 					))
 				}
 			</ul>
 			<div class="-me-2 flex shrink-0 items-center">
-				<details class="relative" data-language-menu>
+				<details class="group sm:hidden" data-menu>
+					<summary
+						class="grid size-10 cursor-pointer list-none place-items-center rounded-md text-soft hover:bg-sunken hover:text-ink [&::-webkit-details-marker]:hidden"
+					>
+						<span class="sr-only">{copy.nav.menu}</span>
+						<svg viewBox="0 0 24 24" class="size-[1.15rem] group-open:hidden" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+							<path d="M4 7h16M4 12h16M4 17h16"></path>
+						</svg>
+						<svg viewBox="0 0 24 24" class="hidden size-[1.15rem] group-open:block" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+							<path d="M6 6l12 12M18 6 6 18"></path>
+						</svg>
+					</summary>
+					<div class="absolute inset-x-0 top-full border-b border-line bg-surface shadow-[0_8px_24px_-12px_rgb(0_0_0/0.25)]">
+						<ul class="shell grid py-2">
+							{
+								links.map((link) => (
+									<li class="border-b border-line">
+										<a
+											href={link.href}
+											aria-current={active === link.key ? 'page' : undefined}
+											class:list={[
+												'flex min-h-12 items-center justify-between gap-4 text-base font-medium hover:text-accent',
+												active === link.key ? 'text-accent' : 'text-ink',
+											]}
+										>
+											{link.label}
+											<span aria-hidden="true" class="text-soft rtl:rotate-180">→</span>
+										</a>
+									</li>
+								))
+							}
+							<li>
+								<a href={REPOSITORY} aria-label={starLabel} class="flex min-h-12 items-center gap-2 text-base font-medium hover:text-accent">
+									<GithubMark class="size-4 shrink-0" />
+									<StarMark class="size-4 shrink-0 text-soft" />
+									<span>{copy.support.star}</span>
+									{starCount !== undefined && <span class="ms-auto font-mono text-xs text-soft">{starCount}</span>}
+								</a>
+							</li>
+						</ul>
+					</div>
+				</details>
+				<details class="relative" data-menu>
 					<summary
 						class="flex h-10 cursor-pointer list-none items-center gap-1 rounded-md px-2 font-mono text-xs text-soft hover:bg-sunken hover:text-ink [&::-webkit-details-marker]:hidden"
 					>
@@ -94,14 +129,6 @@ const languages = LOCALES.map((entry) => ({ ...entry, href: pagePath(entry.code,
 								</li>
 							))
 						}
-						<li class="mt-1 border-t border-line pt-1 sm:hidden">
-							<a href={REPOSITORY} aria-label={starLabel} class="flex items-center gap-2 rounded-md px-3 py-2 text-ink hover:bg-sunken">
-								<GithubMark class="size-4 shrink-0" />
-								<StarMark class="size-4 shrink-0 text-soft" />
-								<span>{copy.support.star}</span>
-								{starCount !== undefined && <span class="ms-auto font-mono text-xs text-soft">{starCount}</span>}
-							</a>
-						</li>
 					</ul>
 				</details>
 				<a
@@ -162,12 +189,16 @@ const languages = LOCALES.map((entry) => ({ ...entry, href: pagePath(entry.code,
 	media.addEventListener('change', label)
 	label()
 
-	const menu = document.querySelector<HTMLDetailsElement>('[data-language-menu]')
+	const menus = document.querySelectorAll<HTMLDetailsElement>('details[data-menu]')
 	document.addEventListener('click', (event) => {
-		if (menu?.open && event.target instanceof Node && !menu.contains(event.target)) menu.open = false
+		for (const menu of menus) {
+			if (menu.open && event.target instanceof Node && !menu.contains(event.target)) menu.open = false
+		}
 	})
 	document.addEventListener('keydown', (event) => {
-		if (event.key === 'Escape' && menu?.open) {
+		if (event.key !== 'Escape') return
+		for (const menu of menus) {
+			if (!menu.open) continue
 			menu.open = false
 			menu.querySelector('summary')?.focus()
 		}

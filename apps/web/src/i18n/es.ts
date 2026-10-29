@@ -13,6 +13,7 @@ export const es: Copy = {
 			publishShort: 'Publicar',
 			data: 'Datos',
 			dataShort: 'Datos',
+			menu: 'Menú',
 		},
 		toDark: 'Cambiar al tema oscuro',
 		toLight: 'Cambiar al tema claro',
@@ -56,6 +57,15 @@ export const es: Copy = {
 		lead: 'Un identificador abierto y permanente para cada producto físico. Cada código de barras y número de pieza se resuelve a él, y cada dato sobre él nombra la fuente que lo dijo.',
 		ctaPublish: 'Publica tus productos',
 		ctaSpec: 'Leer la especificación',
+		resolve: {
+			label: 'Pruébalo: resuelve un código de una etiqueta',
+			button: 'Resolver',
+			hint: 'Introduce un código de 8 a 14 dígitos.',
+		},
+		close: {
+			heading: 'Dale a tus productos una identidad que sobreviva al código de barras.',
+			body: 'Dos archivos y un registro DNS en tu propio dominio, o un sitio alojado sin ningún dominio.',
+		},
 		heroKind: (brand: string) => `Item · ${brand}`,
 		heroVariant: (markets: string) => `azul marino · M · se vende en ${markets}`,
 		heroLapsed: (source: string) => `lapsed · ${source}`,
@@ -93,6 +103,7 @@ export const es: Copy = {
 				'Un embalaje nuevo añade un item nuevo con un código nuevo, bajo la misma variante y la misma familia. Nada de lo que apuntaba al anterior se rompe.',
 		},
 		how: {
+			start: 'Empezar a publicar',
 			eyebrow: 'Cómo funciona',
 			heading: 'Publica en tu dominio. prodid lo indexa. Cualquiera lo resuelve.',
 			publish: {
@@ -137,6 +148,7 @@ export const es: Copy = {
 			request: 'Cabeceras de petición y respuesta',
 		},
 		who: {
+			links: ['Publica en tu dominio', 'Elige una vía', 'Obtén los datos'],
 			eyebrow: 'Para quién',
 			heading: 'Para quienes crean los datos y para quienes los necesitan.',
 			audiences: [
@@ -238,6 +250,8 @@ export const es: Copy = {
 			delegating: 'al delegar',
 		},
 		own: {
+			copy: 'Copiar',
+			copied: 'Copiado',
 			eyebrow: 'Vía 1',
 			heading: 'Publica en tu propio dominio',
 			lead: 'Dos archivos y un registro DNS. Una plataforma que publica en nombre de comercios hace lo mismo en el dominio de cada uno, así que cada comercio conserva su identidad y su nivel de confianza.',
@@ -418,6 +432,7 @@ export const es: Copy = {
 				body: 'Minoristas, registros, conjuntos de datos abiertos y colaboradores son fuentes como cualquier otra. Sus afirmaciones se les atribuyen y nunca sobrescriben las tuyas; donde no coincidís, ambas afirmaciones se ven juntas con sus fuentes.',
 			},
 		},
+		toc: 'En esta página',
 		checklist: {
 			heading: 'Antes de salir en vivo',
 			items: [

@@ -13,6 +13,7 @@ export const fr: Copy = {
 			publishShort: 'Publier',
 			data: 'Données',
 			dataShort: 'Données',
+			menu: 'Menu',
 		},
 		toDark: 'Passer au thème sombre',
 		toLight: 'Passer au thème clair',
@@ -56,6 +57,15 @@ export const fr: Copy = {
 		lead: 'Un identifiant ouvert et permanent pour chaque produit physique. Chaque code-barres et chaque référence fabricant s’y résolvent, et chaque information indique la source qui l’a donnée.',
 		ctaPublish: 'Publier vos produits',
 		ctaSpec: 'Lire la spécification',
+		resolve: {
+			label: 'Essayez : résolvez un code d’étiquette',
+			button: 'Résoudre',
+			hint: 'Saisissez un code de 8 à 14 chiffres.',
+		},
+		close: {
+			heading: 'Donnez à vos produits une identité qui survit au code-barres.',
+			body: 'Deux fichiers et un enregistrement DNS sur votre propre domaine, ou un site hébergé sans aucun domaine.',
+		},
 		heroKind: (brand: string) => `Item · ${brand}`,
 		heroVariant: (markets: string) => `marine · M · vendu en ${markets}`,
 		heroLapsed: (source: string) => `lapsed · ${source}`,
@@ -88,6 +98,7 @@ export const fr: Copy = {
 				'Un nouvel emballage ajoute un nouvel item avec un nouveau code-barres, sous la même variante et la même famille. Rien de ce qui pointait vers l’ancien ne casse.',
 		},
 		how: {
+			start: 'Commencer à publier',
 			eyebrow: 'Comment ça marche',
 			heading: 'Publiez sur votre domaine. prodid l’indexe. Tout le monde le résout.',
 			publish: {
@@ -132,6 +143,7 @@ export const fr: Copy = {
 			request: 'En-têtes de requête et de réponse',
 		},
 		who: {
+			links: ['Publier sur votre domaine', 'Choisir une voie', 'Obtenir les données'],
 			eyebrow: 'Pour qui',
 			heading: 'Ceux qui produisent les données, et ceux qui en ont besoin.',
 			audiences: [
@@ -233,6 +245,8 @@ export const fr: Copy = {
 			delegating: 'en délégation',
 		},
 		own: {
+			copy: 'Copier',
+			copied: 'Copié',
 			eyebrow: 'Voie 1',
 			heading: 'Publier sur votre propre domaine',
 			lead: 'Deux fichiers et un enregistrement DNS. Une plateforme qui publie pour des marchands fait la même chose sur chaque domaine marchand, si bien que chacun garde sa propre identité et son propre niveau de confiance.',
@@ -414,6 +428,7 @@ export const fr: Copy = {
 				body: 'Distributeurs, registres, jeux de données ouverts et contributeurs sont des sources comme les autres. Leurs assertions leur sont attribuées et n’écrasent jamais les vôtres ; en cas de désaccord, les deux assertions sont visibles côte à côte avec leurs sources.',
 			},
 		},
+		toc: 'Sur cette page',
 		checklist: {
 			heading: 'Avant la mise en ligne',
 			items: [

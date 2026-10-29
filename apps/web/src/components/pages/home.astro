@@ -5,7 +5,7 @@ import { copyFor } from '@/i18n'
 import { type LocaleCode, pagePath } from '@/i18n/locales'
 import { rich } from '@/i18n/rich'
 import Layout from '@/layouts/base.astro'
-import { examples } from '@/lib/spec'
+import { examples, HOSTED_PUBLISHER } from '@/lib/spec'
 
 interface Props {
 	code: LocaleCode
@@ -97,6 +97,7 @@ Content-Location: /id/${entity.opid}`
 
 const eyebrow = 'font-mono text-xs tracking-[0.18em] text-accent uppercase'
 const heading = 'mt-4 text-2xl font-semibold tracking-tight text-balance sm:text-[2.1rem] sm:leading-[1.15]'
+const audienceLinks = [`${pagePath(code, 'publish')}#own-domain`, `${pagePath(code, 'publish')}#routes`, pagePath(code, 'data')]
 const status = [copy.status.stable, copy.status.sources, copy.status.design]
 ---
 
@@ -125,6 +126,30 @@ const status = [copy.status.stable, copy.status.sources, copy.status.design]
 					{copy.ctaSpec}
 				</a>
 			</div>
+			<form action={`/01/${gtin}`} method="get" data-resolve class="mt-8 max-w-md">
+				<label for="resolve-code" class="text-sm font-medium text-soft">{copy.resolve.label}</label>
+				<div class="mt-2 flex gap-2 rounded-lg border border-line bg-surface p-1.5">
+					<span dir="ltr" aria-hidden="true" class="hidden items-center ps-2.5 font-mono text-xs text-soft sm:flex">prodid.org/01/</span>
+					<input
+						id="resolve-code"
+						type="text"
+						inputmode="numeric"
+						autocomplete="off"
+						required
+						readonly
+						dir="ltr"
+						value={gtin}
+						title={copy.resolve.hint}
+						class="min-h-10 min-w-0 flex-1 bg-transparent px-2.5 font-mono text-sm outline-none"
+					/>
+					<button
+						type="submit"
+						class="inline-flex min-h-10 cursor-pointer items-center rounded-md bg-ink px-4 text-sm font-medium text-bg transition-opacity hover:opacity-85"
+					>
+						{copy.resolve.button}
+					</button>
+				</div>
+			</form>
 			{code !== 'en' && <p class="mt-4 max-w-xl text-sm leading-relaxed text-soft">{all.common.normative}</p>}
 		</div>
 
@@ -297,6 +322,12 @@ const status = [copy.status.stable, copy.status.sources, copy.status.design]
 					<a href="/spec#the-resolver" class="mt-5 text-sm font-medium underline-offset-4 hover:underline">{copy.how.resolve.link}</a>
 				</li>
 			</ol>
+			<a
+				href={pagePath(code, 'publish')}
+				class="mt-10 inline-flex min-h-11 items-center rounded-md bg-[oklch(0.95_0.005_85)] px-5 text-sm font-medium text-[oklch(0.2_0.01_265)] transition-opacity hover:opacity-85"
+			>
+				{copy.how.start}
+			</a>
 		</div>
 	</section>
 
@@ -363,10 +394,13 @@ const status = [copy.status.stable, copy.status.sources, copy.status.design]
 			<h2 id="who" class={heading}>{copy.who.heading}</h2>
 			<div class="mt-10 grid gap-10 md:grid-cols-3 [&>*]:min-w-0">
 				{
-					copy.who.audiences.map((audience) => (
-						<div class="border-t-2 border-ink pt-5">
+					copy.who.audiences.map((audience, index) => (
+						<div class="flex flex-col border-t-2 border-ink pt-5">
 							<h3 class="text-base font-semibold tracking-tight">{audience.title}</h3>
-							<p class="mt-3 text-[0.9375rem] leading-relaxed text-soft">{audience.body}</p>
+							<p class="mt-3 flex-1 text-[0.9375rem] leading-relaxed text-soft">{audience.body}</p>
+							<a href={audienceLinks[index]} class="mt-4 text-sm font-medium text-accent underline-offset-4 hover:underline">
+								{copy.who.links[index]} →
+							</a>
 						</div>
 					))
 				}
@@ -396,4 +430,46 @@ const status = [copy.status.stable, copy.status.sources, copy.status.design]
 			</ul>
 		</div>
 	</section>
+
+	<section aria-labelledby="close" class="shell pt-16 sm:pt-24">
+		<div class="flex flex-col gap-8 rounded-xl border border-line bg-surface p-6 sm:p-10 md:flex-row md:items-center md:justify-between [&>*]:min-w-0">
+			<div class="max-w-2xl">
+				<h2 id="close" class="text-2xl font-semibold tracking-tight text-balance sm:text-3xl">{copy.close.heading}</h2>
+				<p class="mt-4 text-base leading-relaxed text-soft">{copy.close.body}</p>
+			</div>
+			<div class="flex flex-wrap gap-3">
+				<a
+					href={pagePath(code, 'publish')}
+					class="inline-flex min-h-11 items-center rounded-md bg-ink px-5 text-sm font-medium text-bg transition-opacity hover:opacity-85"
+				>
+					{copy.ctaPublish}
+				</a>
+				<a
+					href={HOSTED_PUBLISHER}
+					class="inline-flex min-h-11 items-center rounded-md border border-rule bg-bg px-5 text-sm font-medium transition-colors hover:border-accent hover:text-accent"
+				>
+					{all.publish.routes.start}
+				</a>
+			</div>
+		</div>
+	</section>
 </Layout>
+
+<script>
+	const form = document.querySelector<HTMLFormElement>('[data-resolve]')
+	const input = form?.querySelector('input')
+	if (form && input) {
+		input.readOnly = false
+		input.addEventListener('input', () => input.setCustomValidity(''))
+		form.addEventListener('submit', (event) => {
+			event.preventDefault()
+			const digits = input.value.replace(/\s/g, '')
+			if (!/^\d{8,14}$/.test(digits)) {
+				input.setCustomValidity(input.title)
+				input.reportValidity()
+				return
+			}
+			location.assign(`/01/${digits}`)
+		})
+	}
+</script>

@@ -13,6 +13,7 @@ export const tr: Copy = {
 			publishShort: 'Yayınla',
 			data: 'Veri',
 			dataShort: 'Veri',
+			menu: 'Menü',
 		},
 		toDark: 'Koyu temaya geç',
 		toLight: 'Açık temaya geç',
@@ -56,6 +57,15 @@ export const tr: Copy = {
 		lead: 'Her fiziksel ürün için kalıcı ve açık bir kimlik. Her barkod ve parça numarası bu kimliğe çözülür; ürünle ilgili her bilgi, onu söyleyen kaynağı gösterir.',
 		ctaPublish: 'Ürünlerini yayınla',
 		ctaSpec: 'Şartnameyi oku',
+		resolve: {
+			label: 'Deneyin: etiketteki bir kodu çözümleyin',
+			button: 'Çözümle',
+			hint: '8 ila 14 haneli bir kod girin.',
+		},
+		close: {
+			heading: 'Ürünlerinize barkodu aşan bir kimlik verin.',
+			body: 'Kendi alan adınızda iki dosya ve bir DNS kaydı, ya da hiç alan adı olmadan barındırılan bir site.',
+		},
 		heroKind: (brand: string) => `Item · ${brand}`,
 		heroVariant: (markets: string) => `lacivert · M · ${markets} pazarında`,
 		heroLapsed: (source: string) => `lapsed · ${source}`,
@@ -88,6 +98,7 @@ export const tr: Copy = {
 				'Yeni ambalaj, aynı varyant ve aynı aile altında yeni barkodlu yeni bir ürün birimi ekler. Eskisine işaret eden hiçbir şey bozulmaz.',
 		},
 		how: {
+			start: 'Yayımlamaya başla',
 			eyebrow: 'Nasıl çalışır',
 			heading: 'Alan adında yayınla. prodid dizinler. Herkes çözer.',
 			publish: {
@@ -132,6 +143,7 @@ export const tr: Copy = {
 			request: 'İstek ve yanıt başlıkları',
 		},
 		who: {
+			links: ['Alan adınızda yayımlayın', 'Bir yol seçin', 'Verileri alın'],
 			eyebrow: 'Kimin için',
 			heading: 'Veriyi üretenler ve ona ihtiyaç duyanlar için.',
 			audiences: [
@@ -233,6 +245,8 @@ export const tr: Copy = {
 			delegating: 'devrederken',
 		},
 		own: {
+			copy: 'Kopyala',
+			copied: 'Kopyalandı',
 			eyebrow: '1. yol',
 			heading: 'Kendi alan adında yayınla',
 			lead: 'İki dosya ve bir DNS kaydı. Mağazalar adına yayın yapan bir platform aynı şeyi her mağazanın alan adında yapar; böylece her mağaza kendi kimliğini ve kendi güven seviyesini korur.',
@@ -412,6 +426,7 @@ export const tr: Copy = {
 				body: 'Perakendeciler, sicil kurumları, açık veri setleri ve katkıda bulunanlar diğerleri gibi birer kaynaktır. İddiaları onlara atfedilir ve seninkilerin üzerine asla yazmaz; anlaşamadığınız yerde iki iddia da kaynaklarıyla yan yana görünür.',
 			},
 		},
+		toc: 'Bu sayfada',
 		checklist: {
 			heading: 'Yayına girmeden önce',
 			items: [

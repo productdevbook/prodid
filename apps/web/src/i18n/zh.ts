@@ -13,6 +13,7 @@ export const zh: Copy = {
 			publishShort: '发布',
 			data: '数据',
 			dataShort: '数据',
+			menu: '菜单',
 		},
 		toDark: '切换到深色主题',
 		toLight: '切换到浅色主题',
@@ -53,6 +54,15 @@ export const zh: Copy = {
 		lead: '为每一件实体产品提供永久、开放的标识符。每个条形码和零件号都解析到它，关于它的每条信息都注明说出这条信息的来源。',
 		ctaPublish: '发布你的产品',
 		ctaSpec: '阅读规范',
+		resolve: {
+			label: '试一试：解析标签上的代码',
+			button: '解析',
+			hint: '请输入 8 到 14 位数字。',
+		},
+		close: {
+			heading: '给你的产品一个比条形码更长久的身份。',
+			body: '在你自己的域名上放两个文件和一条 DNS 记录，或者在没有域名的情况下使用托管站点。',
+		},
 		heroKind: (brand: string) => `Item · ${brand}`,
 		heroVariant: (markets: string) => `海军蓝 · M · 在 ${markets} 销售`,
 		heroLapsed: (source: string) => `lapsed · ${source}`,
@@ -82,6 +92,7 @@ export const zh: Copy = {
 			after: '新包装会在同一个变体、同一个系列下增加一个带新条形码的新单品。原来指向旧单品的一切都不会失效。',
 		},
 		how: {
+			start: '开始发布',
 			eyebrow: '工作方式',
 			heading: '在你的域名上发布，prodid 建立索引，任何人都能解析。',
 			publish: {
@@ -122,6 +133,7 @@ export const zh: Copy = {
 			request: '请求头和响应头',
 		},
 		who: {
+			links: ['在你的域名上发布', '选择发布方式', '获取数据'],
 			eyebrow: '适用对象',
 			heading: '产生数据的人，和需要数据的人。',
 			audiences: [
@@ -222,6 +234,8 @@ export const zh: Copy = {
 			delegating: '委托时',
 		},
 		own: {
+			copy: '复制',
+			copied: '已复制',
 			eyebrow: '方式 1',
 			heading: '在自己的域名上发布',
 			lead: '两个文件加一条 DNS 记录。代表商户发布的平台在每个商户域名上做同样的事，因此每个商户都保有自己的身份和可信度等级。',
@@ -401,6 +415,7 @@ export const zh: Copy = {
 				body: '零售商、注册机构、开放数据集和贡献者都是和其他人一样的来源。他们的声明归属于他们自己，绝不会覆盖你的；你们意见不一时，两条声明都会连同各自来源并列显示。',
 			},
 		},
+		toc: '本页内容',
 		checklist: {
 			heading: '上线之前',
 			items: [
