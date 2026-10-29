@@ -11,7 +11,10 @@ database and releases.
   `#status`. `/publish`: header, `#discovery`, `#routes`, `#own-domain` (steps 1–4), `#delegated`,
   `#hosted`, `#trust`, `#after`, `#checklist`. `/spec` renders `spec/README.md` with a sticky TOC;
   `/spec/...` lists schemas, examples and fixtures. `404`, `robots.txt`, `sitemap.xml`. Theme toggle
-  (`localStorage.theme`, applied before first paint). No analytics.
+  (`localStorage.theme`, applied before first paint).
+- **[New]** Yuva Analytics (owner, 2026-10-29): cookieless, nothing stored on the visitor's
+  device and no address kept; `useyuva/analytics` in the shared layout, property `prodid.org`.
+  It is the one request the pages make beyond their own assets.
 - **[Exists]** The build fails on any broken internal link or fragment, and on drift of the 26 spec
   sections the pages restate (`spec-review.json`, re-recorded with `spec:review <anchor>`).
 - **[Change]** Status text contradicts itself and the code: `index.astro` `#status` says crawler and
