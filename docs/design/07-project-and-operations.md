@@ -150,9 +150,10 @@ created with the milestones and issues; the default labels stay.
   `https://prodid.org/01/<fixture gtin>` answers 200 with a claim from `canary.prodid.org`, and
   `https://prodid.org/source/canary.prodid.org` has a last crawl younger than 12 hours with outcome
   `success`; on failure it opens (or comments on) one issue labelled `incident`.
-- **[New]** Dead letters and Worker errors alert the owner by mail through Cloudflare's
-  notifications on the edge Worker's logs. If the account offers no alert on log lines, the
-  as-built note says so and the canary is the alarm.
+- **[New]** Dead letters alert the owner through Yuva (owner, 2026-10-29): every dead-letter batch
+  pushes `degraded` to the hidden *Dead letters* component of the status page, whose monitor opens
+  a draft incident; the edge cron pushes `operational` after 24 hours without one. Worker errors
+  have no alert of their own; the canary is the alarm.
 - **[New]** Nightly `prodid-batch dump` at 04:30 UTC next to Postgres, scheduled in the private ops
   manifests; the canary also checks `latest.json` is younger than 30 hours once dumps exist.
 

@@ -571,6 +571,11 @@ failure reports `major_outage` for the resolver and the hosted publisher and `de
 crawler and the dumps, with the problem lines as the message. The monitors' addresses are GitHub
 Actions secrets (`YUVA_STATUS_*_URL`), copied from the operator's private store.
 
+A fifth monitor, on the hidden *Dead letters* component, is fed by the edge Worker itself: every
+dead-letter batch pushes `degraded` with the first letter as the message and records it in
+`dead_letter`, and the cron pushes `operational` once no queue has had one for 24 hours. Its
+address is the edge Worker secret `YUVA_STATUS_DEAD_LETTERS_URL`; without it nothing is sent.
+
 ## Releasing
 
 `@prodid/core` (`packages/core`), `@prodid/spec` (`spec`) and `prodid` (`packages/prodid`, every
