@@ -1,10 +1,13 @@
 ---
 import GithubMark from '@/components/github-mark.astro'
 import StarMark from '@/components/star-mark.astro'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { copyFor } from '@/i18n'
 import { type LocaleCode, localeOf } from '@/i18n/locales'
 import { CONTRIBUTING, formatStars, REPOSITORY } from '@/lib/github'
 import { CONTACT } from '@/lib/spec'
+import { cn } from '@/lib/utils'
+import { MessageSquare } from 'lucide-react'
 
 interface Props {
 	code: LocaleCode
@@ -15,28 +18,24 @@ const { code, stars } = Astro.props
 const common = copyFor(code).common
 const copy = common.support
 const starCount = stars === undefined ? undefined : formatStars(stars, localeOf(code).hreflang)
-const secondary =
-	'inline-flex min-h-11 items-center gap-2 rounded-md border border-rule bg-surface px-4 text-sm font-medium transition-colors hover:border-accent hover:text-accent'
+const secondary = cn(buttonVariants({ variant: 'outline', size: 'lg' }), 'h-11 px-4')
 ---
 
-<section aria-labelledby="site-support" class="mt-24 border-t border-line bg-sunken">
+<section aria-labelledby="site-support" class="mt-24 border-t bg-muted">
 	<div class="shell flex flex-col gap-6 py-10 sm:py-12">
 		<div class="max-w-2xl">
 			<h2 id="site-support" class="text-xl font-semibold tracking-tight sm:text-2xl">{copy.heading}</h2>
-			<p class="mt-2 text-[0.9375rem] leading-relaxed text-soft">{copy.body}</p>
+			<p class="mt-2 text-[0.9375rem] leading-relaxed text-muted-foreground">{copy.body}</p>
 		</div>
 		<ul class="flex flex-wrap gap-3" aria-label={copy.label}>
 			<li>
-				<a
-					href={REPOSITORY}
-					class="inline-flex min-h-11 items-center gap-2 rounded-md bg-ink px-4 text-sm font-medium text-bg transition-opacity hover:opacity-85"
-				>
+				<a href={REPOSITORY} class={cn(buttonVariants({ size: 'lg' }), 'h-11 gap-2 px-4')}>
 					<GithubMark class="size-4 shrink-0" />
 					<StarMark class="size-4 shrink-0" />
 					<span>{copy.star}</span>
 					{
 						starCount !== undefined && (
-							<span class="border-s border-bg/30 ps-2 font-mono text-xs">
+							<span class="border-s border-primary-foreground/30 ps-2 font-mono text-xs">
 								<span aria-hidden="true">{starCount}</span>
 								<span class="sr-only">{copy.stars(starCount)}</span>
 							</span>
@@ -51,12 +50,10 @@ const secondary =
 				<a href={CONTRIBUTING} class={secondary}>{copy.contribute}</a>
 			</li>
 			<li>
-				<button type="button" data-chat-open class:list={[secondary, 'cursor-pointer']}>
-					<svg viewBox="0 0 24 24" class="size-4 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true">
-						<path d="M4 5h16v11H9l-5 4z"></path>
-					</svg>
+				<Button variant="outline" size="lg" data-chat-open className="h-11 gap-2 px-4">
+					<MessageSquare className="size-4" />
 					<span>{copy.chat}</span>
-				</button>
+				</Button>
 			</li>
 		</ul>
 	</div>

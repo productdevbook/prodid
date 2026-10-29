@@ -1,4 +1,5 @@
 ---
+import { Separator } from '@/components/ui/separator'
 import Wordmark from '@/components/wordmark.astro'
 import { copyFor } from '@/i18n'
 import { type LocaleCode, pagePath } from '@/i18n/locales'
@@ -14,49 +15,51 @@ const common = copyFor(code).common
 const copy = common.footer
 ---
 
-<footer class="border-t border-line">
+<footer>
+	<Separator />
 	<div class="shell flex flex-col gap-8 py-10 sm:flex-row sm:justify-between">
 		<div class="max-w-sm">
 			<Wordmark class="text-[0.95rem]" />
-			<p class="mt-3 text-sm leading-relaxed text-soft">{copy.tagline}</p>
-			<p class="mt-3 text-xs text-soft">{common.status}</p>
+			<p class="mt-3 text-sm leading-relaxed text-muted-foreground">{copy.tagline}</p>
+			<p class="mt-3 text-xs text-muted-foreground">{common.status}</p>
 		</div>
 		<div class="flex flex-wrap gap-x-16 gap-y-8">
 			<nav aria-label={copy.label} class="text-sm">
-				<h2 class="text-xs font-semibold tracking-wider text-soft uppercase">{copy.site}</h2>
+				<h2 class="text-xs font-semibold tracking-wider text-muted-foreground uppercase">{copy.site}</h2>
 				<ul class="mt-3 grid gap-2">
-					<li><a href="/spec" class="rounded-sm underline-offset-4 hover:text-accent hover:underline">{copy.specification}</a></li>
+					<li><a href="/spec" class="rounded-sm underline-offset-4 hover:text-brand hover:underline">{copy.specification}</a></li>
 					<li>
-						<a href={pagePath(code, 'publish')} class="rounded-sm underline-offset-4 hover:text-accent hover:underline">{copy.publish}</a>
+						<a href={pagePath(code, 'publish')} class="rounded-sm underline-offset-4 hover:text-brand hover:underline">{copy.publish}</a>
 					</li>
 					<li>
-						<a href="https://github.com/productdevbook/prodid" class="rounded-sm underline-offset-4 hover:text-accent hover:underline">
+						<a href="https://github.com/productdevbook/prodid" class="rounded-sm underline-offset-4 hover:text-brand hover:underline">
 							{copy.github}
 						</a>
 					</li>
 					<li>
-						<a href="/spec/schemas/v1/org.prodid.item.json" class="rounded-sm font-mono text-[0.8125rem] underline-offset-4 hover:text-accent hover:underline">
+						<a href="/spec/schemas/v1/org.prodid.item.json" class="rounded-sm font-mono text-[0.8125rem] underline-offset-4 hover:text-brand hover:underline">
 							org.prodid.item.json
 						</a>
 					</li>
 					<li>
-						<a href="/spec/schemas/v1/org.prodid.feed.json" class="rounded-sm font-mono text-[0.8125rem] underline-offset-4 hover:text-accent hover:underline">
+						<a href="/spec/schemas/v1/org.prodid.feed.json" class="rounded-sm font-mono text-[0.8125rem] underline-offset-4 hover:text-brand hover:underline">
 							org.prodid.feed.json
 						</a>
 					</li>
 				</ul>
 			</nav>
 			<nav aria-label={copy.contact} class="text-sm">
-				<h2 class="text-xs font-semibold tracking-wider text-soft uppercase">{copy.contact}</h2>
+				<h2 class="text-xs font-semibold tracking-wider text-muted-foreground uppercase">{copy.contact}</h2>
 				<ul class="mt-3 grid gap-2">
-					<li><a href={CONTACT.issues} class="rounded-sm underline-offset-4 hover:text-accent hover:underline">{copy.report}</a></li>
-					<li><a href={CONTACT.security} class="rounded-sm underline-offset-4 hover:text-accent hover:underline">{copy.security}</a></li>
+					<li><a href={CONTACT.issues} class="rounded-sm underline-offset-4 hover:text-brand hover:underline">{copy.report}</a></li>
+					<li><a href={CONTACT.security} class="rounded-sm underline-offset-4 hover:text-brand hover:underline">{copy.security}</a></li>
 				</ul>
 			</nav>
 		</div>
 	</div>
-	<div class="shell border-t border-line py-6">
-		<p class="max-w-3xl text-xs leading-relaxed text-soft" set:html={rich(copy.licence, code)} />
+	<div class="shell">
+		<Separator />
+		<p class="max-w-3xl py-6 text-xs leading-relaxed text-muted-foreground" set:html={rich(copy.licence, code)} />
 	</div>
 	<div class="shell pb-24">
 		<yuva-status page="prodid" server="https://app.useyuva.com" components class="block [--yuva-status-font:var(--font-sans)] [--yuva-status-gutter:0]"></yuva-status>

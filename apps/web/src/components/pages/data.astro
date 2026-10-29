@@ -1,6 +1,8 @@
 ---
 import CodeSample from '@/components/code-sample.astro'
+import { DataTable } from '@/components/data-table'
 import PageHeader from '@/components/page-header.astro'
+import { Card } from '@/components/ui/card'
 import { copyFor } from '@/i18n'
 import { type LocaleCode, localeOf } from '@/i18n/locales'
 import { LINK, rich } from '@/i18n/rich'
@@ -19,10 +21,24 @@ const count = new Intl.NumberFormat(`${localeOf(code).hreflang}-u-nu-latn`)
 
 const latest = await fetchLatestDump()
 
+const box = 'gap-0 px-5 py-5 shadow-none'
+const boxText = 'text-[0.9375rem] leading-relaxed text-soft'
+const monoCell = 'font-mono text-[0.8125rem] whitespace-nowrap'
+
+const fileRows = latest.files.map((file) => ({
+	cells: [
+		{ text: file.name, className: monoCell },
+		{ text: copy.holds[file.name].per, className: 'text-soft' },
+		{ text: copy.holds[file.name].line, className: 'text-soft' },
+	],
+}))
+
 const recordFields = ['source', 'key', 'feed', 'opid', 'body', 'first_seen', 'last_seen', 'withdrawn_at'].map((field, index) => ({
 	field,
 	note: copy.files.recordFields[index] ?? '',
 }))
+
+const recordRows = recordFields.map((row) => ({ cells: [{ text: row.field, className: monoCell }, { text: row.note, className: 'text-soft' }] }))
 
 const groupingKeys = [
 	{ kind: 'family', key: '{ "group": "<group>" }', note: copy.files.groupingNotes[0] },
@@ -52,14 +68,12 @@ export DATABASE_URL=postgres://<user>:<password>@<host>:<port>/<database>
 bun run --filter '@prodid/db' migrate
 
 PRODID_OPERATOR=<your name> bun apps/batch/src/cli.ts load-dump ${LATEST}`
-
-const box = 'rounded-lg border border-line bg-surface p-5 text-[0.9375rem] leading-relaxed text-soft'
 ---
 
 <Layout title={copy.title} description={copy.description} active="data" code={code} page="data">
 	<PageHeader eyebrow={copy.eyebrow} title={copy.heading} lead={copy.lead} />
 
-	<section aria-labelledby="latest" class="border-t border-line">
+	<section aria-labelledby="latest" class="border-t">
 		<div class="shell py-14 sm:py-16">
 			<div class="max-w-3xl">
 				<h2 id="latest" class="text-2xl font-semibold tracking-tight">{copy.latest.heading}</h2>
@@ -71,22 +85,24 @@ const box = 'rounded-lg border border-line bg-surface p-5 text-[0.9375rem] leadi
 				</p>
 			</div>
 
-			<ul class="mt-9 grid max-w-3xl gap-px overflow-hidden rounded-xl border border-line bg-line [&>*]:min-w-0">
+			<ul class="mt-9 grid max-w-3xl gap-4 [&>*]:min-w-0">
 				{
 					latest.files.map((file) => (
-						<li class="bg-surface p-5 sm:p-6">
-							<div class="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
-								<a href={file.url} class:list={[LINK, 'font-mono text-[0.9375rem] font-medium break-all']}>
-									{file.name}
-								</a>
-								<p class="font-mono text-[0.8125rem] text-soft">
-									{copy.latest.lines(count.format(file.lines), file.lines === 1)} · <span dir="ltr">{formatBytes(file.bytes)}</span>
+						<li>
+							<Card className="gap-0 px-5 shadow-none sm:px-6">
+								<div class="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
+									<a href={file.url} class:list={[LINK, 'font-mono text-[0.9375rem] font-medium break-all']}>
+										{file.name}
+									</a>
+									<p class="font-mono text-[0.8125rem] text-soft">
+										{copy.latest.lines(count.format(file.lines), file.lines === 1)} · <span dir="ltr">{formatBytes(file.bytes)}</span>
+									</p>
+								</div>
+								<p class="mt-2 text-[0.9375rem] leading-relaxed text-soft">{copy.latest.per(copy.holds[file.name].per)}</p>
+								<p class="mt-3 font-mono text-xs leading-relaxed break-all text-soft" dir="ltr">
+									<span class="text-ink">sha256</span> {file.sha256}
 								</p>
-							</div>
-							<p class="mt-2 text-[0.9375rem] leading-relaxed text-soft">{copy.latest.per(copy.holds[file.name].per)}</p>
-							<p class="mt-3 font-mono text-xs leading-relaxed break-all text-soft" dir="ltr">
-								<span class="text-ink">sha256</span> {file.sha256}
-							</p>
+							</Card>
 						</li>
 					))
 				}
@@ -102,7 +118,7 @@ const box = 'rounded-lg border border-line bg-surface p-5 text-[0.9375rem] leadi
 		</div>
 	</section>
 
-	<section aria-labelledby="layout" class="border-t border-line">
+	<section aria-labelledby="layout" class="border-t">
 		<div class="shell py-14 sm:py-16">
 			<div class="max-w-3xl">
 				<h2 id="layout" class="text-2xl font-semibold tracking-tight">{copy.layout.heading}</h2>
@@ -110,39 +126,22 @@ const box = 'rounded-lg border border-line bg-surface p-5 text-[0.9375rem] leadi
 			</div>
 			<CodeSample class="mt-8 max-w-3xl" code={layout} lang="plaintext" label="dumps.prodid.org" />
 			<div class="mt-8 grid max-w-3xl gap-4 [&>*]:min-w-0">
-				<p class={box} set:html={r(copy.layout.last)} />
-				<p class={box} set:html={r(copy.layout.retention)} />
-				<p class={box} set:html={r(copy.layout.v0(V0_DUMPS, `${V0_DUMPS}latest.json`))} />
-				<p class={box} set:html={r(copy.layout.manifest(DUMP_SCHEMA))} />
+				<Card className={box}><p class={boxText} set:html={r(copy.layout.last)} /></Card>
+				<Card className={box}><p class={boxText} set:html={r(copy.layout.retention)} /></Card>
+				<Card className={box}><p class={boxText} set:html={r(copy.layout.v0(V0_DUMPS, `${V0_DUMPS}latest.json`))} /></Card>
+				<Card className={box}><p class={boxText} set:html={r(copy.layout.manifest(DUMP_SCHEMA))} /></Card>
 			</div>
 		</div>
 	</section>
 
-	<section aria-labelledby="files" class="border-t border-line">
+	<section aria-labelledby="files" class="border-t">
 		<div class="shell py-14 sm:py-16">
 			<div class="max-w-3xl">
 				<h2 id="files" class="text-2xl font-semibold tracking-tight">{copy.files.heading}</h2>
 				<p class="mt-5 text-base leading-relaxed text-soft sm:text-lg" set:html={r(copy.files.lead)} />
 			</div>
 
-			<div class="mt-9 max-w-4xl table-scroll" role="region" aria-label={copy.files.table} tabindex="0">
-				<table class="data-table">
-					<thead>
-						<tr>{copy.files.columns.map((column) => <th scope="col">{column}</th>)}</tr>
-					</thead>
-					<tbody>
-						{
-							latest.files.map((file) => (
-								<tr>
-									<td class="font-mono text-[0.8125rem] whitespace-nowrap">{file.name}</td>
-									<td class="text-soft">{copy.holds[file.name].per}</td>
-									<td class="text-soft">{copy.holds[file.name].line}</td>
-								</tr>
-							))
-						}
-					</tbody>
-				</table>
-			</div>
+			<DataTable className="mt-9 max-w-4xl" label={copy.files.table} columns={copy.files.columns} rows={fileRows} />
 
 			<div class="mt-12 grid max-w-3xl gap-12 [&>*]:min-w-0">
 				<div>
@@ -153,37 +152,23 @@ const box = 'rounded-lg border border-line bg-surface p-5 text-[0.9375rem] leadi
 				<div>
 					<h3 class="text-lg font-semibold tracking-tight">{copy.files.record}</h3>
 					<p class="mt-3 text-[0.9375rem] leading-relaxed text-soft">{copy.files.recordLead}</p>
-					<div class="mt-5 table-scroll" role="region" aria-label={copy.files.recordTable} tabindex="0">
-						<table class="data-table">
-							<thead>
-								<tr>{copy.files.recordColumns.map((column) => <th scope="col">{column}</th>)}</tr>
-							</thead>
-							<tbody>
-								{
-									recordFields.map((row) => (
-										<tr>
-											<td class="font-mono text-[0.8125rem] whitespace-nowrap">{row.field}</td>
-											<td class="text-soft">{row.note}</td>
-										</tr>
-									))
-								}
-							</tbody>
-						</table>
-					</div>
+					<DataTable className="mt-5" label={copy.files.recordTable} columns={copy.files.recordColumns} rows={recordRows} />
 				</div>
 
 				<div>
 					<h3 class="text-lg font-semibold tracking-tight">{copy.files.grouping}</h3>
 					<p class="mt-3 text-[0.9375rem] leading-relaxed text-soft" set:html={r(copy.files.groupingLead)} />
-					<ul class="mt-5 grid gap-px overflow-hidden rounded-xl border border-line bg-line [&>*]:min-w-0">
+					<ul class="mt-5 grid gap-4 [&>*]:min-w-0">
 						{
 							groupingKeys.map((row) => (
-								<li class="bg-surface p-5">
-									<p class="font-mono text-xs text-soft">{row.kind}</p>
-									<p class="mt-2 font-mono text-[0.8125rem] break-words" dir="ltr">
-										{row.key}
-									</p>
-									<p class="mt-2 text-[0.9375rem] leading-relaxed text-soft">{row.note}</p>
+								<li>
+									<Card className="gap-0 px-5 shadow-none">
+										<p class="font-mono text-xs text-soft">{row.kind}</p>
+										<p class="mt-2 font-mono text-[0.8125rem] break-words" dir="ltr">
+											{row.key}
+										</p>
+										<p class="mt-2 text-[0.9375rem] leading-relaxed text-soft">{row.note}</p>
+									</Card>
 								</li>
 							))
 						}
@@ -198,7 +183,7 @@ const box = 'rounded-lg border border-line bg-surface p-5 text-[0.9375rem] leadi
 		</div>
 	</section>
 
-	<section aria-labelledby="never" class="border-t border-line">
+	<section aria-labelledby="never" class="border-t">
 		<div class="shell py-14 sm:py-16">
 			<div class="max-w-3xl">
 				<h2 id="never" class="text-2xl font-semibold tracking-tight">{copy.never.heading}</h2>
@@ -217,29 +202,33 @@ const box = 'rounded-lg border border-line bg-surface p-5 text-[0.9375rem] leadi
 		</div>
 	</section>
 
-	<section aria-labelledby="licences" class="border-t border-line">
+	<section aria-labelledby="licences" class="border-t">
 		<div class="shell py-14 sm:py-16">
 			<div class="max-w-3xl">
 				<h2 id="licences" class="text-2xl font-semibold tracking-tight">{copy.licences.heading}</h2>
 				<p class="mt-5 text-base leading-relaxed text-soft sm:text-lg" set:html={r(copy.licences.lead)} />
 			</div>
-			<ul class="mt-9 grid max-w-3xl gap-px overflow-hidden rounded-xl border border-line bg-line [&>*]:min-w-0">
-				<li class="bg-surface p-6">
-					<p class="font-mono text-xs text-soft">index: CC0-1.0</p>
-					<h3 class="mt-2 text-base font-semibold tracking-tight">{copy.licences.index}</h3>
-					<p class="mt-3 text-[0.9375rem] leading-relaxed text-soft" set:html={r(copy.licences.indexBody)} />
+			<ul class="mt-9 grid max-w-3xl gap-4 [&>*]:min-w-0">
+				<li>
+					<Card className="gap-0 px-6 shadow-none">
+						<p class="font-mono text-xs text-soft">index: CC0-1.0</p>
+						<h3 class="mt-2 text-base font-semibold tracking-tight">{copy.licences.index}</h3>
+						<p class="mt-3 text-[0.9375rem] leading-relaxed text-soft" set:html={r(copy.licences.indexBody)} />
+					</Card>
 				</li>
-				<li class="bg-surface p-6">
-					<p class="font-mono text-xs text-soft">claims: source</p>
-					<h3 class="mt-2 text-base font-semibold tracking-tight">{copy.licences.claims}</h3>
-					<p class="mt-3 text-[0.9375rem] leading-relaxed text-soft" set:html={r(copy.licences.claimsBody)} />
+				<li>
+					<Card className="gap-0 px-6 shadow-none">
+						<p class="font-mono text-xs text-soft">claims: source</p>
+						<h3 class="mt-2 text-base font-semibold tracking-tight">{copy.licences.claims}</h3>
+						<p class="mt-3 text-[0.9375rem] leading-relaxed text-soft" set:html={r(copy.licences.claimsBody)} />
+					</Card>
 				</li>
 			</ul>
 			<p class="mt-6 max-w-3xl text-[0.9375rem] leading-relaxed text-soft" set:html={r(copy.licences.datasets)} />
 		</div>
 	</section>
 
-	<section aria-labelledby="load" class="border-t border-line">
+	<section aria-labelledby="load" class="border-t">
 		<div class="shell py-14 sm:py-16">
 			<div class="max-w-3xl">
 				<h2 id="load" class="text-2xl font-semibold tracking-tight">{copy.load.heading}</h2>

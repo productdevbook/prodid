@@ -1,4 +1,5 @@
 ---
+import Disclosure from '@/components/disclosure.astro'
 import SpecToc from '@/components/spec-toc.astro'
 import Layout from '@/layouts/base.astro'
 import { getEntry, render } from 'astro:content'
@@ -30,17 +31,15 @@ const files = Object.keys(
 			</article>
 
 			<aside class="mt-14 lg:order-last lg:mt-0">
-				<details class="rounded-lg border border-line bg-surface lg:hidden">
-					<summary class="cursor-pointer px-4 py-3 text-sm font-medium">On this page</summary>
-					<div class="border-t border-line px-4 py-3">
-						<SpecToc headings={headings} />
-					</div>
-				</details>
+				<Disclosure class="lg:hidden">
+					<span slot="title">On this page</span>
+					<SpecToc headings={headings} />
+				</Disclosure>
 
 				<nav
 					data-spec-toc
 					aria-label="On this page"
-					class="sticky top-20 hidden max-h-[calc(100svh-6rem)] overflow-y-auto overscroll-contain border-l border-line pl-5 lg:block"
+					class="sticky top-20 hidden max-h-[calc(100svh-6rem)] overflow-y-auto overscroll-contain border-s ps-5 lg:block"
 				>
 					<h2 class="text-xs font-semibold tracking-wider text-soft uppercase">On this page</h2>
 					<div class="mt-3">
@@ -50,7 +49,7 @@ const files = Object.keys(
 					<h2 class="mt-9 text-xs font-semibold tracking-wider text-soft uppercase">Files</h2>
 					<p class="mt-3 text-sm leading-relaxed text-soft">
 						Conformance vectors live in{' '}
-						<a href="/spec/fixtures/v1" class="rounded-sm font-mono text-[0.8125rem] underline underline-offset-4 hover:text-accent">
+						<a href="/spec/fixtures/v1" class="rounded-sm font-mono text-[0.8125rem] underline underline-offset-4 hover:text-brand">
 							/spec/fixtures/v1</a
 						>.
 					</p>
@@ -58,7 +57,7 @@ const files = Object.keys(
 						{
 							files.map((file) => (
 								<li>
-									<a href={`/spec/${file}`} class="rounded-sm break-all text-soft underline-offset-4 hover:text-accent hover:underline">
+									<a href={`/spec/${file}`} class="rounded-sm break-all text-soft underline-offset-4 hover:text-brand hover:underline">
 										{file}
 									</a>
 								</li>
@@ -69,11 +68,11 @@ const files = Object.keys(
 					<h2 class="mt-9 text-xs font-semibold tracking-wider text-soft uppercase">Source</h2>
 					<p class="mt-3 text-sm leading-relaxed text-soft">
 						This page is rendered from{' '}
-						<a href="/spec/README.md" class="rounded-sm font-mono text-[0.8125rem] underline underline-offset-4 hover:text-accent">
+						<a href="/spec/README.md" class="rounded-sm font-mono text-[0.8125rem] underline underline-offset-4 hover:text-brand">
 							spec/README.md
 						</a>{' '}
 						at build time. What changed from v0 is in{' '}
-						<a href="/spec/v1-from-v0.md" class="rounded-sm font-mono text-[0.8125rem] underline underline-offset-4 hover:text-accent">
+						<a href="/spec/v1-from-v0.md" class="rounded-sm font-mono text-[0.8125rem] underline underline-offset-4 hover:text-brand">
 							spec/v1-from-v0.md</a
 						>.
 					</p>

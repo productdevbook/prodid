@@ -1,6 +1,6 @@
 import { type LocaleCode, localize } from '@/i18n/locales'
 
-export const LINK = 'rounded-sm text-accent underline underline-offset-4'
+export const LINK = 'rounded-sm text-brand underline underline-offset-4'
 const MONO_LINK = `${LINK} font-mono text-[0.8125rem] [overflow-wrap:anywhere]`
 
 const escape = (text: string): string => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')

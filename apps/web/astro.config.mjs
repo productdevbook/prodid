@@ -5,6 +5,7 @@ import { extname, join, posix } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { satteri, satteriHeadingIdsPlugin } from '@astrojs/markdown-satteri'
+import react from '@astrojs/react'
 import tailwindcss from '@tailwindcss/vite'
 import { defineConfig } from 'astro/config'
 import { defineHastPlugin } from 'satteri'
@@ -301,7 +302,7 @@ function checkQuotedAnchorsRendered(dist) {
 export default defineConfig({
 	site: 'https://prodid.org',
 	output: 'static',
-	integrations: [specAssets()],
+	integrations: [react(), specAssets()],
 	markdown: {
 		shikiConfig: { themes: SHIKI_THEMES, langAlias: SHIKI_LANG_ALIAS, defaultColor: false, wrap: false },
 		// Astro appends its own heading-ids plugin after these, so the ids the anchors link to have to be

@@ -1,9 +1,25 @@
 @import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+@import '@fontsource-variable/inter';
+
+@custom-variant dark {
+	&:where([data-theme='dark'], [data-theme='dark'] *) {
+		@slot;
+	}
+
+	@media (prefers-color-scheme: dark) {
+		&:where(:root:not([data-theme='light']), :root:not([data-theme='light']) *) {
+			@slot;
+		}
+	}
+}
 
 @theme inline {
 	--font-sans:
-		ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'PingFang SC', 'Hiragino Sans',
-		'Microsoft YaHei', 'Yu Gothic UI', 'Noto Sans CJK SC', 'Noto Sans Arabic', 'Geeza Pro', Tahoma, sans-serif;
+		'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'PingFang SC',
+		'Hiragino Sans', 'Microsoft YaHei', 'Yu Gothic UI', 'Noto Sans CJK SC', 'Noto Sans Arabic', 'Geeza Pro', Tahoma, sans-serif;
+	--font-heading: var(--font-sans);
 	--font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
 
 	--color-bg: var(--bg);
@@ -13,12 +29,39 @@
 	--color-soft: var(--soft);
 	--color-line: var(--line);
 	--color-rule: var(--rule);
-	--color-accent: var(--accent);
-	--color-accent-bg: var(--accent-bg);
+	--color-brand: var(--brand);
+	--color-brand-bg: var(--brand-bg);
 	--color-ok: var(--ok);
 	--color-ok-bg: var(--ok-bg);
 	--color-warn: var(--warn);
 	--color-warn-bg: var(--warn-bg);
+
+	--color-background: var(--background);
+	--color-foreground: var(--foreground);
+	--color-card: var(--card);
+	--color-card-foreground: var(--card-foreground);
+	--color-popover: var(--popover);
+	--color-popover-foreground: var(--popover-foreground);
+	--color-primary: var(--primary);
+	--color-primary-foreground: var(--primary-foreground);
+	--color-secondary: var(--secondary);
+	--color-secondary-foreground: var(--secondary-foreground);
+	--color-muted: var(--muted);
+	--color-muted-foreground: var(--muted-foreground);
+	--color-accent: var(--accent);
+	--color-accent-foreground: var(--accent-foreground);
+	--color-destructive: var(--destructive);
+	--color-border: var(--border);
+	--color-input: var(--input);
+	--color-ring: var(--ring);
+
+	--radius-sm: calc(var(--radius) * 0.6);
+	--radius-md: calc(var(--radius) * 0.8);
+	--radius-lg: var(--radius);
+	--radius-xl: calc(var(--radius) * 1.4);
+	--radius-2xl: calc(var(--radius) * 1.8);
+	--radius-3xl: calc(var(--radius) * 2.2);
+	--radius-4xl: calc(var(--radius) * 2.6);
 }
 
 :root {
@@ -30,12 +73,32 @@
 	--soft: oklch(0.5 0.014 265);
 	--line: oklch(0.91 0.005 265);
 	--rule: oklch(0.84 0.006 265);
-	--accent: oklch(0.47 0.13 252);
-	--accent-bg: oklch(0.955 0.018 252);
+	--brand: oklch(0.47 0.13 252);
+	--brand-bg: oklch(0.955 0.018 252);
 	--ok: oklch(0.45 0.11 150);
 	--ok-bg: oklch(0.955 0.03 150);
 	--warn: oklch(0.5 0.13 55);
 	--warn-bg: oklch(0.96 0.03 65);
+
+	--background: var(--bg);
+	--foreground: var(--ink);
+	--card: var(--surface);
+	--card-foreground: var(--ink);
+	--popover: var(--surface);
+	--popover-foreground: var(--ink);
+	--primary: var(--ink);
+	--primary-foreground: var(--bg);
+	--secondary: var(--sunken);
+	--secondary-foreground: var(--ink);
+	--muted: var(--sunken);
+	--muted-foreground: var(--soft);
+	--accent: var(--sunken);
+	--accent-foreground: var(--ink);
+	--destructive: var(--warn);
+	--border: var(--line);
+	--input: var(--rule);
+	--ring: var(--brand);
+	--radius: 0.5rem;
 }
 
 /* The system decides unless the reader picked a theme, which `data-theme` on <html> records. */
@@ -48,8 +111,8 @@
 		--soft: oklch(0.7 0.012 265);
 		--line: oklch(0.28 0.01 265);
 		--rule: oklch(0.36 0.012 265);
-		--accent: oklch(0.79 0.1 252);
-		--accent-bg: oklch(0.26 0.035 252);
+		--brand: oklch(0.79 0.1 252);
+		--brand-bg: oklch(0.26 0.035 252);
 		--ok: oklch(0.8 0.12 150);
 		--ok-bg: oklch(0.27 0.04 150);
 		--warn: oklch(0.82 0.11 65);
@@ -66,8 +129,8 @@
 	--soft: oklch(0.7 0.012 265);
 	--line: oklch(0.28 0.01 265);
 	--rule: oklch(0.36 0.012 265);
-	--accent: oklch(0.79 0.1 252);
-	--accent-bg: oklch(0.26 0.035 252);
+	--brand: oklch(0.79 0.1 252);
+	--brand-bg: oklch(0.26 0.035 252);
 	--ok: oklch(0.8 0.12 150);
 	--ok-bg: oklch(0.27 0.04 150);
 	--warn: oklch(0.82 0.11 65);
@@ -88,18 +151,18 @@
 
 	html:lang(ja) {
 		font-family:
-			ui-sans-serif, system-ui, -apple-system, 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Yu Gothic UI', Meiryo, 'Noto Sans CJK JP',
-			'Noto Sans JP', sans-serif;
+			'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Yu Gothic UI', Meiryo,
+			'Noto Sans CJK JP', 'Noto Sans JP', sans-serif;
 	}
 
 	html:lang(zh-Hans) {
 		font-family:
-			ui-sans-serif, system-ui, -apple-system, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans CJK SC', 'Noto Sans SC',
-			sans-serif;
+			'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans CJK SC',
+			'Noto Sans SC', sans-serif;
 	}
 
 	html:lang(ar) {
-		font-family: system-ui, -apple-system, 'Segoe UI', 'Geeza Pro', 'Noto Sans Arabic', Tahoma, Arial, sans-serif;
+		font-family: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', 'Geeza Pro', 'Noto Sans Arabic', Tahoma, Arial, sans-serif;
 	}
 
 	body {
@@ -109,14 +172,18 @@
 		text-rendering: optimizeLegibility;
 	}
 
+	* {
+		border-color: var(--border);
+	}
+
 	:focus-visible {
-		outline: 2px solid var(--accent);
+		outline: 2px solid var(--brand);
 		outline-offset: 3px;
 		border-radius: 3px;
 	}
 
 	::selection {
-		background-color: var(--accent-bg);
+		background-color: var(--brand-bg);
 	}
 
 	:where(h1, h2, h3, h4) {
@@ -209,7 +276,7 @@
 }
 
 .prose a {
-	color: var(--accent);
+	color: var(--brand);
 	text-decoration: underline;
 	text-decoration-thickness: from-font;
 	text-underline-offset: 0.2em;
@@ -298,8 +365,7 @@ yuva-chat {
 	font-size: inherit;
 }
 
-.prose table,
-.data-table {
+.prose table {
 	width: 100%;
 	/* Below this the last column collapses to two words a line; the scroll container takes over instead. */
 	min-width: 30rem;
@@ -308,8 +374,7 @@ yuva-chat {
 	line-height: 1.55;
 }
 
-.prose :where(th, td),
-.data-table :where(th, td) {
+.prose :where(th, td) {
 	border-bottom: 1px solid var(--line);
 	padding-block: 0.6rem;
 	padding-inline: 0 1rem;
@@ -317,8 +382,7 @@ yuva-chat {
 	vertical-align: top;
 }
 
-.prose th,
-.data-table th {
+.prose th {
 	font-weight: 600;
 	font-size: 0.75rem;
 	letter-spacing: 0.06em;
@@ -373,7 +437,7 @@ yuva-chat {
 }
 
 .heading-anchor:hover {
-	color: var(--accent);
+	color: var(--brand);
 }
 
 :where(h1, h2, h3, h4, h5, h6):hover > .heading-anchor,
@@ -411,6 +475,10 @@ yuva-chat {
 }
 
 [data-spec-toc] a[aria-current='location'] {
-	color: var(--accent);
+	color: var(--brand);
 	font-weight: 500;
+}
+
+astro-static-slot {
+	display: contents;
 }

@@ -22,14 +22,14 @@ const sections = headings
 	{
 		sections.map((section) => (
 			<li>
-				<a href={`#${section.slug}`} class="rounded-sm underline-offset-4 hover:text-accent hover:underline">
+				<a href={`#${section.slug}`} class="rounded-sm underline-offset-4 hover:text-brand hover:underline">
 					{section.text}
 				</a>
 				{section.children.length > 0 && (
-					<ul class="mt-1.5 grid gap-1.5 border-l border-line pl-3 text-[0.8125rem]">
+					<ul class="mt-1.5 grid gap-1.5 border-s ps-3 text-[0.8125rem]">
 						{section.children.map((child) => (
 							<li>
-								<a href={`#${child.slug}`} class="rounded-sm text-soft underline-offset-4 hover:text-accent hover:underline">
+								<a href={`#${child.slug}`} class="rounded-sm text-soft underline-offset-4 hover:text-brand hover:underline">
 									{child.text}
 								</a>
 							</li>

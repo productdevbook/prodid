@@ -1,5 +1,7 @@
 ---
+import { Card } from '@/components/ui/card'
 import Layout from '@/layouts/base.astro'
+import { ArrowRight } from 'lucide-react'
 
 const elsewhere = [
 	{ href: '/spec', label: 'The specification', note: 'Identifiers, records, claims, resolving.' },
@@ -22,17 +24,19 @@ const elsewhere = [
 				If you followed a product link such as <code class="chip">prodid.org/01/09506000134352</code>, nobody has
 				published that product yet.
 			</p>
-			<ul class="mt-10 grid gap-px overflow-hidden rounded-xl border border-line bg-line [&>*]:min-w-0">
+			<ul class="mt-10 grid gap-3">
 				{
 					elsewhere.map((item) => (
-						<li class="bg-surface">
-							<a href={item.href} class="flex items-baseline justify-between gap-4 px-5 py-4 hover:bg-sunken">
-								<span>
-									<span class="font-medium">{item.label}</span>
-									<span class="mt-1 block text-sm text-soft">{item.note}</span>
-								</span>
-								<span aria-hidden="true" class="text-soft">→</span>
-							</a>
+						<li>
+							<Card className="gap-0 p-0 shadow-none">
+								<a href={item.href} class="flex items-center justify-between gap-4 px-5 py-4 hover:bg-muted">
+									<span>
+										<span class="font-medium">{item.label}</span>
+										<span class="mt-1 block text-sm text-soft">{item.note}</span>
+									</span>
+									<ArrowRight className="size-4 shrink-0 text-soft rtl:rotate-180" />
+								</a>
+							</Card>
 						</li>
 					))
 				}

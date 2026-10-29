@@ -13,6 +13,7 @@
 		"**/dist/**",
 		"**/*.generated.js",
 		"**/*.generated.d.ts",
-		"**/worker-configuration.d.ts"
+		"**/worker-configuration.d.ts",
+		"apps/web/src/components/ui/**"
 	]
 }

@@ -1,11 +1,19 @@
 ---
 import CodeSample from '@/components/code-sample.astro'
+import { DataTable } from '@/components/data-table'
+import Disclosure from '@/components/disclosure.astro'
+import { FieldList } from '@/components/field-list'
 import PageHeader from '@/components/page-header.astro'
+import { Button, buttonVariants } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { Label } from '@/components/ui/label'
+import { Separator } from '@/components/ui/separator'
 import { copyFor } from '@/i18n'
 import type { LocaleCode } from '@/i18n/locales'
 import { rich } from '@/i18n/rich'
 import Layout from '@/layouts/base.astro'
 import { examples, HOSTED_PUBLISHER } from '@/lib/spec'
+import { cn } from '@/lib/utils'
 
 interface Props {
 	code: LocaleCode
@@ -36,7 +44,7 @@ const feedFields = (
 		['feeds', 'yes'],
 		['domain', 'delegating'],
 	] as const
-).map(([field, need], index) => ({ field, required: required[need], note: copy.own.feedFields[index] ?? '' }))
+).map(([field, need], index) => ({ field, need, required: required[need], note: copy.own.feedFields[index] ?? '' }))
 
 const itemFields = (
 	[
@@ -53,9 +61,11 @@ const itemFields = (
 		['properties', 'no'],
 		['media', 'no'],
 	] as const
-).map(([field, need], index) => ({ field, required: required[need], note: copy.own.itemFields[index] ?? '' }))
+).map(([field, need], index) => ({ field, need, required: required[need], note: copy.own.itemFields[index] ?? '' }))
 
-const trust = ['authoritative', 'verified', 'unverified'].map((level, index) => ({ level, meaning: copy.trust.levels[index] ?? '' }))
+const trust = ['authoritative', 'verified', 'unverified'].map((level, index) => ({
+	cells: [{ text: level, className: 'font-mono text-[0.8125rem] whitespace-nowrap' }, { text: copy.trust.levels[index] ?? '', className: 'text-muted-foreground' }],
+}))
 
 const txtRecord = `_prodid.acme.example. IN TXT "v=prodid0; host=acme.example"`
 
@@ -82,7 +92,9 @@ bun apps/batch/src/cli.ts check prodid.json items.ndjson
 prodid.json: ok, 1 record
 items.ndjson: ok, 3 records`
 
-const mediaCaps = ['20 MiB', '50 MiB', '60 s', '20'].map((cap, index) => ({ what: copy.after.media.caps[index] ?? '', cap }))
+const mediaCaps = ['20 MiB', '50 MiB', '60 s', '20'].map((cap, index) => ({
+	cells: [{ text: copy.after.media.caps[index] ?? '', className: 'whitespace-nowrap' }, { text: cap, className: 'font-mono text-[0.8125rem] whitespace-nowrap' }],
+}))
 
 const mediaLicences = `CC0-1.0  CC-BY-4.0  CC-BY-SA-4.0  CC-BY-ND-4.0
 CC-BY-3.0  CC-BY-SA-3.0  CC-BY-ND-3.0`
@@ -106,9 +118,8 @@ const entries = [
 	{ title: after.lapse.title, paragraphs: after.lapse.body },
 	{ title: after.seen.title, paragraphs: [after.seen.body] },
 ]
-const summary =
-	'flex min-h-12 cursor-pointer list-none items-center justify-between gap-4 px-5 py-3 text-start font-medium [&::-webkit-details-marker]:hidden'
-const panel = 'border-t border-line px-5 py-4'
+const callout = 'gap-0 px-5 py-5 shadow-none'
+const step = 'grid size-9 shrink-0 place-items-center rounded-full bg-brand font-mono text-sm font-medium text-bg'
 const item = 'border-s-2 border-rule ps-5'
 const body = 'text-[0.9375rem] leading-relaxed text-soft'
 ---
@@ -116,42 +127,43 @@ const body = 'text-[0.9375rem] leading-relaxed text-soft'
 <Layout title={copy.title} description={copy.description} active="publish" code={code} page="publish">
 	<PageHeader eyebrow={copy.eyebrow} title={copy.heading} lead={copy.lead} />
 
-	<section aria-labelledby="routes" class="border-t border-line">
+	<section aria-labelledby="routes" class="border-t">
 		<div class="shell py-14 sm:py-16">
 			<div class="max-w-3xl">
 				<h2 id="routes" class="text-2xl font-semibold tracking-tight">{copy.routes.heading}</h2>
 				<p class="mt-5 text-base leading-relaxed text-soft sm:text-lg">{copy.routes.lead}</p>
 			</div>
-			<ol class="mt-10 grid gap-px overflow-hidden rounded-xl border border-line bg-line lg:grid-cols-3 [&>*]:min-w-0">
+			<ol class="mt-10 grid gap-4 lg:grid-cols-3 [&>*]:min-w-0">
 				{
 					routes.map((route) => (
-						<li class="flex flex-col bg-surface p-6">
-							<div class="flex min-h-[1.5rem] items-center justify-between gap-3">
+						<li class="flex">
+							<Card className="w-full gap-0 px-6">
 								<p class="font-mono text-xs text-soft">{copy.routes.route(route.n)}</p>
-							</div>
-							<h3 class="mt-3 text-base font-semibold tracking-tight">{route.when}</h3>
-							<p class="mt-3 text-[0.9375rem] leading-relaxed text-soft">{route.who}</p>
-							<p class="mt-3 flex-1 text-[0.9375rem] leading-relaxed text-soft">{route.how}</p>
-							<dl class="mt-5 grid gap-1.5 border-t border-line pt-4 text-[0.8125rem]">
-								<div class="flex gap-2">
-									<dt class="w-16 shrink-0 text-soft">{copy.routes.identity}</dt>
-									<dd>{route.identity}</dd>
-								</div>
-								<div class="flex gap-2">
-									<dt class="w-16 shrink-0 text-soft">{copy.routes.trust}</dt>
-									<dd class="font-mono">{route.trust}</dd>
-								</div>
-							</dl>
-							<div class="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-sm font-medium">
-								<a href={route.href} class="rounded-sm text-accent underline-offset-4 hover:underline">
-									{copy.routes.detail(route.n)}
-								</a>
-								{route.hosted && (
-									<a href={HOSTED_PUBLISHER} class="rounded-sm text-accent underline-offset-4 hover:underline">
-										{copy.routes.start}
+								<h3 class="mt-3 text-base font-semibold tracking-tight">{route.when}</h3>
+								<p class="mt-3 text-[0.9375rem] leading-relaxed text-soft">{route.who}</p>
+								<p class="mt-3 flex-1 text-[0.9375rem] leading-relaxed text-soft">{route.how}</p>
+								<Separator className="mt-5" />
+								<dl class="mt-4 grid gap-1.5 text-[0.8125rem]">
+									<div class="flex gap-2">
+										<dt class="w-16 shrink-0 text-soft">{copy.routes.identity}</dt>
+										<dd>{route.identity}</dd>
+									</div>
+									<div class="flex gap-2">
+										<dt class="w-16 shrink-0 text-soft">{copy.routes.trust}</dt>
+										<dd class="font-mono">{route.trust}</dd>
+									</div>
+								</dl>
+								<div class="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm font-medium">
+									<a href={route.href} class="rounded-sm text-brand underline-offset-4 hover:underline">
+										{copy.routes.detail(route.n)}
 									</a>
-								)}
-							</div>
+									{route.hosted && (
+										<a href={HOSTED_PUBLISHER} class={buttonVariants({ variant: 'outline', size: 'sm' })}>
+											{copy.routes.start}
+										</a>
+									)}
+								</div>
+							</Card>
 						</li>
 					))
 				}
@@ -160,16 +172,16 @@ const body = 'text-[0.9375rem] leading-relaxed text-soft'
 		</div>
 	</section>
 
-	<div class="border-t border-line">
+	<div class="border-t">
 		<div class="shell lg:grid lg:grid-cols-[13rem_minmax(0,1fr)] lg:gap-12 [&>*]:min-w-0">
 			<aside class="pt-10 lg:sticky lg:top-20 lg:mt-14 lg:self-start lg:pt-0">
-				<nav aria-label={copy.toc} class="rounded-xl border border-line bg-surface p-5 lg:rounded-none lg:border-0 lg:border-s lg:bg-transparent lg:p-0 lg:ps-5">
+				<nav aria-label={copy.toc} class="rounded-xl border bg-card p-5 lg:rounded-none lg:border-0 lg:border-s lg:bg-transparent lg:p-0 lg:ps-5">
 					<p class="font-mono text-xs tracking-[0.18em] text-soft uppercase">{copy.toc}</p>
 					<ul class="mt-4 grid gap-2.5 text-sm">
 						{
 							toc.map((entry) => (
 								<li>
-									<a href={entry.href} class="rounded-sm text-soft underline-offset-4 hover:text-accent hover:underline">{entry.label}</a>
+									<a href={entry.href} class="rounded-sm text-soft underline-offset-4 hover:text-brand hover:underline">{entry.label}</a>
 								</li>
 							))
 						}
@@ -177,342 +189,266 @@ const body = 'text-[0.9375rem] leading-relaxed text-soft'
 				</nav>
 			</aside>
 			<div>
-	<section aria-labelledby="discovery">
-		<div class="py-14 sm:py-16">
-			<div class="max-w-3xl">
-				<h2 id="discovery" class="text-2xl font-semibold tracking-tight">{copy.discovery.heading}</h2>
-				<p class="mt-5 text-base leading-relaxed text-soft sm:text-lg">{copy.discovery.lead}</p>
-			</div>
-
-			<ol class="mt-9 grid max-w-3xl gap-px overflow-hidden rounded-xl border border-line bg-line [&>*]:min-w-0">
-				<li class="bg-surface p-6">
-					<p class="font-mono text-xs text-soft">{copy.discovery.first}</p>
-					<h3 class="mt-2 text-base font-semibold tracking-tight" set:html={r(copy.discovery.firstTitle)} />
-					<p class="mt-3 text-[0.9375rem] leading-relaxed text-soft" set:html={r(copy.discovery.firstBody)} />
-				</li>
-				<li class="bg-surface p-6">
-					<p class="font-mono text-xs text-soft">{copy.discovery.second}</p>
-					<h3 class="mt-2 text-base font-semibold tracking-tight">
-						<code class="chip">{wellKnown}</code>
-					</h3>
-					<p class="mt-3 text-[0.9375rem] leading-relaxed text-soft">{copy.discovery.secondBody}</p>
-				</li>
-			</ol>
-
-			<div class="mt-8 max-w-3xl">
-				<p class="text-base leading-relaxed text-soft" set:html={r(copy.discovery.why)} />
-			</div>
-
-			<div class="mt-8 grid max-w-3xl gap-4 [&>*]:min-w-0">
-				<p class="rounded-lg border border-line bg-surface p-5 text-[0.9375rem] leading-relaxed text-soft" set:html={r(copy.discovery.one)} />
-				<p class="rounded-lg border border-line bg-surface p-5 text-[0.9375rem] leading-relaxed text-soft" set:html={r(copy.discovery.answer)} />
-			</div>
-		</div>
-	</section>
-
-	<section aria-labelledby="own-domain" class="border-t border-line">
-		<div class="py-14 sm:py-16">
-			<div class="max-w-3xl">
-				<p class="font-mono text-xs tracking-[0.18em] text-soft uppercase">{copy.own.eyebrow}</p>
-				<h2 id="own-domain" class="mt-4 text-2xl font-semibold tracking-tight sm:text-3xl">{copy.own.heading}</h2>
-				<p class="mt-5 text-base leading-relaxed text-soft sm:text-lg">{copy.own.lead}</p>
-			</div>
-
-			<ol class="mt-12 grid gap-12 [&>*]:min-w-0">
-				<li class="flex gap-4 sm:gap-5">
-					<span aria-hidden="true" class="grid size-9 shrink-0 place-items-center rounded-full bg-accent font-mono text-sm font-medium text-bg">1</span>
-					<div class="min-w-0 flex-1">
-					<h3 class="mt-1 text-lg font-semibold tracking-tight">{stepTitle(copy.own.step1)}</h3>
-					<p class="mt-3 max-w-3xl text-base leading-relaxed text-soft" set:html={r(copy.own.step1Lead(wellKnown))} />
-					<div class="mt-6 grid gap-8 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:items-start [&>*]:min-w-0">
-						<CodeSample code={examples.feed} lang="json" label=".well-known/prodid.json" badge="application/json" caption={copy.own.feedCaption} />
-						<div class="table-scroll" role="region" aria-label={copy.own.feedTable} tabindex="0">
-							<table class="data-table">
-								<thead>
-									<tr><th scope="col">{copy.table.field}</th><th scope="col">{copy.table.required}</th><th scope="col">{copy.table.what}</th></tr>
-								</thead>
-								<tbody>
-									{
-										feedFields.map((row) => (
-											<tr>
-												<td class="font-mono text-[0.8125rem] whitespace-nowrap">{row.field}</td>
-												<td class="text-soft whitespace-nowrap">{row.required}</td>
-												<td class="text-soft">{row.note}</td>
-											</tr>
-										))
-									}
-								</tbody>
-							</table>
+				<section aria-labelledby="discovery">
+					<div class="py-14 sm:py-16">
+						<div class="max-w-3xl">
+							<h2 id="discovery" class="text-2xl font-semibold tracking-tight">{copy.discovery.heading}</h2>
+							<p class="mt-5 text-base leading-relaxed text-soft sm:text-lg">{copy.discovery.lead}</p>
 						</div>
-					</div>
-					<p class="mt-5 max-w-3xl text-[0.9375rem] leading-relaxed text-soft" set:html={r(copy.own.serve)} />
-					</div>
-				</li>
 
-				<li class="flex gap-4 sm:gap-5">
-					<span aria-hidden="true" class="grid size-9 shrink-0 place-items-center rounded-full bg-accent font-mono text-sm font-medium text-bg">2</span>
-					<div class="min-w-0 flex-1">
-					<h3 class="mt-1 text-lg font-semibold tracking-tight">{stepTitle(copy.own.step2)}</h3>
-					<p class="mt-3 max-w-3xl text-base leading-relaxed text-soft">{copy.own.step2Lead}</p>
-					<CodeSample
-						class="mt-6"
-						code={examples.items}
-						lang="jsonl"
-						label="prodid/items.ndjson"
-						badge="application/x-ndjson"
-						caption={copy.own.itemsCaption}
-					/>
-					<p class="mt-6 max-w-3xl rounded-lg border border-line bg-surface p-5 text-[0.9375rem] leading-relaxed text-soft" set:html={r(copy.own.sameHost)} />
-					<p class="mt-8 max-w-3xl text-base leading-relaxed text-soft">{copy.own.firstLine}</p>
-					<div class="mt-4 grid gap-8 xl:grid-cols-[minmax(0,26rem)_minmax(0,1fr)] xl:items-start [&>*]:min-w-0">
-						<CodeSample code={examples.itemJacket} lang="json" label={copy.own.itemLabel} />
-						<div class="table-scroll" role="region" aria-label={copy.own.itemTable} tabindex="0">
-							<table class="data-table">
-								<thead>
-									<tr><th scope="col">{copy.table.field}</th><th scope="col">{copy.table.required}</th><th scope="col">{copy.table.what}</th></tr>
-								</thead>
-								<tbody>
-									{
-										itemFields.map((row) => (
-											<tr>
-												<td class="font-mono text-[0.8125rem] whitespace-nowrap">{row.field}</td>
-												<td class="text-soft whitespace-nowrap">{row.required}</td>
-												<td class="text-soft">{row.note}</td>
-											</tr>
-										))
-									}
-								</tbody>
-							</table>
-						</div>
-					</div>
-					<p class="mt-6 max-w-3xl text-[0.9375rem] leading-relaxed text-soft" set:html={r(copy.own.flat)} />
-					<p class="mt-4 max-w-3xl text-[0.9375rem] leading-relaxed text-soft" set:html={r(copy.own.barcodes)} />
-					</div>
-				</li>
-
-				<li class="flex gap-4 sm:gap-5">
-					<span aria-hidden="true" class="grid size-9 shrink-0 place-items-center rounded-full bg-accent font-mono text-sm font-medium text-bg">3</span>
-					<div class="min-w-0 flex-1">
-					<h3 class="mt-1 text-lg font-semibold tracking-tight">{stepTitle(copy.own.step3)}</h3>
-					<p class="mt-3 max-w-3xl text-base leading-relaxed text-soft">{copy.own.step3Lead}</p>
-					<div class="mt-6 max-w-2xl">
-						<CodeSample code={txtRecord} lang="ini" label="_prodid.acme.example TXT" />
-						<button
-							type="button"
-							hidden
-							data-copy={txtRecord}
-							data-copied={copy.own.copied}
-							class="mt-3 min-h-10 cursor-pointer items-center rounded-md border border-rule bg-surface px-4 text-sm font-medium transition-colors hover:border-accent hover:text-accent [&:not([hidden])]:inline-flex"
-						>
-							{copy.own.copy}
-						</button>
-					</div>
-					<p class="mt-5 max-w-3xl text-[0.9375rem] leading-relaxed text-soft" set:html={r(copy.own.step3Why)} />
-					<p class="mt-4 max-w-3xl rounded-lg border border-line bg-surface p-5 text-[0.9375rem] leading-relaxed text-soft" set:html={r(copy.own.neverDelegate)} />
-					<p class="mt-4 max-w-3xl text-[0.9375rem] leading-relaxed text-soft" set:html={r(copy.own.order)} />
-					</div>
-				</li>
-
-				<li class="flex gap-4 sm:gap-5">
-					<span aria-hidden="true" class="grid size-9 shrink-0 place-items-center rounded-full bg-accent font-mono text-sm font-medium text-bg">4</span>
-					<div class="min-w-0 flex-1">
-					<h3 class="mt-1 text-lg font-semibold tracking-tight">{stepTitle(copy.own.step4)}</h3>
-					<p class="mt-3 max-w-3xl text-base leading-relaxed text-soft">{copy.own.step4Lead}</p>
-					<CodeSample class="mt-6 max-w-2xl" code={ping} lang="bash" label={copy.own.pingLabel} />
-					<p class="mt-4 max-w-3xl text-[0.9375rem] leading-relaxed text-soft" set:html={r(copy.own.ping)} />
-					</div>
-				</li>
-			</ol>
-		</div>
-	</section>
-
-	<section aria-labelledby="delegated" class="border-t border-line">
-		<div class="py-14 sm:py-16">
-			<div class="max-w-3xl">
-				<p class="font-mono text-xs tracking-[0.18em] text-soft uppercase">{copy.delegated.eyebrow}</p>
-				<h2 id="delegated" class="mt-4 text-2xl font-semibold tracking-tight sm:text-3xl">{copy.delegated.heading}</h2>
-				<p class="mt-5 text-base leading-relaxed text-soft sm:text-lg" set:html={r(copy.delegated.lead)} />
-			</div>
-
-			<div class="mt-10 grid max-w-3xl gap-6 [&>*]:min-w-0">
-				<div class="rounded-xl border border-line bg-surface p-6">
-					<h3 class="text-base font-semibold tracking-tight">{copy.delegated.looks}</h3>
-					<ol class="mt-4 grid gap-4 text-[0.9375rem] leading-relaxed text-soft">
-						{copy.delegated.steps.map((step) => <li set:html={r(step)} />)}
-					</ol>
-					<CodeSample class="mt-6" code={txtDelegated} lang="ini" label="_prodid.acme.example TXT" />
-					<CodeSample
-						class="mt-4"
-						code={examples.feedDelegated}
-						lang="json"
-						label="acme.prodid.org/.well-known/prodid.json"
-						badge="application/json"
-						caption={copy.delegated.caption}
-					/>
-				</div>
-				<p class="text-[0.9375rem] leading-relaxed text-soft" set:html={r(copy.delegated.window)} />
-			</div>
-		</div>
-	</section>
-
-	<section aria-labelledby="hosted" class="border-t border-line">
-		<div class="py-14 sm:py-16">
-			<div class="max-w-3xl">
-				<p class="font-mono text-xs tracking-[0.18em] text-soft uppercase">{copy.hosted.eyebrow}</p>
-				<h2 id="hosted" class="mt-4 text-2xl font-semibold tracking-tight sm:text-3xl">{copy.hosted.heading}</h2>
-				<p class="mt-5 text-base leading-relaxed text-soft sm:text-lg" set:html={r(copy.hosted.lead)} />
-				<p class="mt-5 text-base leading-relaxed text-soft sm:text-lg" set:html={r(copy.hosted.merchant)} />
-				<ul class="mt-5 grid gap-4 [&>*]:min-w-0">
-					{copy.hosted.rules.map((rule) => <li class:list={[item, 'text-[0.9375rem] leading-relaxed text-soft']} set:html={r(rule)} />)}
-				</ul>
-				<p class="mt-5 text-[0.9375rem] leading-relaxed text-soft" set:html={r(copy.hosted.skipped)} />
-				<p class="mt-5 text-base leading-relaxed text-soft sm:text-lg" set:html={r(copy.hosted.later)} />
-			</div>
-		</div>
-	</section>
-
-	<section aria-labelledby="trust" class="border-t border-line">
-		<div class="py-14 sm:py-16">
-			<div class="max-w-3xl">
-				<h2 id="trust" class="text-2xl font-semibold tracking-tight">{copy.trust.heading}</h2>
-				<p class="mt-5 text-base leading-relaxed text-soft sm:text-lg">{copy.trust.lead}</p>
-				<div class="table-scroll mt-8" role="region" aria-label={copy.trust.table} tabindex="0">
-					<table class="data-table">
-						<thead>
-							<tr><th scope="col">{copy.trust.level}</th><th scope="col">{copy.trust.meaning}</th></tr>
-						</thead>
-						<tbody>
-							{
-								trust.map((row) => (
-									<tr>
-										<td class="font-mono text-[0.8125rem] whitespace-nowrap">{row.level}</td>
-										<td class="text-soft">{row.meaning}</td>
-									</tr>
-								))
-							}
-						</tbody>
-					</table>
-				</div>
-				<p class="mt-8 text-base leading-relaxed text-soft sm:text-lg" set:html={r(copy.trust.only)} />
-				<ul class="mt-8 grid gap-6 [&>*]:min-w-0">
-					{
-						copy.trust.rules.map((rule) => (
-							<li class={item}>
-								<p class="font-medium">{rule.title}</p>
-								<p class={body} set:html={r(rule.body)} />
-							</li>
-						))
-					}
-				</ul>
-				<p class="mt-8 text-base leading-relaxed text-soft sm:text-lg" set:html={r(copy.trust.ask)} />
-			</div>
-		</div>
-	</section>
-
-	<section aria-labelledby="after" class="border-t border-line">
-		<div class="py-14 sm:py-16">
-			<div class="max-w-3xl">
-				<h2 id="after" class="text-2xl font-semibold tracking-tight">{after.heading}</h2>
-				<div class="mt-8 grid gap-3 [&>*]:min-w-0">
-					{
-						entries.map((entry, index) => (
-							<details class="group rounded-xl border border-line bg-surface" open={index === 0}>
-								<summary class={summary}>
-									<span set:html={r(entry.title)} />
-									<span class="text-soft transition-transform group-open:rotate-180" aria-hidden="true">▾</span>
-								</summary>
-								<div class={panel}>
-									{entry.paragraphs.map((paragraph, at) => <p class:list={[body, at > 0 && 'mt-2']} set:html={r(paragraph)} />)}
-								</div>
-							</details>
-						))
-					}
-					<details class="group rounded-xl border border-line bg-surface">
-						<summary class={summary}>
-							<span>{after.status.title}</span>
-							<span class="text-soft transition-transform group-open:rotate-180" aria-hidden="true">▾</span>
-						</summary>
-						<div class={panel}>
-							<p class={body} set:html={r(after.status.body)} />
-							<CodeSample class="mt-4" code={examples.source} lang="json" label="spec/fixtures/v1/examples/source.json" badge="application/json" />
-						</div>
-					</details>
-					<details class="group rounded-xl border border-line bg-surface">
-						<summary class={summary}>
-							<span>{after.media.title}</span>
-							<span class="text-soft transition-transform group-open:rotate-180" aria-hidden="true">▾</span>
-						</summary>
-						<div class={panel}>
-							<p class={body} set:html={r(after.media.sniffed)} />
-							<div class="mt-3 table-scroll" role="region" aria-label={after.media.table} tabindex="0">
-								<table class="data-table">
-									<thead>
-										<tr><th scope="col">{after.media.what}</th><th scope="col">{after.media.cap}</th></tr>
-									</thead>
-									<tbody>
-										{
-											mediaCaps.map((row) => (
-												<tr>
-													<td class="whitespace-nowrap">{row.what}</td>
-													<td class="font-mono text-[0.8125rem] whitespace-nowrap">{row.cap}</td>
-												</tr>
-											))
-										}
-									</tbody>
-								</table>
-							</div>
-							<p class="mt-3 text-[0.9375rem] leading-relaxed text-soft">{after.media.licence}</p>
-							<CodeSample class="mt-3" code={mediaLicences} label={after.media.licences} />
-							<p class="mt-3 text-[0.9375rem] leading-relaxed text-soft" set:html={r(after.media.entry)} />
-						</div>
-					</details>
-					<details class="group rounded-xl border border-line bg-surface">
-						<summary class={summary}>
-							<span>{after.others.title}</span>
-							<span class="text-soft transition-transform group-open:rotate-180" aria-hidden="true">▾</span>
-						</summary>
-						<div class={panel}>
-							<p class={body}>{after.others.body}</p>
-						</div>
-					</details>
-				</div>
-			</div>
-		</div>
-	</section>
-
-	<section aria-labelledby="checklist" class="border-t border-line">
-		<div class="py-14 sm:py-16">
-			<div class="max-w-3xl">
-				<h2 id="checklist" class="text-2xl font-semibold tracking-tight">{copy.checklist.heading}</h2>
-				<ul class="mt-8 grid gap-3 [&>*]:min-w-0">
-					{
-						copy.checklist.items.map((entry) => (
+						<ol class="mt-9 grid max-w-3xl gap-4 [&>*]:min-w-0">
 							<li>
-								<label class="flex cursor-pointer gap-3 text-[0.9375rem] leading-relaxed">
-									<input type="checkbox" class="mt-[0.3em] size-4 shrink-0 cursor-pointer accent-accent" />
-									<span class="text-soft">{entry}</span>
-								</label>
+								<Card className="gap-0 px-6">
+									<p class="font-mono text-xs text-soft">{copy.discovery.first}</p>
+									<h3 class="mt-2 text-base font-semibold tracking-tight" set:html={r(copy.discovery.firstTitle)} />
+									<p class="mt-3 text-[0.9375rem] leading-relaxed text-soft" set:html={r(copy.discovery.firstBody)} />
+								</Card>
 							</li>
-						))
-					}
-				</ul>
-				<h3 class="mt-12 text-lg font-semibold tracking-tight">{copy.checklist.check}</h3>
-				<p class="mt-3 text-[0.9375rem] leading-relaxed text-soft" set:html={r(copy.checklist.checkLead)} />
-				<CodeSample class="mt-6" code={checkFiles} lang="bash" label={copy.checklist.checkLabel} />
-				<p class="mt-4 text-[0.9375rem] leading-relaxed text-soft" set:html={r(copy.checklist.checkResult)} />
-				<p class="mt-8 text-[0.9375rem] leading-relaxed text-soft" set:html={r(copy.checklist.rules)} />
-				{code !== 'en' && <p class="mt-4 text-[0.9375rem] leading-relaxed text-soft">{all.common.normative}</p>}
-				<p class="mt-6 rounded-lg border border-line bg-surface p-5 text-[0.9375rem] leading-relaxed text-soft">
-					<strong class="font-medium text-ink">{copy.checklist.status}</strong>{' '}
-					{`${all.common.status} ${copy.checklist.formats}`}
-				</p>
-			</div>
-		</div>
-	</section>
+							<li>
+								<Card className="gap-0 px-6">
+									<p class="font-mono text-xs text-soft">{copy.discovery.second}</p>
+									<h3 class="mt-2 text-base font-semibold tracking-tight">
+										<code class="chip">{wellKnown}</code>
+									</h3>
+									<p class="mt-3 text-[0.9375rem] leading-relaxed text-soft">{copy.discovery.secondBody}</p>
+								</Card>
+							</li>
+						</ol>
+
+						<div class="mt-8 max-w-3xl">
+							<p class="text-base leading-relaxed text-soft" set:html={r(copy.discovery.why)} />
+						</div>
+
+						<div class="mt-8 grid max-w-3xl gap-4 [&>*]:min-w-0">
+							<Card className={callout}>
+								<p class={body} set:html={r(copy.discovery.one)} />
+							</Card>
+							<Card className={callout}>
+								<p class={body} set:html={r(copy.discovery.answer)} />
+							</Card>
+						</div>
+					</div>
+				</section>
+
+				<section aria-labelledby="own-domain" class="border-t">
+					<div class="py-14 sm:py-16">
+						<div class="max-w-3xl">
+							<p class="font-mono text-xs tracking-[0.18em] text-soft uppercase">{copy.own.eyebrow}</p>
+							<h2 id="own-domain" class="mt-4 text-2xl font-semibold tracking-tight sm:text-3xl">{copy.own.heading}</h2>
+							<p class="mt-5 text-base leading-relaxed text-soft sm:text-lg">{copy.own.lead}</p>
+						</div>
+
+						<ol class="mt-10 grid gap-14 [&>*]:min-w-0">
+							<li class="flex gap-4 sm:gap-5">
+								<span aria-hidden="true" class={step}>1</span>
+								<div class="min-w-0 flex-1">
+									<h3 class="mt-1 text-lg font-semibold tracking-tight">{stepTitle(copy.own.step1)}</h3>
+									<p class="mt-3 max-w-3xl text-base leading-relaxed text-soft" set:html={r(copy.own.step1Lead(wellKnown))} />
+									<CodeSample class="mt-6" code={examples.feed} lang="json" label=".well-known/prodid.json" badge="application/json" caption={copy.own.feedCaption} />
+									<FieldList className="mt-6" label={copy.own.feedTable} tag={copy.table.required} fields={feedFields} />
+									<p class="mt-5 max-w-3xl text-[0.9375rem] leading-relaxed text-soft" set:html={r(copy.own.serve)} />
+								</div>
+							</li>
+
+							<li class="flex gap-4 sm:gap-5">
+								<span aria-hidden="true" class={step}>2</span>
+								<div class="min-w-0 flex-1">
+									<h3 class="mt-1 text-lg font-semibold tracking-tight">{stepTitle(copy.own.step2)}</h3>
+									<p class="mt-3 max-w-3xl text-base leading-relaxed text-soft">{copy.own.step2Lead}</p>
+									<CodeSample
+										class="mt-6"
+										code={examples.items}
+										lang="jsonl"
+										label="prodid/items.ndjson"
+										badge="application/x-ndjson"
+										caption={copy.own.itemsCaption}
+									/>
+									<Card className={cn(callout, 'mt-6 max-w-3xl')}>
+										<p class={body} set:html={r(copy.own.sameHost)} />
+									</Card>
+									<p class="mt-8 max-w-3xl text-base leading-relaxed text-soft">{copy.own.firstLine}</p>
+									<CodeSample class="mt-4" code={examples.itemJacket} lang="json" label={copy.own.itemLabel} />
+									<FieldList className="mt-6" label={copy.own.itemTable} tag={copy.table.required} fields={itemFields} />
+									<p class="mt-6 max-w-3xl text-[0.9375rem] leading-relaxed text-soft" set:html={r(copy.own.flat)} />
+									<p class="mt-4 max-w-3xl text-[0.9375rem] leading-relaxed text-soft" set:html={r(copy.own.barcodes)} />
+								</div>
+							</li>
+
+							<li class="flex gap-4 sm:gap-5">
+								<span aria-hidden="true" class={step}>3</span>
+								<div class="min-w-0 flex-1">
+									<h3 class="mt-1 text-lg font-semibold tracking-tight">{stepTitle(copy.own.step3)}</h3>
+									<p class="mt-3 max-w-3xl text-base leading-relaxed text-soft">{copy.own.step3Lead}</p>
+									<div class="mt-6 max-w-2xl">
+										<CodeSample code={txtRecord} lang="ini" label="_prodid.acme.example TXT" />
+										<Button
+											variant="outline"
+											size="lg"
+											hidden
+											data-copy={txtRecord}
+											data-copied={copy.own.copied}
+											className="mt-3 h-10 px-4 [&[hidden]]:hidden"
+										>
+											{copy.own.copy}
+										</Button>
+									</div>
+									<p class="mt-5 max-w-3xl text-[0.9375rem] leading-relaxed text-soft" set:html={r(copy.own.step3Why)} />
+									<Card className={cn(callout, 'mt-4 max-w-3xl')}>
+										<p class={body} set:html={r(copy.own.neverDelegate)} />
+									</Card>
+									<p class="mt-4 max-w-3xl text-[0.9375rem] leading-relaxed text-soft" set:html={r(copy.own.order)} />
+								</div>
+							</li>
+
+							<li class="flex gap-4 sm:gap-5">
+								<span aria-hidden="true" class={step}>4</span>
+								<div class="min-w-0 flex-1">
+									<h3 class="mt-1 text-lg font-semibold tracking-tight">{stepTitle(copy.own.step4)}</h3>
+									<p class="mt-3 max-w-3xl text-base leading-relaxed text-soft">{copy.own.step4Lead}</p>
+									<CodeSample class="mt-6 max-w-2xl" code={ping} lang="bash" label={copy.own.pingLabel} />
+									<p class="mt-4 max-w-3xl text-[0.9375rem] leading-relaxed text-soft" set:html={r(copy.own.ping)} />
+								</div>
+							</li>
+						</ol>
+					</div>
+				</section>
+
+				<section aria-labelledby="delegated" class="border-t">
+					<div class="py-14 sm:py-16">
+						<div class="max-w-3xl">
+							<p class="font-mono text-xs tracking-[0.18em] text-soft uppercase">{copy.delegated.eyebrow}</p>
+							<h2 id="delegated" class="mt-4 text-2xl font-semibold tracking-tight sm:text-3xl">{copy.delegated.heading}</h2>
+							<p class="mt-5 text-base leading-relaxed text-soft sm:text-lg" set:html={r(copy.delegated.lead)} />
+						</div>
+
+						<div class="mt-10 grid max-w-3xl gap-6 [&>*]:min-w-0">
+							<Card className="gap-0 px-6">
+								<h3 class="text-base font-semibold tracking-tight">{copy.delegated.looks}</h3>
+								<ol class="mt-4 grid gap-4 text-[0.9375rem] leading-relaxed text-soft">
+									{copy.delegated.steps.map((step) => <li set:html={r(step)} />)}
+								</ol>
+								<CodeSample class="mt-6" code={txtDelegated} lang="ini" label="_prodid.acme.example TXT" />
+								<CodeSample
+									class="mt-4"
+									code={examples.feedDelegated}
+									lang="json"
+									label="acme.prodid.org/.well-known/prodid.json"
+									badge="application/json"
+									caption={copy.delegated.caption}
+								/>
+							</Card>
+							<p class="text-[0.9375rem] leading-relaxed text-soft" set:html={r(copy.delegated.window)} />
+						</div>
+					</div>
+				</section>
+
+				<section aria-labelledby="hosted" class="border-t">
+					<div class="py-14 sm:py-16">
+						<div class="max-w-3xl">
+							<p class="font-mono text-xs tracking-[0.18em] text-soft uppercase">{copy.hosted.eyebrow}</p>
+							<h2 id="hosted" class="mt-4 text-2xl font-semibold tracking-tight sm:text-3xl">{copy.hosted.heading}</h2>
+							<p class="mt-5 text-base leading-relaxed text-soft sm:text-lg" set:html={r(copy.hosted.lead)} />
+							<p class="mt-5 text-base leading-relaxed text-soft sm:text-lg" set:html={r(copy.hosted.merchant)} />
+							<ul class="mt-5 grid gap-4 [&>*]:min-w-0">
+								{copy.hosted.rules.map((rule) => <li class:list={[item, body]} set:html={r(rule)} />)}
+							</ul>
+							<p class="mt-5 text-[0.9375rem] leading-relaxed text-soft" set:html={r(copy.hosted.skipped)} />
+							<p class="mt-5 text-base leading-relaxed text-soft sm:text-lg" set:html={r(copy.hosted.later)} />
+						</div>
+					</div>
+				</section>
+
+				<section aria-labelledby="trust" class="border-t">
+					<div class="py-14 sm:py-16">
+						<div class="max-w-3xl">
+							<h2 id="trust" class="text-2xl font-semibold tracking-tight">{copy.trust.heading}</h2>
+							<p class="mt-5 text-base leading-relaxed text-soft sm:text-lg">{copy.trust.lead}</p>
+							<DataTable className="mt-8" label={copy.trust.table} columns={[copy.trust.level, copy.trust.meaning]} rows={trust} />
+							<p class="mt-8 text-base leading-relaxed text-soft sm:text-lg" set:html={r(copy.trust.only)} />
+							<ul class="mt-8 grid gap-6 [&>*]:min-w-0">
+								{
+									copy.trust.rules.map((rule) => (
+										<li class={item}>
+											<p class="font-medium">{rule.title}</p>
+											<p class={body} set:html={r(rule.body)} />
+										</li>
+									))
+								}
+							</ul>
+							<p class="mt-8 text-base leading-relaxed text-soft sm:text-lg" set:html={r(copy.trust.ask)} />
+						</div>
+					</div>
+				</section>
+
+				<section aria-labelledby="after" class="border-t">
+					<div class="py-14 sm:py-16">
+						<div class="max-w-3xl">
+							<h2 id="after" class="text-2xl font-semibold tracking-tight">{after.heading}</h2>
+							<div class="mt-8 grid gap-3 [&>*]:min-w-0">
+								{
+									entries.map((entry, index) => (
+										<Disclosure open={index === 0}>
+											<span slot="title" set:html={r(entry.title)} />
+											{entry.paragraphs.map((paragraph, at) => <p class:list={[body, at > 0 && 'mt-2']} set:html={r(paragraph)} />)}
+										</Disclosure>
+									))
+								}
+								<Disclosure>
+									<span slot="title">{after.status.title}</span>
+									<p class={body} set:html={r(after.status.body)} />
+									<CodeSample class="mt-4" code={examples.source} lang="json" label="spec/fixtures/v1/examples/source.json" badge="application/json" />
+								</Disclosure>
+								<Disclosure>
+									<span slot="title">{after.media.title}</span>
+									<p class={body} set:html={r(after.media.sniffed)} />
+									<DataTable className="mt-3" label={after.media.table} columns={[after.media.what, after.media.cap]} rows={mediaCaps} minWidth="min-w-0" />
+									<p class="mt-3 text-[0.9375rem] leading-relaxed text-soft">{after.media.licence}</p>
+									<CodeSample class="mt-3" code={mediaLicences} label={after.media.licences} />
+									<p class="mt-3 text-[0.9375rem] leading-relaxed text-soft" set:html={r(after.media.entry)} />
+								</Disclosure>
+								<Disclosure>
+									<span slot="title">{after.others.title}</span>
+									<p class={body}>{after.others.body}</p>
+								</Disclosure>
+							</div>
+						</div>
+					</div>
+				</section>
+
+				<section aria-labelledby="checklist" class="border-t">
+					<div class="py-14 sm:py-16">
+						<div class="max-w-3xl">
+							<h2 id="checklist" class="text-2xl font-semibold tracking-tight">{copy.checklist.heading}</h2>
+							<ul class="mt-8 grid gap-3 [&>*]:min-w-0">
+								{
+									copy.checklist.items.map((entry) => (
+										<li>
+											<Label className="cursor-pointer items-start gap-3 text-[0.9375rem] leading-relaxed font-normal">
+												<input type="checkbox" class="mt-[0.3em] size-4 shrink-0 cursor-pointer rounded-[4px] accent-brand" />
+												<span class="text-soft">{entry}</span>
+											</Label>
+										</li>
+									))
+								}
+							</ul>
+							<h3 class="mt-12 text-lg font-semibold tracking-tight">{copy.checklist.check}</h3>
+							<p class="mt-3 text-[0.9375rem] leading-relaxed text-soft" set:html={r(copy.checklist.checkLead)} />
+							<CodeSample class="mt-6" code={checkFiles} lang="bash" label={copy.checklist.checkLabel} />
+							<p class="mt-4 text-[0.9375rem] leading-relaxed text-soft" set:html={r(copy.checklist.checkResult)} />
+							<p class="mt-8 text-[0.9375rem] leading-relaxed text-soft" set:html={r(copy.checklist.rules)} />
+							{code !== 'en' && <p class="mt-4 text-[0.9375rem] leading-relaxed text-soft">{all.common.normative}</p>}
+							<Card className={cn(callout, 'mt-6')}>
+								<p class={body}>
+									<strong class="font-medium text-ink">{copy.checklist.status}</strong>{' '}
+									{`${all.common.status} ${copy.checklist.formats}`}
+								</p>
+							</Card>
+						</div>
+					</div>
+				</section>
 			</div>
 		</div>
 	</div>
-
 </Layout>
 
 <script>

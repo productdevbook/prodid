@@ -1,4 +1,5 @@
 ---
+import { Card } from '@/components/ui/card'
 import Layout from '@/layouts/base.astro'
 
 type Row = { name: string; href: string; kind: 'dir' | 'file'; bytes: number }
@@ -75,7 +76,7 @@ const summary = [counts[0] ? plural(counts[0], 'directory').replace('directorys'
 		<div class="max-w-3xl py-12 sm:py-16">
 			<nav aria-label="Breadcrumb" class="font-mono text-xs tracking-[0.12em] text-soft uppercase">
 				<ol class="flex flex-wrap items-center gap-x-2 gap-y-1">
-					<li><a href="/spec" class="rounded-sm underline-offset-4 hover:text-accent">spec</a></li>
+					<li><a href="/spec" class="rounded-sm underline-offset-4 hover:text-brand">spec</a></li>
 					{
 						crumbs.map((crumb, i) => (
 							<li class="flex items-center gap-2">
@@ -85,7 +86,7 @@ const summary = [counts[0] ? plural(counts[0], 'directory').replace('directorys'
 										{crumb.name}
 									</span>
 								) : (
-									<a href={crumb.href} class="rounded-sm underline-offset-4 hover:text-accent">
+									<a href={crumb.href} class="rounded-sm underline-offset-4 hover:text-brand">
 										{crumb.name}
 									</a>
 								)}
@@ -98,16 +99,16 @@ const summary = [counts[0] ? plural(counts[0], 'directory').replace('directorys'
 			<h1 class="mt-6 font-mono text-2xl font-semibold tracking-tight break-all sm:text-3xl">spec/{path}</h1>
 			<p class="mt-4 leading-relaxed text-soft">
 				{summary} published from the specification repository, served as static files so the links inside the{' '}
-				<a href="/spec" class="rounded-sm text-accent underline underline-offset-4">specification</a> resolve to the real
+				<a href="/spec" class="rounded-sm text-brand underline underline-offset-4">specification</a> resolve to the real
 				thing.
 			</p>
 
-			<div class="mt-8 overflow-hidden rounded-xl border border-line bg-surface">
+			<Card className="mt-8 gap-0 py-0 shadow-none">
 				<ul class="divide-y divide-line">
 					{
 						rows.map((row) => (
 							<li>
-								<a href={row.href} class="flex items-baseline justify-between gap-4 px-5 py-3 hover:bg-sunken">
+								<a href={row.href} class="flex items-baseline justify-between gap-4 px-5 py-3 hover:bg-muted">
 									<span class="truncate font-mono text-[0.875rem]">{row.name}</span>
 									<span class="shrink-0 font-mono text-xs text-soft">
 										{row.kind === 'dir' ? 'directory' : kb(row.bytes)}
@@ -117,7 +118,7 @@ const summary = [counts[0] ? plural(counts[0], 'directory').replace('directorys'
 						))
 					}
 				</ul>
-			</div>
+			</Card>
 		</div>
 	</div>
 </Layout>

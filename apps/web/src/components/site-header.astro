@@ -2,9 +2,12 @@
 import GithubMark from '@/components/github-mark.astro'
 import StarMark from '@/components/star-mark.astro'
 import Wordmark from '@/components/wordmark.astro'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { copyFor } from '@/i18n'
 import { LOCALES, type LocaleCode, localeOf, type PageKey, pagePath } from '@/i18n/locales'
 import { formatStars, REPOSITORY } from '@/lib/github'
+import { cn } from '@/lib/utils'
+import { ArrowRight, Globe, Menu, Moon, Sun, X } from 'lucide-react'
 
 interface Props {
 	active?: 'spec' | 'publish' | 'data' | undefined
@@ -28,23 +31,20 @@ const links = [
 const languages = LOCALES.map((entry) => ({ ...entry, href: pagePath(entry.code, page ?? 'home') }))
 ---
 
-<header class="sticky top-0 z-40 border-b border-line bg-bg">
+<header class="sticky top-0 z-40 border-b bg-background">
 	<div class="shell flex h-14 items-center justify-between gap-4 sm:gap-6">
-		<a href={pagePath(code, 'home')} class="shrink-0 rounded-sm text-[0.95rem] hover:text-accent" aria-label={copy.home}>
+		<a href={pagePath(code, 'home')} class="shrink-0 rounded-sm text-[0.95rem] hover:text-brand" aria-label={copy.home}>
 			<Wordmark />
 		</a>
-		<nav aria-label={copy.primary} class="flex min-w-0 items-center gap-3 sm:gap-6">
-			<ul class="hidden items-center gap-6 text-sm sm:flex">
+		<nav aria-label={copy.primary} class="flex min-w-0 items-center gap-3 sm:gap-4">
+			<ul class="hidden items-center gap-1 sm:flex">
 				{
 					links.map((link) => (
 						<li>
 							<a
 								href={link.href}
 								aria-current={active === link.key ? 'page' : undefined}
-								class:list={[
-									'rounded-sm whitespace-nowrap underline-offset-4 hover:text-accent hover:underline',
-									active === link.key ? 'font-medium text-accent' : 'text-soft',
-								]}
+								class={cn(buttonVariants({ variant: 'ghost' }), 'whitespace-nowrap', active === link.key ? 'text-brand' : 'text-muted-foreground')}
 							>
 								{link.label}
 							</a>
@@ -52,44 +52,39 @@ const languages = LOCALES.map((entry) => ({ ...entry, href: pagePath(entry.code,
 					))
 				}
 			</ul>
-			<div class="-me-2 flex shrink-0 items-center">
+			<div class="-me-2 flex shrink-0 items-center gap-1">
 				<details class="group sm:hidden" data-menu>
-					<summary
-						class="grid size-10 cursor-pointer list-none place-items-center rounded-md text-soft hover:bg-sunken hover:text-ink [&::-webkit-details-marker]:hidden"
-					>
+					<summary class={cn(buttonVariants({ variant: 'ghost', size: 'icon-lg' }), 'list-none [&::-webkit-details-marker]:hidden')}>
 						<span class="sr-only">{copy.nav.menu}</span>
-						<svg viewBox="0 0 24 24" class="size-[1.15rem] group-open:hidden" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
-							<path d="M4 7h16M4 12h16M4 17h16"></path>
-						</svg>
-						<svg viewBox="0 0 24 24" class="hidden size-[1.15rem] group-open:block" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
-							<path d="M6 6l12 12M18 6 6 18"></path>
-						</svg>
+						<Menu className="size-5 group-open:hidden" />
+						<X className="hidden size-5 group-open:block" />
 					</summary>
-					<div class="absolute inset-x-0 top-full border-b border-line bg-surface shadow-[0_8px_24px_-12px_rgb(0_0_0/0.25)]">
+					<div class="absolute inset-x-0 top-full border-b bg-popover text-popover-foreground shadow-md">
 						<ul class="shell grid py-2">
 							{
 								links.map((link) => (
-									<li class="border-b border-line">
+									<li class="border-b">
 										<a
 											href={link.href}
 											aria-current={active === link.key ? 'page' : undefined}
-											class:list={[
-												'flex min-h-12 items-center justify-between gap-4 text-base font-medium hover:text-accent',
-												active === link.key ? 'text-accent' : 'text-ink',
-											]}
+											class={cn(
+												buttonVariants({ variant: 'ghost', size: 'lg' }),
+												'h-12 w-full justify-between text-base',
+												active === link.key && 'text-brand',
+											)}
 										>
 											{link.label}
-											<span aria-hidden="true" class="text-soft rtl:rotate-180">→</span>
+											<ArrowRight className="size-4 text-muted-foreground rtl:rotate-180" />
 										</a>
 									</li>
 								))
 							}
 							<li>
-								<a href={REPOSITORY} aria-label={starLabel} class="flex min-h-12 items-center gap-2 text-base font-medium hover:text-accent">
+								<a href={REPOSITORY} aria-label={starLabel} class={cn(buttonVariants({ variant: 'ghost', size: 'lg' }), 'h-12 w-full justify-start gap-2 text-base')}>
 									<GithubMark class="size-4 shrink-0" />
-									<StarMark class="size-4 shrink-0 text-soft" />
+									<StarMark class="size-4 shrink-0 text-muted-foreground" />
 									<span>{copy.support.star}</span>
-									{starCount !== undefined && <span class="ms-auto font-mono text-xs text-soft">{starCount}</span>}
+									{starCount !== undefined && <span class="ms-auto font-mono text-xs text-muted-foreground">{starCount}</span>}
 								</a>
 							</li>
 						</ul>
@@ -97,19 +92,14 @@ const languages = LOCALES.map((entry) => ({ ...entry, href: pagePath(entry.code,
 				</details>
 				<details class="relative" data-menu>
 					<summary
-						class="flex h-10 cursor-pointer list-none items-center gap-1 rounded-md px-2 font-mono text-xs text-soft hover:bg-sunken hover:text-ink [&::-webkit-details-marker]:hidden"
+						class={cn(buttonVariants({ variant: 'ghost', size: 'lg' }), 'list-none gap-1 px-2 font-mono text-xs text-muted-foreground [&::-webkit-details-marker]:hidden')}
 					>
-						<svg viewBox="0 0 24 24" class="size-[1.05rem]" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
-							<circle cx="12" cy="12" r="9"></circle>
-							<path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3Z"></path>
-						</svg>
+						<Globe className="size-[1.05rem]" />
 						<span class="sr-only">{copy.language}:</span>
 						<span class="hidden uppercase sm:inline">{current.code}</span>
 						<span class="sr-only sm:hidden">{current.name}</span>
 					</summary>
-					<ul
-						class="absolute end-0 top-full z-50 mt-2 grid w-52 gap-px rounded-lg border border-line bg-surface p-1 text-sm shadow-[0_8px_24px_-12px_rgb(0_0_0/0.25)]"
-					>
+					<ul class="absolute end-0 top-full z-50 mt-2 grid w-52 gap-px rounded-lg bg-popover p-1 text-sm text-popover-foreground shadow-md ring-1 ring-foreground/10">
 						{
 							languages.map((entry) => (
 								<li>
@@ -119,10 +109,11 @@ const languages = LOCALES.map((entry) => ({ ...entry, href: pagePath(entry.code,
 										hreflang={entry.hreflang}
 										dir={entry.dir}
 										aria-current={entry.code === code ? 'true' : undefined}
-										class:list={[
-											'block rounded-md px-3 py-2 hover:bg-sunken',
-											entry.code === code ? 'font-medium text-accent' : 'text-ink',
-										]}
+										class={cn(
+											buttonVariants({ variant: 'ghost' }),
+											'w-full justify-start px-3',
+											entry.code === code && 'bg-muted text-brand',
+										)}
 									>
 										{entry.name}
 									</a>
@@ -134,29 +125,25 @@ const languages = LOCALES.map((entry) => ({ ...entry, href: pagePath(entry.code,
 				<a
 					href={REPOSITORY}
 					aria-label={starLabel}
-					class="me-1 hidden h-9 items-center gap-1.5 rounded-md border border-line px-2.5 text-xs font-medium text-soft hover:border-accent hover:text-ink sm:inline-flex"
+					class={cn(buttonVariants({ variant: 'outline', size: 'lg' }), 'me-1 hidden gap-1.5 text-xs text-muted-foreground sm:inline-flex')}
 				>
 					<GithubMark class="size-4 shrink-0" />
 					<StarMark class="size-4 shrink-0" />
 					<span class="hidden whitespace-nowrap lg:inline">{copy.support.star}</span>
-					{starCount !== undefined && <span class="border-s border-line ps-1.5 font-mono">{starCount}</span>}
+					{starCount !== undefined && <span class="border-s ps-1.5 font-mono">{starCount}</span>}
 				</a>
-				<button
-					type="button"
+				<Button
+					variant="ghost"
+					size="icon-lg"
 					data-theme-toggle
 					data-to-dark={copy.toDark}
 					data-to-light={copy.toLight}
 					aria-label={copy.toDark}
-					class="grid size-10 place-items-center rounded-md text-soft hover:bg-sunken hover:text-ink"
+					className="text-muted-foreground"
 				>
-					<svg viewBox="0 0 24 24" class="theme-icon-moon size-[1.15rem]" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-						<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z" stroke-linejoin="round"></path>
-					</svg>
-					<svg viewBox="0 0 24 24" class="theme-icon-sun size-[1.15rem]" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-						<circle cx="12" cy="12" r="4"></circle>
-						<path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" stroke-linecap="round"></path>
-					</svg>
-				</button>
+					<Moon className="theme-icon-moon size-5" />
+					<Sun className="theme-icon-sun size-5" />
+				</Button>
 			</div>
 		</nav>
 	</div>
