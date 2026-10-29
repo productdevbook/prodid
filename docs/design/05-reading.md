@@ -45,6 +45,17 @@ semantic, unstyled page and says itself that a designed rendering of the same `E
   `apps/web/src/styles/global.css`, light and dark by `prefers-color-scheme`, readable at 360 px
   with no horizontal scroll, the prodid wordmark linking to `https://prodid.org/`.
 
+### Languages
+
+- **[New]** (owner, 2026-10-29, #109) The interface text of every HTML answer (entity, source and
+  problem pages) comes in en, zh-Hans, es, ar, fr, ru, pt-BR, de, ja and tr: the six UN languages,
+  the three largest retail markets beyond them, and the first market. The language is `?lang=` when
+  it names one of them, else the best match of `Accept-Language`, else English; the answer sends
+  `Content-Language`, `<html lang>`, `dir="rtl"` for Arabic, and `Vary: Accept-Language` when it
+  negotiated. Claim values are never translated: where claims of one property differ by `lang`, the
+  one in the page's language comes first. The footer lists every language as a `?lang=` link. JSON
+  answers do not change.
+
 ### Entity page, sections in order
 
 1. **Header:** the `name` claims' values (several when sources disagree, each with its source
