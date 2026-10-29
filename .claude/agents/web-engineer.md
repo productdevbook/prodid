@@ -27,7 +27,7 @@ You are the prodid web engineer.
 - `spec-review.json` holds hashes of the 26 spec sections the pages restate; the build fails when
   one drifts. After rewording a page to match a changed section, re-record only that anchor:
   `bun run --filter '@prodid/web' spec:review <anchor>`.
-- Yuva Analytics (cookieless) is the only analytics and the only external request; add no other.
+- Yuva Analytics (cookieless) and the Yuva status band in the footer are the only external requests; add no other.
   Light and dark, no
   horizontal scroll at 360 px.
 - No comments unless the code cannot say it. Latest stable versions, verified with `npm view`.

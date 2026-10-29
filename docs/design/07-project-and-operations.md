@@ -14,7 +14,9 @@ database and releases.
   (`localStorage.theme`, applied before first paint).
 - **[New]** Yuva Analytics (owner, 2026-10-29): cookieless, nothing stored on the visitor's
   device and no address kept; `useyuva/analytics` in the shared layout, property `prodid.org`.
-  It is the one request the pages make beyond their own assets.
+- **[New]** The footer ends in the Yuva status band (owner, 2026-10-29): `useyuva/status` reads the
+  public status page `prodid` and follows the site's theme. With analytics, these are the only
+  requests the pages make beyond their own assets.
 - **[Exists]** The build fails on any broken internal link or fragment, and on drift of the 26 spec
   sections the pages restate (`spec-review.json`, re-recorded with `spec:review <anchor>`).
 - **[Change]** Status text contradicts itself and the code: `index.astro` `#status` says crawler and

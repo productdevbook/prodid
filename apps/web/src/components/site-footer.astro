@@ -51,4 +51,16 @@ import { CONTACT, SPEC_STATUS } from '@/lib/spec'
 			licence of the source that made it. The reference implementation is Apache-2.0.
 		</p>
 	</div>
+	<div class="shell pb-6">
+		<yuva-status page="prodid" server="https://app.useyuva.com" components class="block [--yuva-status-font:var(--font-sans)] [--yuva-status-gutter:0]"></yuva-status>
+	</div>
 </footer>
+
+<script>
+	import 'useyuva/status'
+
+	const band = document.querySelector('yuva-status')
+	const follow = () => band?.setAttribute('theme', document.documentElement.dataset.theme ?? 'auto')
+	follow()
+	new MutationObserver(follow).observe(document.documentElement, { attributeFilter: ['data-theme'] })
+</script>
