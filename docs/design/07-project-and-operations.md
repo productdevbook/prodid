@@ -24,6 +24,11 @@ database and releases.
   `og:locale`, and the sitemap lists all of them. `/spec` stays English only; every other language
   says the English specification is the normative text. The spec-drift check covers every
   language's restatements.
+- **[New]** The GitHub repository is the way to support the project (owner, 2026-10-29): the
+  header carries a "Star on GitHub" link with the star count, a band before the footer of every
+  page asks the reader to star it, report a problem and contribute (`CONTRIBUTING.md`), in every
+  language. The count is read from the GitHub API at build time, so the pages make no request for
+  it; when that read fails the link shows without a number.
 - **[Exists]** The build fails on any broken internal link or fragment, and on drift of the 26 spec
   sections the pages restate (`spec-review.json`, re-recorded with `spec:review <anchor>`).
 - **[Change]** Status text contradicts itself and the code: `index.astro` `#status` says crawler and
