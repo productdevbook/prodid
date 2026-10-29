@@ -17,10 +17,13 @@ database and releases.
 - **[New]** The footer ends in the Yuva status band (owner, 2026-10-29): `useyuva/status` reads the
   public status page `prodid` and follows the site's theme. With analytics, these are the only
   requests the pages make beyond their own assets.
-- **[New]** English and Turkish (owner, 2026-10-29, #110): `/tr/`, `/tr/publish` and `/tr/data`
-  carry the Turkish version of `/`, `/publish` and `/data`, each page links its other language and
-  sends `hreflang` alternates (en, tr, x-default), and the sitemap lists both. `/spec` stays English
-  only; the Turkish pages say the English specification is the normative text.
+- **[New]** Ten languages (owner, 2026-10-29, #110), the same as the index pages (chapter 05):
+  English at the root, and `/zh/`, `/es/`, `/ar/` (right to left), `/fr/`, `/ru/`, `/pt/`, `/de/`,
+  `/ja/`, `/tr/` carry `/`, `/publish` and `/data`. Every page links the others from a language
+  menu that works without JavaScript, sends `hreflang` alternates (all ten and x-default) and its
+  `og:locale`, and the sitemap lists all of them. `/spec` stays English only; every other language
+  says the English specification is the normative text. The spec-drift check covers every
+  language's restatements.
 - **[Exists]** The build fails on any broken internal link or fragment, and on drift of the 26 spec
   sections the pages restate (`spec-review.json`, re-recorded with `spec:review <anchor>`).
 - **[Change]** Status text contradicts itself and the code: `index.astro` `#status` says crawler and

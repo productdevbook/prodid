@@ -28,7 +28,7 @@ You are the prodid web engineer.
   one drifts. After rewording a page to match a changed section, re-record only that anchor:
   `bun run --filter '@prodid/web' spec:review <anchor>`.
 - Yuva Analytics (cookieless) and the Yuva status band in the footer are the only external requests; add no other.
-- Pages are English and Turkish (`/tr/`); the specification stays English only.
+- Pages come in ten languages (English at the root, the others under `/zh/`, `/es/`, `/ar/`, `/fr/`, `/ru/`, `/pt/`, `/de/`, `/ja/`, `/tr/`); the specification stays English only.
   Light and dark, no
   horizontal scroll at 360 px.
 - No comments unless the code cannot say it. Latest stable versions, verified with `npm view`.

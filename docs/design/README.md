@@ -71,7 +71,7 @@ design (2026-10-28).
 | 2026-10-28 | Dataset sources are named `dataset:<slug>`; the first dataset is Wikidata (CC0). Chapter 04. |
 | 2026-10-28 | Spec v1 keeps the TXT version `v=prodid0` and accepts v0 discovery documents for 90 days, until 2027-01-26T00:00:00Z; v0 and v1 schemas are both served for good. Chapter 07. |
 | 2026-10-28 | The repository's own `CLAUDE.md` and `.claude/agents/*.md` are public: they name no host, path or person outside the project. Private operator notes stay in the ops location. |
-| 2026-10-29 | Languages (owner): the spec, schemas and repository stay English only, the one normative text. The index's HTML pages speak ten languages (en, zh-Hans, es, ar, fr, ru, pt-BR, de, ja, tr), because a scan lands any shopper there; the website's `/`, `/publish` and `/data` are English and Turkish. A further language follows its first real publisher. Chapters 05 and 07. |
+| 2026-10-29 | Languages (owner): the spec, schemas and repository stay English only, the one normative text. The index's HTML pages and the website's `/`, `/publish` and `/data` speak ten languages (en, zh-Hans, es, ar, fr, ru, pt-BR, de, ja, tr), because a scan lands any shopper on the index and the site is where publishers start. A further language follows its first real publisher. Chapters 05 and 07. |
 
 ## Glossary and canonical IDs
 
