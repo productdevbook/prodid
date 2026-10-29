@@ -8,9 +8,10 @@ interface Props {
 	description: string
 	active?: 'spec' | 'publish' | 'data' | undefined
 	noindex?: boolean | undefined
+	notFound?: boolean | undefined
 }
 
-const { title, description, active, noindex = false } = Astro.props
+const { title, description, active, noindex = false, notFound = false } = Astro.props
 
 const path = Astro.url.pathname.replace(/\/+$/, '') || '/'
 const canonical = new URL(path, Astro.site).href
@@ -47,7 +48,7 @@ const canonical = new URL(path, Astro.site).href
 		<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
 		<link rel="alternate" type="application/xml" href="/sitemap.xml" title="Sitemap" />
 	</head>
-	<body class="flex min-h-svh flex-col">
+	<body class="flex min-h-svh flex-col" data-not-found={notFound || undefined}>
 		<a
 			href="#main"
 			class="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:rounded-md focus:border focus:border-line focus:bg-surface focus:px-4 focus:py-2 focus:text-sm focus:font-medium"
@@ -59,5 +60,11 @@ const canonical = new URL(path, Astro.site).href
 			<slot />
 		</main>
 		<SiteFooter />
+		<script>
+			import { createAnalytics } from 'useyuva/analytics'
+
+			const analytics = createAnalytics({ server: 'https://app.useyuva.com', key: 'yuva_ak_qsOqNT6-hgJHzXppLQwkCUxK' })
+			if (document.body.dataset.notFound !== undefined) analytics.notFound()
+		</script>
 	</body>
 </html>
