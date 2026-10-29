@@ -15,8 +15,12 @@ database and releases.
 - **[New]** Yuva Analytics (owner, 2026-10-29): cookieless, nothing stored on the visitor's
   device and no address kept; `useyuva/analytics` in the shared layout, property `prodid.org`.
 - **[New]** The footer ends in the Yuva status band (owner, 2026-10-29): `useyuva/status` reads the
-  public status page `prodid` and follows the site's theme. With analytics, these are the only
-  requests the pages make beyond their own assets.
+  public status page `prodid` and follows the site's theme.
+- **[New]** Live chat for readers without a GitHub account (owner, 2026-10-29): the Yuva chat
+  widget (`useyuva/chat`, channel `prodid.org`, anonymous visitors allowed) on every page, in the
+  page's language, and "Write to us" in the support band opens it. Conversations land in the Yuva
+  inbox. With analytics and the status band, these are the only requests the pages make beyond
+  their own assets.
 - **[New]** Ten languages (owner, 2026-10-29, #110), the same as the index pages (chapter 05):
   English at the root, and `/zh/`, `/es/`, `/ar/` (right to left), `/fr/`, `/ru/`, `/pt/`, `/de/`,
   `/ja/`, `/tr/` carry `/`, `/publish` and `/data`. Every page links the others from a language
@@ -26,8 +30,8 @@ database and releases.
   language's restatements.
 - **[New]** The GitHub repository is the way to support the project (owner, 2026-10-29): the
   header carries a "Star on GitHub" link with the star count, a band before the footer of every
-  page asks the reader to star it, report a problem and contribute (`CONTRIBUTING.md`), in every
-  language. The count is read from the GitHub API at build time, so the pages make no request for
+  page asks the reader to star it, report a problem, contribute (`CONTRIBUTING.md`) or write to us
+  in the live chat, in every language. The count is read from the GitHub API at build time, so the pages make no request for
   it, and shows from 10 stars up; below that, or when the read fails, the link shows without a
   number.
 - **[Exists]** The build fails on any broken internal link or fragment, and on drift of the 26 spec
