@@ -17,7 +17,7 @@ own domain or hosted.
 
 ## Quick start
 
-With [Bun](https://bun.sh) 1.4.4:
+With [Bun](https://bun.sh) 1.4.4 and `bzip2` (the Wikidata import reads compressed dumps through it):
 
 ```sh
 git clone https://github.com/productdevbook/prodid
