@@ -743,11 +743,11 @@ below refer to them as "the private pattern list".
   - A *Conformance* addition in the spec explaining each vector format and how to run them in
     another language, with the `expected.json` semantics.
 
-### P-089 · CHANGELOG and the first package tags
+### P-089 · Release notes and the first package tags
 
 - **Area** docs · **Owner** spec-editor · **Priority** P1 · **Depends on** P-083, P-084, P-086 · **Chapters** 07
 - **Acceptance**
-  - `CHANGELOG.md` with the 0.0.1 section; tags `spec-v0.0.1` and `core-v0.0.1` pushed by the
+  - A GitHub Release for each 0.0.1 tag; tags `spec-v0.0.1` and `core-v0.0.1` pushed by the
     orchestrator; both packages on npm with provenance (`npm view` output quoted).
 
 ### P-090 · Website on v1

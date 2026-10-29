@@ -40,6 +40,10 @@ jobs:
       dir: ${{ steps.tag.outputs.dir }}
       mode: ${{ steps.tag.outputs.mode }}
       dist_tag: ${{ steps.tag.outputs.dist_tag }}
+      published: ${{ steps.tag.outputs.published }}
+      prefix: ${{ steps.tag.outputs.prefix }}
+      name: ${{ steps.tag.outputs.name }}
+      version: ${{ steps.tag.outputs.version }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -86,6 +90,9 @@ jobs:
             echo "mode=$mode"
             echo "dist_tag=$dist_tag"
             echo "published=${published:-0}"
+            echo "prefix=${GITHUB_REF_NAME%%-v*}-v"
+            echo "name=$name"
+            echo "version=$pkg_version"
           } >> "$GITHUB_OUTPUT"
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
@@ -127,3 +134,34 @@ jobs:
         env:
           DIST_TAG: ${{ needs.verify.outputs.dist_tag }}
         run: npm publish --provenance --access public --tag "$DIST_TAG"
+
+  release:
+    needs: [verify, publish]
+    if: >-
+      !cancelled() && needs.verify.result == 'success' &&
+      (needs.publish.result == 'success' || needs.verify.outputs.published == '1')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: package.json
+      - name: GitHub release
+        working-directory: ${{ needs.verify.outputs.dir }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PREFIX: ${{ needs.verify.outputs.prefix }}
+          NAME: ${{ needs.verify.outputs.name }}
+          VERSION: ${{ needs.verify.outputs.version }}
+        run: |
+          set -euo pipefail
+          from=$(git tag --list "$PREFIX*" --sort=-v:refname | grep -v -e dryrun -e "^$GITHUB_REF_NAME\$" | head -1 || true)
+          [[ -n "$from" ]] || from=$(git rev-list --max-parents=0 HEAD)
+          # Run in the package directory: changelogithub filters commits by the working directory.
+          bunx changelogithub@15.0.5 --from "$from" --to "$GITHUB_REF_NAME" --name "$NAME $VERSION" --commit-filter-by-paths

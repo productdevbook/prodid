@@ -574,6 +574,9 @@ issues for that run in exchange for the GitHub OIDC token. No npm token is store
 - A tag whose version is the `package.json` version plus a pre-release part starting `dryrun`, for
   example `core-v0.0.2-dryrun.1`, runs every step of `verify` and skips `publish`.
 - Any other tag fails `verify`.
+- After a publish, or on the tag of a version already on npm, the `release` job writes the GitHub
+  Release with changelogithub: the commits that touched the package's directory since its previous
+  tag of the same package, or since the first commit for its first release.
 
 ```sh
 git tag core-v0.0.2

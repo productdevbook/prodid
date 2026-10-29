@@ -204,7 +204,8 @@ created with the milestones and issues; the default labels stay.
 - **[New]** `@prodid/spec` on npm (CC0-1.0): schemas, examples and all fixtures with
   `expected.json`, so another implementation can run the vectors without cloning; README section
   on writing a conformance runner in another language.
-- **[New]** `CHANGELOG.md` from 0.0.1, one section per package release.
+- **[New]** A GitHub Release for every package tag, written by changelogithub from the commits that
+  touched that package since its previous tag; no `CHANGELOG.md` (owner, 2026-10-29).
 
 ## As built
 
