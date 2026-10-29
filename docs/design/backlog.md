@@ -734,7 +734,7 @@ below refer to them as "the private pattern list".
 - **Area** ops · **Owner** ops-engineer · **Priority** P1 · **Depends on** P-086 · **Chapters** 07
 - **Acceptance**
   - The package carries schemas, examples, fixtures and `expected.json`, licence `CC0-1.0`;
-    published from `spec-v1.0.0`.
+    published from `spec-v0.0.1`.
 
 ### P-088 · Writing a conformance runner
 
@@ -743,11 +743,11 @@ below refer to them as "the private pattern list".
   - A *Conformance* addition in the spec explaining each vector format and how to run them in
     another language, with the `expected.json` semantics.
 
-### P-089 · CHANGELOG and the 1.0.0 tags
+### P-089 · CHANGELOG and the first package tags
 
 - **Area** docs · **Owner** spec-editor · **Priority** P1 · **Depends on** P-083, P-084, P-086 · **Chapters** 07
 - **Acceptance**
-  - `CHANGELOG.md` with the 1.0.0 section; tags `spec-v1.0.0` and `core-v1.0.0` pushed by the
+  - `CHANGELOG.md` with the 0.0.1 section; tags `spec-v0.0.1` and `core-v0.0.1` pushed by the
     orchestrator; both packages on npm with provenance (`npm view` output quoted).
 
 ### P-090 · Website on v1

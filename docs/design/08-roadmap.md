@@ -60,7 +60,7 @@ prodid ships as deploys and as spec versions, not store builds.
 | production deploys of edge, hosted, web | M2, M3 (spec stays v0 draft) |
 | hosted self-service on publish.prodid.org | M4 |
 | spec v0 draft gains dumps, datasets, authority | M5, M6, M7 |
-| spec v1.0.0, `@prodid/core` and `@prodid/spec` 1.0.0 | M8 |
+| spec v1.0.0, `@prodid/core` and `@prodid/spec` 0.0.1 | M8 |
 
 Within v0, schema changes are additive and land in `spec/` with their fixtures in the same or an
 earlier commit than the code (`schema-drift.test.ts` and the spec-review hashes enforce it). The

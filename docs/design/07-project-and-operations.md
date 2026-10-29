@@ -157,8 +157,8 @@ created with the milestones and issues; the default labels stay.
 
 - **[Exists]** The spec is "v0 draft"; nothing is versioned or published to a registry.
 - **[New]** M8 freezes the spec as v1: schemas under `/schemas/v1/`, `$id`s and `version` constants
-  changed, the TXT version decided (owner), a migration note from v0, and tags `spec-v1.0.0` and
-  `core-v1.0.0`. Written: spec *Versions* and [`spec/v1-from-v0.md`](../../spec/v1-from-v0.md)
+  changed, the TXT version decided (owner), and a migration note from v0; the packages are
+  tagged by their own version (`spec-v0.0.1`, `core-v0.0.1`). Written: spec *Versions* and [`spec/v1-from-v0.md`](../../spec/v1-from-v0.md)
   (P-080). `v=prodid0` is kept; v0 discovery documents are accepted by crawls that start before
   2027-01-26T00:00:00Z, 90 days after v1.0.0 (2026-10-28), and refused from then on as a definite
   negative. Both are owner decision #98.
@@ -199,11 +199,12 @@ created with the milestones and issues; the default labels stay.
   `latest.json`; the v0 dumps already written stay under `v0/` and keep the same retention, so the
   last v0 dailies still expire after 7 days. `prodid-batch load-dump` reads both versions.
 - **[New]** `@prodid/core` on npm (Apache-2.0): compiled ESM and `.d.ts`, the generated validators
-  included, published from a tag by GitHub Actions with npm provenance; semver from 1.0.0.
+  included, published from a tag by GitHub Actions with npm provenance; semver, starting at 0.0.1 (owner, 2026-10-29): the package
+  version is not the protocol version, and 1.0.0 waits for a settled API.
 - **[New]** `@prodid/spec` on npm (CC0-1.0): schemas, examples and all fixtures with
   `expected.json`, so another implementation can run the vectors without cloning; README section
   on writing a conformance runner in another language.
-- **[New]** `CHANGELOG.md` from 1.0.0, one section per tag.
+- **[New]** `CHANGELOG.md` from 0.0.1, one section per package release.
 
 ## As built
 
