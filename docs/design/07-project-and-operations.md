@@ -28,7 +28,8 @@ database and releases.
   header carries a "Star on GitHub" link with the star count, a band before the footer of every
   page asks the reader to star it, report a problem and contribute (`CONTRIBUTING.md`), in every
   language. The count is read from the GitHub API at build time, so the pages make no request for
-  it; when that read fails the link shows without a number.
+  it, and shows from 10 stars up; below that, or when the read fails, the link shows without a
+  number.
 - **[Exists]** The build fails on any broken internal link or fragment, and on drift of the 26 spec
   sections the pages restate (`spec-review.json`, re-recorded with `spec:review <anchor>`).
 - **[Change]** Status text contradicts itself and the code: `index.astro` `#status` says crawler and
