@@ -15,6 +15,24 @@ const { title, description, active, noindex = false, notFound = false } = Astro.
 
 const path = Astro.url.pathname.replace(/\/+$/, '') || '/'
 const canonical = new URL(path, Astro.site).href
+const image = new URL('/og.png', Astro.site).href
+const IMAGE_ALT =
+	'prodid: publishers state product facts on their own domains, one open index joins every code to a permanent identifier, and anyone can download the whole index.'
+const site = new URL('/', Astro.site).href
+const structured = JSON.stringify({
+	'@context': 'https://schema.org',
+	'@graph': [
+		{ '@type': 'WebSite', '@id': `${site}#website`, url: site, name: 'prodid', description, publisher: { '@id': `${site}#organization` } },
+		{
+			'@type': 'Organization',
+			'@id': `${site}#organization`,
+			name: 'prodid',
+			url: site,
+			logo: new URL('/apple-touch-icon.png', Astro.site).href,
+			sameAs: ['https://github.com/productdevbook/prodid', 'https://www.npmjs.com/package/prodid'],
+		},
+	],
+})
 ---
 
 <!doctype html>
@@ -33,11 +51,21 @@ const canonical = new URL(path, Astro.site).href
 		<meta property="og:description" content={description} />
 		<meta property="og:url" content={canonical} />
 		<meta property="og:locale" content="en" />
-		<meta name="twitter:card" content="summary" />
+		<meta property="og:image" content={image} />
+		<meta property="og:image:type" content="image/png" />
+		<meta property="og:image:width" content="1200" />
+		<meta property="og:image:height" content="630" />
+		<meta property="og:image:alt" content={IMAGE_ALT} />
+		<meta name="twitter:card" content="summary_large_image" />
 		<meta name="twitter:title" content={title} />
 		<meta name="twitter:description" content={description} />
+		<meta name="twitter:image" content={image} />
+		<meta name="twitter:image:alt" content={IMAGE_ALT} />
+		<script type="application/ld+json" is:inline set:html={structured} />
 
 		<meta name="color-scheme" content="light dark" />
+		<meta name="theme-color" media="(prefers-color-scheme: light)" content="#f9f8f5" />
+		<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#14161b" />
 		<script is:inline>
 			// Before first paint, so a stored choice never flashes the other theme.
 			try {
@@ -46,6 +74,7 @@ const canonical = new URL(path, Astro.site).href
 			} catch {}
 		</script>
 		<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+		<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 		<link rel="alternate" type="application/xml" href="/sitemap.xml" title="Sitemap" />
 	</head>
 	<body class="flex min-h-svh flex-col" data-not-found={notFound || undefined}>
