@@ -35,8 +35,15 @@ const isCount = (value: unknown): value is number => typeof value === 'number' &
 
 const isTime = (value: unknown): value is string => typeof value === 'string' && !Number.isNaN(Date.parse(value))
 
-/** Read at build time: /data states the newest dump, and a page without one would say something untrue, so the build stops instead. */
-export async function fetchLatestDump(): Promise<LatestDump> {
+let pending: Promise<LatestDump> | undefined
+
+/** Read once per build: every language's /data states the same newest dump, and a page without one would say something untrue, so the build stops instead. */
+export function fetchLatestDump(): Promise<LatestDump> {
+	pending ??= readLatestDump()
+	return pending
+}
+
+async function readLatestDump(): Promise<LatestDump> {
 	let response: Response
 	try {
 		response = await fetch(LATEST, { headers: { accept: 'application/json' } })

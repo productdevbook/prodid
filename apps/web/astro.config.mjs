@@ -9,6 +9,7 @@ import tailwindcss from '@tailwindcss/vite'
 import { defineConfig } from 'astro/config'
 import { defineHastPlugin } from 'satteri'
 
+import { LOCALES, PAGES, pagePath } from './src/i18n/locales.ts'
 import { SHIKI_LANG_ALIAS, SHIKI_THEMES } from './src/lib/shiki.ts'
 import { readSpecSections } from './src/lib/spec-sections.ts'
 
@@ -225,8 +226,38 @@ function loadQuotedSpec() {
 	return { sections, manifest }
 }
 
+/**
+ * Every language restates the same sections, so a section recorded for one language's page is recorded for all of
+ * them: a spec change then names each translation that has to be read again, not only the English page.
+ *
+ * @param {import('./src/lib/spec-sections.ts').SpecReview} manifest
+ */
+function checkQuotedInEveryLanguage(manifest) {
+	const pages = /** @type {(keyof typeof PAGES)[]} */ (Object.keys(PAGES))
+	/** @type {string[]} */
+	const problems = []
+	for (const entry of manifest.sections) {
+		const listed = new Set(entry.pages)
+		for (const path of entry.pages) {
+			const page = pages.find((key) => LOCALES.some((locale) => pagePath(locale.code, key) === path))
+			if (page === undefined) {
+				problems.push(`  #${entry.anchor} — ${path} is not a page the site publishes in its languages`)
+				continue
+			}
+			const missing = LOCALES.map((locale) => pagePath(locale.code, page)).filter((localized) => !listed.has(localized))
+			if (missing.length > 0) problems.push(`  #${entry.anchor} — quoted by ${path} but not recorded for ${missing.join(', ')}`)
+		}
+	}
+	if (problems.length > 0) {
+		throw new Error(
+			`spec-review.json has to record each quoted section for every language of the page:\n${[...new Set(problems)].join('\n')}`,
+		)
+	}
+}
+
 function checkQuotedSpec() {
 	const { sections, manifest } = loadQuotedSpec()
+	checkQuotedInEveryLanguage(manifest)
 	/** @type {string[]} */
 	const gone = []
 	/** @type {string[]} */

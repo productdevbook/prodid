@@ -1,0 +1,258 @@
+---
+import CodeSample from '@/components/code-sample.astro'
+import PageHeader from '@/components/page-header.astro'
+import { copyFor } from '@/i18n'
+import { type LocaleCode, localeOf } from '@/i18n/locales'
+import { LINK, rich } from '@/i18n/rich'
+import Layout from '@/layouts/base.astro'
+import { DUMP_SCHEMA, DUMPS, fetchLatestDump, formatBytes, formatUtc, LATEST, V0_DUMPS } from '@/lib/dump'
+
+interface Props {
+	code: LocaleCode
+}
+
+const { code } = Astro.props
+const all = copyFor(code)
+const copy = all.data
+const r = (text: string) => rich(text, code)
+const count = new Intl.NumberFormat(`${localeOf(code).hreflang}-u-nu-latn`)
+
+const latest = await fetchLatestDump()
+
+const recordFields = ['source', 'key', 'feed', 'opid', 'body', 'first_seen', 'last_seen', 'withdrawn_at'].map((field, index) => ({
+	field,
+	note: copy.files.recordFields[index] ?? '',
+}))
+
+const groupingKeys = [
+	{ kind: 'family', key: '{ "group": "<group>" }', note: copy.files.groupingNotes[0] },
+	{ kind: 'variant', key: copy.files.familyKey, note: copy.files.groupingNotes[1] },
+]
+
+const layout = `${DUMPS}<YYYY-MM-DD>/manifest.json
+${DUMPS}<YYYY-MM-DD>/sources.ndjson.gz
+${DUMPS}<YYYY-MM-DD>/entities.ndjson.gz
+${DUMPS}<YYYY-MM-DD>/records.ndjson.gz
+${DUMPS}<YYYY-MM-DD>/groupings.ndjson.gz
+${DUMPS}<YYYY-MM-DD>/merges.ndjson.gz
+${LATEST}`
+
+const sources = latest.files.find((file) => file.name === 'sources.ndjson.gz')!
+
+const peek = `curl -sO ${sources.url}
+sha256sum ${sources.name}
+${sources.sha256}  ${sources.name}
+
+gunzip -c ${sources.name} | head -n 1`
+
+const load = `git clone https://github.com/productdevbook/prodid.git && cd prodid
+bun install --frozen-lockfile
+
+export DATABASE_URL=postgres://<user>:<password>@<host>:<port>/<database>
+bun run --filter '@prodid/db' migrate
+
+PRODID_OPERATOR=<your name> bun apps/batch/src/cli.ts load-dump ${LATEST}`
+
+const box = 'rounded-lg border border-line bg-surface p-5 text-[0.9375rem] leading-relaxed text-soft'
+---
+
+<Layout title={copy.title} description={copy.description} active="data" code={code} page="data">
+	<PageHeader eyebrow={copy.eyebrow} title={copy.heading} lead={copy.lead} />
+
+	<section aria-labelledby="latest" class="border-t border-line">
+		<div class="shell py-14 sm:py-16">
+			<div class="max-w-3xl">
+				<h2 id="latest" class="text-2xl font-semibold tracking-tight">{copy.latest.heading}</h2>
+				<p class="mt-5 text-base leading-relaxed text-soft sm:text-lg">
+					{copy.latest.before}{' '}
+					<time datetime={latest.snapshotAt} class="font-medium text-ink" dir="ltr">{formatUtc(latest.snapshotAt)}</time>{copy.latest.after}{' '}
+					<a href={LATEST} class:list={[LINK, 'font-mono text-[0.9375rem] break-all']}>latest.json</a>
+					{copy.latest.names}
+				</p>
+			</div>
+
+			<ul class="mt-9 grid max-w-3xl gap-px overflow-hidden rounded-xl border border-line bg-line [&>*]:min-w-0">
+				{
+					latest.files.map((file) => (
+						<li class="bg-surface p-5 sm:p-6">
+							<div class="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
+								<a href={file.url} class:list={[LINK, 'font-mono text-[0.9375rem] font-medium break-all']}>
+									{file.name}
+								</a>
+								<p class="font-mono text-[0.8125rem] text-soft">
+									{copy.latest.lines(count.format(file.lines), file.lines === 1)} · <span dir="ltr">{formatBytes(file.bytes)}</span>
+								</p>
+							</div>
+							<p class="mt-2 text-[0.9375rem] leading-relaxed text-soft">{copy.latest.per(copy.holds[file.name].per)}</p>
+							<p class="mt-3 font-mono text-xs leading-relaxed break-all text-soft" dir="ltr">
+								<span class="text-ink">sha256</span> {file.sha256}
+							</p>
+						</li>
+					))
+				}
+			</ul>
+
+			<div class="mt-8 grid max-w-3xl gap-3 text-[0.9375rem] leading-relaxed text-soft">
+				<p
+					set:html={r(
+						copy.latest.directory(latest.directory, latest.manifest, formatUtc(latest.createdAt), latest.licenses.index, latest.licenses.claims),
+					)}
+				/>
+			</div>
+		</div>
+	</section>
+
+	<section aria-labelledby="layout" class="border-t border-line">
+		<div class="shell py-14 sm:py-16">
+			<div class="max-w-3xl">
+				<h2 id="layout" class="text-2xl font-semibold tracking-tight">{copy.layout.heading}</h2>
+				<p class="mt-5 text-base leading-relaxed text-soft sm:text-lg" set:html={r(copy.layout.lead)} />
+			</div>
+			<CodeSample class="mt-8 max-w-3xl" code={layout} lang="plaintext" label="dumps.prodid.org" />
+			<div class="mt-8 grid max-w-3xl gap-4 [&>*]:min-w-0">
+				<p class={box} set:html={r(copy.layout.last)} />
+				<p class={box} set:html={r(copy.layout.retention)} />
+				<p class={box} set:html={r(copy.layout.v0(V0_DUMPS, `${V0_DUMPS}latest.json`))} />
+				<p class={box} set:html={r(copy.layout.manifest(DUMP_SCHEMA))} />
+			</div>
+		</div>
+	</section>
+
+	<section aria-labelledby="files" class="border-t border-line">
+		<div class="shell py-14 sm:py-16">
+			<div class="max-w-3xl">
+				<h2 id="files" class="text-2xl font-semibold tracking-tight">{copy.files.heading}</h2>
+				<p class="mt-5 text-base leading-relaxed text-soft sm:text-lg" set:html={r(copy.files.lead)} />
+			</div>
+
+			<div class="mt-9 max-w-4xl table-scroll" role="region" aria-label={copy.files.table} tabindex="0">
+				<table class="data-table">
+					<thead>
+						<tr>{copy.files.columns.map((column) => <th scope="col">{column}</th>)}</tr>
+					</thead>
+					<tbody>
+						{
+							latest.files.map((file) => (
+								<tr>
+									<td class="font-mono text-[0.8125rem] whitespace-nowrap">{file.name}</td>
+									<td class="text-soft">{copy.holds[file.name].per}</td>
+									<td class="text-soft">{copy.holds[file.name].line}</td>
+								</tr>
+							))
+						}
+					</tbody>
+				</table>
+			</div>
+
+			<div class="mt-12 grid max-w-3xl gap-12 [&>*]:min-w-0">
+				<div>
+					<h3 class="text-lg font-semibold tracking-tight">{copy.files.merged}</h3>
+					<p class="mt-3 text-[0.9375rem] leading-relaxed text-soft" set:html={r(copy.files.mergedBody)} />
+				</div>
+
+				<div>
+					<h3 class="text-lg font-semibold tracking-tight">{copy.files.record}</h3>
+					<p class="mt-3 text-[0.9375rem] leading-relaxed text-soft">{copy.files.recordLead}</p>
+					<div class="mt-5 table-scroll" role="region" aria-label={copy.files.recordTable} tabindex="0">
+						<table class="data-table">
+							<thead>
+								<tr>{copy.files.recordColumns.map((column) => <th scope="col">{column}</th>)}</tr>
+							</thead>
+							<tbody>
+								{
+									recordFields.map((row) => (
+										<tr>
+											<td class="font-mono text-[0.8125rem] whitespace-nowrap">{row.field}</td>
+											<td class="text-soft">{row.note}</td>
+										</tr>
+									))
+								}
+							</tbody>
+						</table>
+					</div>
+				</div>
+
+				<div>
+					<h3 class="text-lg font-semibold tracking-tight">{copy.files.grouping}</h3>
+					<p class="mt-3 text-[0.9375rem] leading-relaxed text-soft" set:html={r(copy.files.groupingLead)} />
+					<ul class="mt-5 grid gap-px overflow-hidden rounded-xl border border-line bg-line [&>*]:min-w-0">
+						{
+							groupingKeys.map((row) => (
+								<li class="bg-surface p-5">
+									<p class="font-mono text-xs text-soft">{row.kind}</p>
+									<p class="mt-2 font-mono text-[0.8125rem] break-words" dir="ltr">
+										{row.key}
+									</p>
+									<p class="mt-2 text-[0.9375rem] leading-relaxed text-soft">{row.note}</p>
+								</li>
+							))
+						}
+					</ul>
+				</div>
+
+				<div>
+					<h3 class="text-lg font-semibold tracking-tight">{copy.files.merge}</h3>
+					<p class="mt-3 text-[0.9375rem] leading-relaxed text-soft" set:html={r(copy.files.mergeBody)} />
+				</div>
+			</div>
+		</div>
+	</section>
+
+	<section aria-labelledby="never" class="border-t border-line">
+		<div class="shell py-14 sm:py-16">
+			<div class="max-w-3xl">
+				<h2 id="never" class="text-2xl font-semibold tracking-tight">{copy.never.heading}</h2>
+				<p class="mt-5 text-base leading-relaxed text-soft sm:text-lg">{copy.never.lead}</p>
+				<ul class="mt-8 grid gap-3 [&>*]:min-w-0">
+					{
+						copy.never.items.map((entry) => (
+							<li class="flex gap-3 text-[0.9375rem] leading-relaxed">
+								<span aria-hidden="true" class="mt-[0.45em] size-1.5 shrink-0 rounded-full bg-rule" />
+								<span class="text-soft">{entry}</span>
+							</li>
+						))
+					}
+				</ul>
+			</div>
+		</div>
+	</section>
+
+	<section aria-labelledby="licences" class="border-t border-line">
+		<div class="shell py-14 sm:py-16">
+			<div class="max-w-3xl">
+				<h2 id="licences" class="text-2xl font-semibold tracking-tight">{copy.licences.heading}</h2>
+				<p class="mt-5 text-base leading-relaxed text-soft sm:text-lg" set:html={r(copy.licences.lead)} />
+			</div>
+			<ul class="mt-9 grid max-w-3xl gap-px overflow-hidden rounded-xl border border-line bg-line [&>*]:min-w-0">
+				<li class="bg-surface p-6">
+					<p class="font-mono text-xs text-soft">index: CC0-1.0</p>
+					<h3 class="mt-2 text-base font-semibold tracking-tight">{copy.licences.index}</h3>
+					<p class="mt-3 text-[0.9375rem] leading-relaxed text-soft" set:html={r(copy.licences.indexBody)} />
+				</li>
+				<li class="bg-surface p-6">
+					<p class="font-mono text-xs text-soft">claims: source</p>
+					<h3 class="mt-2 text-base font-semibold tracking-tight">{copy.licences.claims}</h3>
+					<p class="mt-3 text-[0.9375rem] leading-relaxed text-soft" set:html={r(copy.licences.claimsBody)} />
+				</li>
+			</ul>
+			<p class="mt-6 max-w-3xl text-[0.9375rem] leading-relaxed text-soft" set:html={r(copy.licences.datasets)} />
+		</div>
+	</section>
+
+	<section aria-labelledby="load" class="border-t border-line">
+		<div class="shell py-14 sm:py-16">
+			<div class="max-w-3xl">
+				<h2 id="load" class="text-2xl font-semibold tracking-tight">{copy.load.heading}</h2>
+				<p class="mt-5 text-base leading-relaxed text-soft sm:text-lg" set:html={r(copy.load.lead)} />
+			</div>
+			<CodeSample class="mt-8 max-w-3xl" code={load} lang="bash" label={copy.load.label} />
+			<div class="mt-8 grid max-w-3xl gap-3 text-[0.9375rem] leading-relaxed text-soft">
+				<p set:html={r(copy.load.checked)} />
+				<p>{copy.load.peek}</p>
+			</div>
+			<CodeSample class="mt-6 max-w-3xl" code={peek} lang="bash" label={sources.name} />
+			<p class="mt-8 max-w-3xl text-[0.9375rem] leading-relaxed text-soft" set:html={r(copy.load.rules)} />
+			{code !== 'en' && <p class="mt-4 max-w-3xl text-[0.9375rem] leading-relaxed text-soft">{all.common.normative}</p>}
+		</div>
+	</section>
+</Layout>

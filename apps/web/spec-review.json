@@ -1,170 +1,411 @@
 {
-	"note": "Rules these pages state in their own words. The build fails when a recorded section changes; read the diff, fix the page, then run `bun run spec:review`.",
+	"note": "Rules these pages state in their own words, in every language they are published in. The build fails when a recorded section changes; read the diff, fix the page in each language, then run `bun run spec:review`.",
 	"reviewed": "2026-10-28",
 	"sections": [
 		{
 			"anchor": "identity",
-			"pages": ["/"],
+			"pages": ["/", "/zh/", "/es/", "/ar/", "/fr/", "/ru/", "/pt/", "/de/", "/ja/", "/tr/"],
 			"sha256": "6f7139d938c989a95b02bf5494335bbce469e28479a67a1ebf3956a864398228"
 		},
 		{
 			"anchor": "identifiers",
-			"pages": ["/"],
+			"pages": ["/", "/zh/", "/es/", "/ar/", "/fr/", "/ru/", "/pt/", "/de/", "/ja/", "/tr/"],
 			"sha256": "00f1350eb383dc2d0972c6decefa948922ea94be24a9eca4985ea5ab4c1d2c34"
 		},
 		{
 			"anchor": "claims",
-			"pages": ["/"],
+			"pages": ["/", "/zh/", "/es/", "/ar/", "/fr/", "/ru/", "/pt/", "/de/", "/ja/", "/tr/"],
 			"sha256": "ea6d743139478bbb63ba7a11d69878655f1c6112897a4eeec89d14a4f46f9626"
 		},
 		{
 			"anchor": "the-resolver",
-			"pages": ["/"],
+			"pages": ["/", "/zh/", "/es/", "/ar/", "/fr/", "/ru/", "/pt/", "/de/", "/ja/", "/tr/"],
 			"sha256": "dfd21950abf9d0ea760a4bcfcd30c4825188849683f1f80710dbc2d3c356fae6"
 		},
 		{
 			"anchor": "an-entity",
-			"pages": ["/"],
+			"pages": ["/", "/zh/", "/es/", "/ar/", "/fr/", "/ru/", "/pt/", "/de/", "/ja/", "/tr/"],
 			"sha256": "0998704a38190c3f12195ae3bde4efcc554ea5bc7d69fb58d4c3c8c90be260c9"
 		},
 		{
 			"anchor": "licensing",
-			"pages": ["/", "/data"],
+			"pages": [
+				"/",
+				"/zh/",
+				"/es/",
+				"/ar/",
+				"/fr/",
+				"/ru/",
+				"/pt/",
+				"/de/",
+				"/ja/",
+				"/tr/",
+				"/data",
+				"/zh/data",
+				"/es/data",
+				"/ar/data",
+				"/fr/data",
+				"/ru/data",
+				"/pt/data",
+				"/de/data",
+				"/ja/data",
+				"/tr/data"
+			],
 			"sha256": "e9efe39140516a124339ac9dab38266bc9fc962e979a5373f878f6a42d49dd0e"
 		},
 		{
 			"anchor": "publishing",
-			"pages": ["/publish"],
+			"pages": [
+				"/publish",
+				"/zh/publish",
+				"/es/publish",
+				"/ar/publish",
+				"/fr/publish",
+				"/ru/publish",
+				"/pt/publish",
+				"/de/publish",
+				"/ja/publish",
+				"/tr/publish"
+			],
 			"sha256": "85212ad9aa71080728dfe10e1261652b77376f4322c07ffbdb01cfe123ed69f3"
 		},
 		{
 			"anchor": "discovery",
-			"pages": ["/publish"],
+			"pages": [
+				"/publish",
+				"/zh/publish",
+				"/es/publish",
+				"/ar/publish",
+				"/fr/publish",
+				"/ru/publish",
+				"/pt/publish",
+				"/de/publish",
+				"/ja/publish",
+				"/tr/publish"
+			],
 			"sha256": "f81c4cdc9b9403f11d8912e9505ba23cecaf786c6a575592f06af04885a6832b"
 		},
 		{
 			"anchor": "the-_prodid-txt-record",
-			"pages": ["/publish"],
+			"pages": [
+				"/publish",
+				"/zh/publish",
+				"/es/publish",
+				"/ar/publish",
+				"/fr/publish",
+				"/ru/publish",
+				"/pt/publish",
+				"/de/publish",
+				"/ja/publish",
+				"/tr/publish"
+			],
 			"sha256": "7993b7cb2cf282953d919103f9735aec8f3570144bf59877dd9e25d434ae93a4"
 		},
 		{
 			"anchor": "feeds",
-			"pages": ["/publish"],
+			"pages": [
+				"/publish",
+				"/zh/publish",
+				"/es/publish",
+				"/ar/publish",
+				"/fr/publish",
+				"/ru/publish",
+				"/pt/publish",
+				"/de/publish",
+				"/ja/publish",
+				"/tr/publish"
+			],
 			"sha256": "0957db03fb8d711bd181c3a14e8e4cf2a5363c8cac9bd54be3e7b736d497f730"
 		},
 		{
 			"anchor": "three-ways-to-publish",
-			"pages": ["/publish"],
+			"pages": [
+				"/publish",
+				"/zh/publish",
+				"/es/publish",
+				"/ar/publish",
+				"/fr/publish",
+				"/ru/publish",
+				"/pt/publish",
+				"/de/publish",
+				"/ja/publish",
+				"/tr/publish"
+			],
 			"sha256": "b3eb53ebd41639785333983e457333eb3b18be395ae5541a84a4e8904f18cfba"
 		},
 		{
 			"anchor": "trust",
-			"pages": ["/publish"],
+			"pages": [
+				"/publish",
+				"/zh/publish",
+				"/es/publish",
+				"/ar/publish",
+				"/fr/publish",
+				"/ru/publish",
+				"/pt/publish",
+				"/de/publish",
+				"/ja/publish",
+				"/tr/publish"
+			],
 			"sha256": "eef0b607c89e3d4b1a1699ebe8be656aeb383cc698c3ceb56bb329b964f31e8f"
 		},
 		{
 			"anchor": "crawling",
-			"pages": ["/publish"],
+			"pages": [
+				"/publish",
+				"/zh/publish",
+				"/es/publish",
+				"/ar/publish",
+				"/fr/publish",
+				"/ru/publish",
+				"/pt/publish",
+				"/de/publish",
+				"/ja/publish",
+				"/tr/publish"
+			],
 			"sha256": "3cef30f74b48dc2bf7fa111db5d8951390d822fa0da3d6c9b2842a4f221f37bb"
 		},
 		{
 			"anchor": "lapse",
-			"pages": ["/publish"],
+			"pages": [
+				"/publish",
+				"/zh/publish",
+				"/es/publish",
+				"/ar/publish",
+				"/fr/publish",
+				"/ru/publish",
+				"/pt/publish",
+				"/de/publish",
+				"/ja/publish",
+				"/tr/publish"
+			],
 			"sha256": "2112b9744446849d4478c89ffd1a0e0b57ac48aff9aaa84c4d1299e5ee2e0db4"
 		},
 		{
 			"anchor": "identity-continuity",
-			"pages": ["/publish"],
+			"pages": [
+				"/publish",
+				"/zh/publish",
+				"/es/publish",
+				"/ar/publish",
+				"/fr/publish",
+				"/ru/publish",
+				"/pt/publish",
+				"/de/publish",
+				"/ja/publish",
+				"/tr/publish"
+			],
 			"sha256": "894e88ede05486ab2e2b847be7fbc27b47d8e971f72f0c9691d12efacc4965f3"
 		},
 		{
 			"anchor": "records",
-			"pages": ["/publish"],
+			"pages": [
+				"/publish",
+				"/zh/publish",
+				"/es/publish",
+				"/ar/publish",
+				"/fr/publish",
+				"/ru/publish",
+				"/pt/publish",
+				"/de/publish",
+				"/ja/publish",
+				"/tr/publish"
+			],
 			"sha256": "73878924a36f91cbf49e920b6118da02d02a97c0226236c7ae7c44c92601e3d7"
 		},
 		{
 			"anchor": "security-considerations",
-			"pages": ["/publish"],
+			"pages": [
+				"/publish",
+				"/zh/publish",
+				"/es/publish",
+				"/ar/publish",
+				"/fr/publish",
+				"/ru/publish",
+				"/pt/publish",
+				"/de/publish",
+				"/ja/publish",
+				"/tr/publish"
+			],
 			"sha256": "5bb200a2391d97b2c925e5f8325ba69dc1449574a4a79f7f168260c69cf5947d"
 		},
 		{
 			"anchor": "a-sources-status",
-			"pages": ["/publish"],
+			"pages": [
+				"/publish",
+				"/zh/publish",
+				"/es/publish",
+				"/ar/publish",
+				"/fr/publish",
+				"/ru/publish",
+				"/pt/publish",
+				"/de/publish",
+				"/ja/publish",
+				"/tr/publish"
+			],
 			"sha256": "07e48ab4efa17263f70d6bf01d169a648ee31696821044fadf6ee32da1a89291"
 		},
 		{
 			"anchor": "which-gtins-are-identifiers",
-			"pages": ["/publish"],
+			"pages": [
+				"/publish",
+				"/zh/publish",
+				"/es/publish",
+				"/ar/publish",
+				"/fr/publish",
+				"/ru/publish",
+				"/pt/publish",
+				"/de/publish",
+				"/ja/publish",
+				"/tr/publish"
+			],
 			"sha256": "5ae3b3ffb71488aa6fe31b33ef2d4c925a866dc452c5c0809143316ba5fb4275"
 		},
 		{
 			"anchor": "brand-normalization",
-			"pages": ["/publish"],
+			"pages": [
+				"/publish",
+				"/zh/publish",
+				"/es/publish",
+				"/ar/publish",
+				"/fr/publish",
+				"/ru/publish",
+				"/pt/publish",
+				"/de/publish",
+				"/ja/publish",
+				"/tr/publish"
+			],
 			"sha256": "c8f64394326210a2bb27f2c525d20abc79a431077cf8d79ffed1530bd550eb5a"
 		},
 		{
 			"anchor": "media",
-			"pages": ["/publish"],
+			"pages": [
+				"/publish",
+				"/zh/publish",
+				"/es/publish",
+				"/ar/publish",
+				"/fr/publish",
+				"/ru/publish",
+				"/pt/publish",
+				"/de/publish",
+				"/ja/publish",
+				"/tr/publish"
+			],
 			"sha256": "78d970be9e2a416eee2b7ce188bac94dd17007f00508233f31327c7e46c846c2"
 		},
 		{
 			"anchor": "what-is-ingested",
-			"pages": ["/publish"],
+			"pages": [
+				"/publish",
+				"/zh/publish",
+				"/es/publish",
+				"/ar/publish",
+				"/fr/publish",
+				"/ru/publish",
+				"/pt/publish",
+				"/de/publish",
+				"/ja/publish",
+				"/tr/publish"
+			],
 			"sha256": "484c389635ada6b03016152c775abc9dbea22e38a9c009241dbc4ae76090fee4"
 		},
 		{
 			"anchor": "caps",
-			"pages": ["/publish"],
+			"pages": [
+				"/publish",
+				"/zh/publish",
+				"/es/publish",
+				"/ar/publish",
+				"/fr/publish",
+				"/ru/publish",
+				"/pt/publish",
+				"/de/publish",
+				"/ja/publish",
+				"/tr/publish"
+			],
 			"sha256": "6e4e56d8fbd02a0f8719b21bcb78890c61ddc2535577b1da4c01cdbf9203e82b"
 		},
 		{
 			"anchor": "when-it-fails-and-when-it-changes",
-			"pages": ["/publish"],
+			"pages": [
+				"/publish",
+				"/zh/publish",
+				"/es/publish",
+				"/ar/publish",
+				"/fr/publish",
+				"/ru/publish",
+				"/pt/publish",
+				"/de/publish",
+				"/ja/publish",
+				"/tr/publish"
+			],
 			"sha256": "9e49852e8a5a5461f9ef97719aaab4d0509c7a572e60f0a24208ceac72266d4f"
 		},
 		{
 			"anchor": "licences-that-can-be-ingested",
-			"pages": ["/publish"],
+			"pages": [
+				"/publish",
+				"/zh/publish",
+				"/es/publish",
+				"/ar/publish",
+				"/fr/publish",
+				"/ru/publish",
+				"/pt/publish",
+				"/de/publish",
+				"/ja/publish",
+				"/tr/publish"
+			],
 			"sha256": "7a16ef8ad7ee656e221b412d09a4507d4fb6b4f04d98fb3ef71d725d1a8a723b"
 		},
 		{
 			"anchor": "appendix-importing-a-merchant-feed",
-			"pages": ["/publish"],
+			"pages": [
+				"/publish",
+				"/zh/publish",
+				"/es/publish",
+				"/ar/publish",
+				"/fr/publish",
+				"/ru/publish",
+				"/pt/publish",
+				"/de/publish",
+				"/ja/publish",
+				"/tr/publish"
+			],
 			"sha256": "24abbe5f9ce94c115f06ef686ddcef4a1ae58e48642d4d2c74ebd2d5d5cd0b5a"
 		},
 		{
 			"anchor": "dataset-sources",
-			"pages": ["/data"],
+			"pages": ["/data", "/zh/data", "/es/data", "/ar/data", "/fr/data", "/ru/data", "/pt/data", "/de/data", "/ja/data", "/tr/data"],
 			"sha256": "fdff68ea03b9c94e99abbdd129d5594df136a78e0c2b78ee42bf7e0f0597fb45"
 		},
 		{
 			"anchor": "dumps",
-			"pages": ["/data"],
+			"pages": ["/data", "/zh/data", "/es/data", "/ar/data", "/fr/data", "/ru/data", "/pt/data", "/de/data", "/ja/data", "/tr/data"],
 			"sha256": "7ed6d92cee772d00185c8355a0de27e4655262253033bcf40ee31d5d0b38ab2e"
 		},
 		{
 			"anchor": "files",
-			"pages": ["/data"],
+			"pages": ["/data", "/zh/data", "/es/data", "/ar/data", "/fr/data", "/ru/data", "/pt/data", "/de/data", "/ja/data", "/tr/data"],
 			"sha256": "28e5a00b0eddb17aa0cea7cbc20fca06fad3507c0c8ca7a2e4d3bae60f22f1f5"
 		},
 		{
 			"anchor": "what-a-dump-never-holds",
-			"pages": ["/data"],
+			"pages": ["/data", "/zh/data", "/es/data", "/ar/data", "/fr/data", "/ru/data", "/pt/data", "/de/data", "/ja/data", "/tr/data"],
 			"sha256": "324839384978e970ce6c81d1abfe736cdb868b48f5371905f2b8bed1160c717b"
 		},
 		{
 			"anchor": "licences",
-			"pages": ["/data"],
+			"pages": ["/data", "/zh/data", "/es/data", "/ar/data", "/fr/data", "/ru/data", "/pt/data", "/de/data", "/ja/data", "/tr/data"],
 			"sha256": "0b2b6eeaab7a4b2f983e8e019bb83e15c61734c060752c38a1355b282cc1748f"
 		},
 		{
 			"anchor": "manifest",
-			"pages": ["/data"],
+			"pages": ["/data", "/zh/data", "/es/data", "/ar/data", "/fr/data", "/ru/data", "/pt/data", "/de/data", "/ja/data", "/tr/data"],
 			"sha256": "5681ca2fc45ba78ad40307c5f1af072c2d3c496c347a0c24b4fc7a7d94136ce6"
 		},
 		{
 			"anchor": "retention",
-			"pages": ["/data"],
+			"pages": ["/data", "/zh/data", "/es/data", "/ar/data", "/fr/data", "/ru/data", "/pt/data", "/de/data", "/ja/data", "/tr/data"],
 			"sha256": "ef9f4210d1485bff1bfe64b6799f55272a1542d4464729f1993322de435078e9"
 		}
 	]

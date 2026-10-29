@@ -1,7 +1,9 @@
 @import 'tailwindcss';
 
 @theme inline {
-	--font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+	--font-sans:
+		ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'PingFang SC', 'Hiragino Sans',
+		'Microsoft YaHei', 'Yu Gothic UI', 'Noto Sans CJK SC', 'Noto Sans Arabic', 'Geeza Pro', Tahoma, sans-serif;
 	--font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
 
 	--color-bg: var(--bg);
@@ -82,6 +84,22 @@
 		scroll-behavior: smooth;
 		scroll-padding-top: 5rem;
 		-webkit-text-size-adjust: 100%;
+	}
+
+	html:lang(ja) {
+		font-family:
+			ui-sans-serif, system-ui, -apple-system, 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Yu Gothic UI', Meiryo, 'Noto Sans CJK JP',
+			'Noto Sans JP', sans-serif;
+	}
+
+	html:lang(zh-Hans) {
+		font-family:
+			ui-sans-serif, system-ui, -apple-system, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans CJK SC', 'Noto Sans SC',
+			sans-serif;
+	}
+
+	html:lang(ar) {
+		font-family: system-ui, -apple-system, 'Segoe UI', 'Geeza Pro', 'Noto Sans Arabic', Tahoma, Arial, sans-serif;
 	}
 
 	body {
@@ -210,6 +228,23 @@
 	border-radius: 4px;
 	padding: 0.1em 0.35em;
 	word-break: break-word;
+	direction: ltr;
+	unicode-bidi: isolate;
+}
+
+/* Letter-spacing breaks the joins between Arabic letters, and it outranks the layered tracking utilities only unlayered. */
+:lang(ar) * {
+	letter-spacing: normal;
+}
+
+[dir='rtl'] .astro-code,
+[dir='rtl'] :has(> table) {
+	direction: ltr;
+	text-align: left;
+}
+
+[dir='rtl'] :where(th, td) {
+	unicode-bidi: plaintext;
 }
 
 .prose pre {
@@ -244,8 +279,9 @@
 .prose :where(th, td),
 .data-table :where(th, td) {
 	border-bottom: 1px solid var(--line);
-	padding: 0.6rem 1rem 0.6rem 0;
-	text-align: left;
+	padding-block: 0.6rem;
+	padding-inline: 0 1rem;
+	text-align: start;
 	vertical-align: top;
 }
 

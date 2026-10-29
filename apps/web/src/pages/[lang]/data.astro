@@ -1,0 +1,12 @@
+---
+import Data from '@/components/pages/data.astro'
+import { TRANSLATED } from '@/i18n/locales'
+
+export function getStaticPaths() {
+	return TRANSLATED.map((locale) => ({ params: { lang: locale.code }, props: { code: locale.code } }))
+}
+
+const { code } = Astro.props
+---
+
+<Data code={code} />

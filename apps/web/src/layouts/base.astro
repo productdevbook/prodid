@@ -1,6 +1,8 @@
 ---
 import SiteFooter from '@/components/site-footer.astro'
 import SiteHeader from '@/components/site-header.astro'
+import { copyFor } from '@/i18n'
+import { LOCALES, type LocaleCode, localeOf, type PageKey, pagePath } from '@/i18n/locales'
 import '@/styles/global.css'
 
 interface Props {
@@ -9,15 +11,26 @@ interface Props {
 	active?: 'spec' | 'publish' | 'data' | undefined
 	noindex?: boolean | undefined
 	notFound?: boolean | undefined
+	code?: LocaleCode | undefined
+	page?: PageKey | undefined
 }
 
-const { title, description, active, noindex = false, notFound = false } = Astro.props
+const { title, description, active, noindex = false, notFound = false, code = 'en', page } = Astro.props
+const current = localeOf(code)
+const common = copyFor(code).common
+const alternates =
+	page === undefined
+		? []
+		: [
+				...LOCALES.map((entry) => ({ hreflang: entry.hreflang, href: new URL(pagePath(entry.code, page), Astro.site).href })),
+				{ hreflang: 'x-default', href: new URL(pagePath('en', page), Astro.site).href },
+			]
+const ogAlternates = page === undefined ? [] : LOCALES.filter((entry) => entry.code !== code).map((entry) => entry.og)
 
-const path = Astro.url.pathname.replace(/\/+$/, '') || '/'
+const path = page === undefined ? Astro.url.pathname.replace(/\/+$/, '') || '/' : pagePath(code, page)
 const canonical = new URL(path, Astro.site).href
 const image = new URL('/og.png', Astro.site).href
-const IMAGE_ALT =
-	'prodid: publishers state product facts on their own domains, one open index joins every code to a permanent identifier, and anyone can download the whole index.'
+const IMAGE_ALT = common.imageAlt
 const site = new URL('/', Astro.site).href
 const structured = JSON.stringify({
 	'@context': 'https://schema.org',
@@ -36,13 +49,14 @@ const structured = JSON.stringify({
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang={current.hreflang} dir={current.dir}>
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<title>{title}</title>
 		<meta name="description" content={description} />
 		<link rel="canonical" href={canonical} />
+		{alternates.map((alternate) => <link rel="alternate" hreflang={alternate.hreflang} href={alternate.href} />)}
 		{noindex && <meta name="robots" content="noindex, follow" />}
 
 		<meta property="og:type" content="website" />
@@ -50,7 +64,8 @@ const structured = JSON.stringify({
 		<meta property="og:title" content={title} />
 		<meta property="og:description" content={description} />
 		<meta property="og:url" content={canonical} />
-		<meta property="og:locale" content="en" />
+		<meta property="og:locale" content={current.og} />
+		{ogAlternates.map((og) => <meta property="og:locale:alternate" content={og} />)}
 		<meta property="og:image" content={image} />
 		<meta property="og:image:type" content="image/png" />
 		<meta property="og:image:width" content="1200" />
@@ -80,15 +95,15 @@ const structured = JSON.stringify({
 	<body class="flex min-h-svh flex-col" data-not-found={notFound || undefined}>
 		<a
 			href="#main"
-			class="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:rounded-md focus:border focus:border-line focus:bg-surface focus:px-4 focus:py-2 focus:text-sm focus:font-medium"
+			class="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:start-3 focus:z-50 focus:rounded-md focus:border focus:border-line focus:bg-surface focus:px-4 focus:py-2 focus:text-sm focus:font-medium"
 		>
-			Skip to content
+			{common.skip}
 		</a>
-		<SiteHeader active={active} />
+		<SiteHeader active={active} code={code} page={page} />
 		<main id="main" tabindex="-1" class="flex-1">
 			<slot />
 		</main>
-		<SiteFooter />
+		<SiteFooter code={code} />
 		<script>
 			import { createAnalytics } from 'useyuva/analytics'
 

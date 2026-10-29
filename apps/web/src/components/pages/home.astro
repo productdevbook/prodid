@@ -1,0 +1,399 @@
+---
+import CodeSample from '@/components/code-sample.astro'
+import Scene from '@/components/scene.astro'
+import { copyFor } from '@/i18n'
+import { type LocaleCode, pagePath } from '@/i18n/locales'
+import { rich } from '@/i18n/rich'
+import Layout from '@/layouts/base.astro'
+import { examples } from '@/lib/spec'
+
+interface Props {
+	code: LocaleCode
+}
+
+const { code } = Astro.props
+const all = copyFor(code)
+const copy = all.home
+
+interface ExampleClaim {
+	property: string
+	value: unknown
+	lang?: string
+	source: { name: string; trust: string; lapsed: boolean }
+	seen_at: string
+}
+
+interface ExampleEntity {
+	opid: string
+	parents: { family: string; variant: string }
+	identifiers: { scheme: string; value: string; scope?: string }[]
+	claims: ExampleClaim[]
+}
+
+const entity = JSON.parse(examples.entityItem) as ExampleEntity
+
+function show(value: unknown): string {
+	if (typeof value === 'string') return value
+	if (typeof value === 'object' && value !== null && 'value' in value && 'unit' in value) {
+		const measured = value as { value: number; unit: string }
+		return `${measured.value} ${measured.unit}`
+	}
+	if (typeof value === 'object' && value !== null && 'kind' in value && 'license' in value) {
+		const media = value as { kind: string; license: string }
+		return `${media.kind} · ${media.license}`
+	}
+	return JSON.stringify(value)
+}
+
+const markets = entity.claims.filter((claim) => claim.property === 'markets').map((claim) => show(claim.value))
+const rows = [
+	...entity.claims.filter((claim) => claim.property !== 'markets'),
+	...(markets.length > 0 ? [{ ...entity.claims.find((claim) => claim.property === 'markets')!, value: markets.join(', ') }] : []),
+]
+	.map((claim) => ({
+		property: claim.property.replace(/^properties\./, ''),
+		value: show(claim.value),
+		source: claim.source.name,
+		trust: claim.source.trust,
+		lapsed: claim.source.lapsed,
+		seen: claim.seen_at.slice(0, 10),
+	}))
+	.sort((a, b) => Number(a.lapsed) - Number(b.lapsed))
+
+const heroRows = [
+	rows.find((row) => row.property === 'material'),
+	rows.find((row) => row.property === 'weight'),
+	rows.find((row) => row.lapsed),
+].filter((row) => row !== undefined)
+
+const brand = rows.find((row) => row.property === 'brand')?.value ?? ''
+const name = rows.find((row) => row.property === 'name' && !row.lapsed)?.value ?? ''
+const gtin = entity.identifiers.find((identifier) => identifier.scheme === 'gtin')?.value ?? ''
+
+const codes = [
+	{ value: gtin, placeholder: false },
+	{ value: copy.problem.anotherGtin, placeholder: true },
+	{ value: copy.problem.anotherGtin, placeholder: true },
+	{ value: 'TJ-2041-NVY-M', placeholder: false },
+].map((entry, index) => ({ ...entry, note: copy.problem.codes[index] ?? '' }))
+
+const model = (
+	[
+		{ kind: 'family', opid: entity.parents.family },
+		{ kind: 'variant', opid: entity.parents.variant },
+		{ kind: 'item', opid: entity.opid },
+	] as const
+).map((level, index) => ({ ...level, ...copy.model.levels[index]! }))
+
+const trust = ['authoritative', 'verified', 'unverified'].map((level, index) => ({ level, meaning: copy.claims.trust[index] ?? '' }))
+
+const request = `GET /01/${gtin} HTTP/1.1
+Host: prodid.org
+Accept: application/json
+
+HTTP/1.1 200 OK
+Content-Type: application/json
+Content-Location: /id/${entity.opid}`
+
+const eyebrow = 'font-mono text-xs tracking-[0.18em] text-accent uppercase'
+const heading = 'mt-4 text-2xl font-semibold tracking-tight text-balance sm:text-[2.1rem] sm:leading-[1.15]'
+const status = [copy.status.stable, copy.status.sources, copy.status.design]
+---
+
+<Layout title={copy.title} description={copy.description} code={code} page="home">
+	<section class="shell grid items-center gap-12 pt-14 pb-16 sm:pt-20 sm:pb-24 lg:grid-cols-[1.05fr_1fr] [&>*]:min-w-0">
+		<div>
+			<p class="inline-flex items-center gap-2 rounded-full border border-line bg-surface px-3 py-1.5 text-xs text-soft">
+				<span class="size-2 rounded-full bg-ok" aria-hidden="true"></span>
+				{copy.badge}
+			</p>
+			<h1 class="mt-6 text-[2.3rem] leading-[1.06] font-semibold tracking-tight sm:text-[3.4rem]">
+				{copy.headline} <span class="text-accent">{copy.headlineAccent}</span>
+			</h1>
+			<p class="mt-6 max-w-xl text-lg leading-relaxed text-soft">{copy.lead}</p>
+			<div class="mt-9 flex flex-wrap gap-3">
+				<a
+					href={pagePath(code, 'publish')}
+					class="inline-flex min-h-11 items-center rounded-md bg-ink px-5 text-sm font-medium text-bg transition-opacity hover:opacity-85"
+				>
+					{copy.ctaPublish}
+				</a>
+				<a
+					href="/spec"
+					class="inline-flex min-h-11 items-center rounded-md border border-rule bg-surface px-5 text-sm font-medium transition-colors hover:border-accent hover:text-accent"
+				>
+					{copy.ctaSpec}
+				</a>
+			</div>
+			{code !== 'en' && <p class="mt-4 max-w-xl text-sm leading-relaxed text-soft">{all.common.normative}</p>}
+		</div>
+
+		<figure class="w-full">
+			<div class="overflow-hidden rounded-xl border border-line bg-surface shadow-[0_1px_2px_rgb(0_0_0/0.04),0_8px_24px_-12px_rgb(0_0_0/0.12)]">
+				<div
+					dir="ltr"
+					class="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-line bg-sunken px-4 py-3 font-mono text-xs text-soft"
+				>
+					<span>prodid.org/01/{gtin}</span>
+					<span>→ /id/{entity.opid}</span>
+				</div>
+				<div class="flex items-start gap-4 px-4 py-5 sm:px-5">
+					<div class="grid size-16 shrink-0 place-items-center rounded-lg bg-accent-bg text-accent" aria-hidden="true">
+						<svg viewBox="0 0 24 24" class="size-7" fill="none" stroke="currentColor" stroke-width="1.6">
+							<path d="M8 3 4 6v4l2 1v10h12V11l2-1V6l-4-3-2 2h-4L8 3Z" stroke-linejoin="round"></path>
+						</svg>
+					</div>
+					<div class="min-w-0">
+						<p class="text-xs tracking-wider text-soft uppercase">{copy.heroKind(brand)}</p>
+						<p class="mt-1 text-xl font-semibold tracking-tight">{name}</p>
+						<p class="mt-1 text-sm text-soft">{copy.heroVariant(`\u2068${markets.join(', ')}\u2069`)}</p>
+					</div>
+				</div>
+				<ul class="border-t border-line text-sm">
+					{
+						heroRows.map((row) => (
+							<li
+								class:list={[
+									'grid grid-cols-[6.5rem_minmax(0,1fr)] items-baseline gap-x-3 gap-y-1 border-b border-line px-4 py-3 last:border-b-0 sm:grid-cols-[6.5rem_minmax(0,1fr)_auto] sm:px-5',
+									row.lapsed && 'bg-warn-bg',
+								]}
+							>
+								<span class="font-mono text-xs text-soft">{row.property}</span>
+								<span dir="auto" class:list={[row.lapsed && 'text-soft line-through']}>{row.value}</span>
+								<span class:list={['col-start-2 text-xs sm:col-start-auto', row.lapsed ? 'text-warn' : 'text-ok']}>
+									{row.lapsed ? copy.heroLapsed(row.source) : `✓ ${row.source}`}
+								</span>
+							</li>
+						))
+					}
+				</ul>
+			</div>
+			<figcaption class="mt-3 text-sm text-soft">{copy.heroCaption}</figcaption>
+		</figure>
+	</section>
+
+	<figure class="shell pb-16 sm:pb-24">
+		<Scene class="mx-auto max-w-3xl" label={copy.sceneLabel} />
+		<figcaption class="mx-auto mt-4 max-w-3xl text-sm text-soft">{copy.sceneCaption}</figcaption>
+	</figure>
+
+	<section aria-labelledby="problem" class="border-y border-line bg-surface">
+		<div class="shell grid items-center gap-12 py-16 sm:py-24 lg:grid-cols-[1fr_1.15fr] [&>*]:min-w-0">
+			<div>
+				<p class={eyebrow}>{copy.problem.eyebrow}</p>
+				<h2 id="problem" class={heading}>{copy.problem.heading}</h2>
+				<p class="mt-5 text-base leading-relaxed text-soft sm:text-lg">{copy.problem.body}</p>
+				<p class="mt-4 text-base leading-relaxed text-soft sm:text-lg">{copy.problem.answer}</p>
+			</div>
+
+			<figure aria-label={copy.problem.figure} class="flex flex-col items-stretch gap-4 sm:flex-row sm:items-center">
+				<ul class="grid flex-1 gap-2.5">
+					{
+						codes.map((entry) => (
+							<li class="rounded-lg border border-line bg-bg px-4 py-3">
+								<p class:list={['text-sm', entry.placeholder ? 'text-soft italic' : 'font-mono']}>{entry.value}</p>
+								<p class="mt-0.5 text-xs text-soft">{entry.note}</p>
+							</li>
+						))
+					}
+				</ul>
+				<svg viewBox="0 0 48 24" class="h-6 w-12 shrink-0 rotate-90 self-center text-accent sm:rotate-0 sm:rtl:rotate-180" aria-hidden="true">
+					<path d="M2 12h40m-9-9 9 9-9 9" fill="none" stroke="currentColor" stroke-width="2"></path>
+				</svg>
+				<div class="flex-1 rounded-xl border-2 border-accent bg-accent-bg p-5">
+					<p class="text-xs tracking-wider text-accent uppercase">{copy.problem.variant}</p>
+					<p class="mt-2 font-mono text-lg font-medium">{entity.parents.variant}</p>
+					<p class="mt-2 text-sm leading-relaxed text-soft">{copy.problem.variantNote}</p>
+				</div>
+			</figure>
+		</div>
+	</section>
+
+	<section aria-labelledby="model" class="shell py-16 sm:py-24">
+		<div class="max-w-2xl">
+			<p class={eyebrow}>{copy.model.eyebrow}</p>
+			<h2 id="model" class={heading}>{copy.model.heading}</h2>
+			<p class="mt-5 text-base leading-relaxed text-soft sm:text-lg" set:html={rich(copy.model.lead, code)} />
+		</div>
+
+		<ol class="mt-10 grid gap-3 md:grid-cols-[1fr_auto_1fr_auto_1fr] md:items-stretch [&>*]:min-w-0">
+			{
+				model.map((level, index) => (
+					<>
+						{index > 0 && (
+							<li aria-hidden="true" class="grid place-items-center text-rule">
+								<svg viewBox="0 0 24 24" class="size-5 rotate-90 md:rotate-0 md:rtl:rotate-180" fill="none" stroke="currentColor" stroke-width="2">
+									<path d="M5 12h14m-6-6 6 6-6 6" />
+								</svg>
+							</li>
+						)}
+						<li class:list={['rounded-xl border bg-surface p-5', index === 2 ? 'border-accent' : 'border-line']}>
+							<p class="font-mono text-xs text-soft">
+								<span class="tracking-wider uppercase">{level.kind}</span> · {level.opid}
+							</p>
+							<p class="mt-3 text-lg font-semibold tracking-tight">{level.title}</p>
+							<p class="mt-1.5 text-sm leading-relaxed text-soft">{level.note}</p>
+							{index === 2 && (
+								<ul class="mt-4 grid gap-1.5 border-t border-line pt-4 [&>*]:min-w-0" dir="ltr">
+									{entity.identifiers.map((identifier) => (
+										<li class="flex flex-wrap items-baseline gap-x-2 text-sm">
+											<span class="w-10 shrink-0 font-mono text-[0.7rem] tracking-wider text-soft uppercase">{identifier.scheme}</span>
+											<span class="font-mono text-[0.8125rem] break-all">{identifier.value}</span>
+										</li>
+									))}
+								</ul>
+							)}
+						</li>
+					</>
+				))
+			}
+		</ol>
+		<p class="mt-5 max-w-2xl text-sm leading-relaxed text-soft">{copy.model.after}</p>
+	</section>
+
+	<section id="how" aria-labelledby="how-heading" class="border-y border-line bg-[oklch(0.2_0.01_265)] text-[oklch(0.95_0.005_85)]">
+		<div class="shell py-16 sm:py-24">
+			<p class="font-mono text-xs tracking-[0.18em] uppercase opacity-70">{copy.how.eyebrow}</p>
+			<h2 id="how-heading" class={heading}>{copy.how.heading}</h2>
+
+			<ol class="mt-12 grid gap-4 lg:grid-cols-3 [&>*]:min-w-0">
+				<li class="flex flex-col rounded-xl border border-white/15 p-6">
+					<p class="font-mono text-xs opacity-70">{copy.how.publish.step}</p>
+					<p class="mt-3 text-lg font-semibold">{copy.how.publish.title}</p>
+					<ul class="mt-4 grid gap-2 font-mono text-[0.8125rem] [&>*]:min-w-0" dir="ltr">
+						<li class="rounded-md bg-white/10 px-3 py-2 break-all">/.well-known/prodid.json</li>
+						<li class="rounded-md bg-white/10 px-3 py-2 break-all">/prodid/items.ndjson</li>
+						<li class="rounded-md bg-white/10 px-3 py-2 break-all">_prodid TXT "v=prodid0; host=…"</li>
+					</ul>
+					<p class="mt-4 flex-1 text-sm leading-relaxed opacity-75">{copy.how.publish.body}</p>
+					<a href={pagePath(code, 'publish')} class="mt-5 text-sm font-medium underline-offset-4 hover:underline">{copy.how.publish.link}</a>
+				</li>
+				<li class="flex flex-col rounded-xl border border-white/15 p-6">
+					<p class="font-mono text-xs opacity-70">{copy.how.index.step}</p>
+					<p class="mt-3 text-lg font-semibold">{copy.how.index.title}</p>
+					<ul class="mt-4 grid gap-2 text-sm [&>*]:min-w-0">
+						{
+							copy.how.index.checks.map((check) => (
+								<li class="flex items-center gap-2">
+									<span aria-hidden="true">✓</span> {check}
+								</li>
+							))
+						}
+					</ul>
+					<p class="mt-4 flex-1 text-sm leading-relaxed opacity-75">{copy.how.index.body}</p>
+					<a href="/spec#claims" class="mt-5 text-sm font-medium underline-offset-4 hover:underline">{copy.how.index.link}</a>
+				</li>
+				<li class="flex flex-col rounded-xl border border-white/15 p-6">
+					<p class="font-mono text-xs opacity-70">{copy.how.resolve.step}</p>
+					<p class="mt-3 text-lg font-semibold">{copy.how.resolve.title}</p>
+					<div class="mt-4 grid gap-2 text-sm">
+						<p class="rounded-md bg-white/10 px-3 py-2 font-mono text-[0.8125rem] break-all" dir="ltr">prodid.org/01/{gtin}</p>
+						<div class="grid grid-cols-2 gap-2">
+							<p class="rounded-md border border-white/15 px-3 py-2">{copy.how.resolve.browser}</p>
+							<p class="rounded-md border border-white/15 px-3 py-2">{copy.how.resolve.api}</p>
+						</div>
+					</div>
+					<p class="mt-4 flex-1 text-sm leading-relaxed opacity-75">{copy.how.resolve.body}</p>
+					<a href="/spec#the-resolver" class="mt-5 text-sm font-medium underline-offset-4 hover:underline">{copy.how.resolve.link}</a>
+				</li>
+			</ol>
+		</div>
+	</section>
+
+	<section aria-labelledby="claims" class="shell py-16 sm:py-24">
+		<div class="max-w-2xl">
+			<p class={eyebrow}>{copy.claims.eyebrow}</p>
+			<h2 id="claims" class={heading}>{copy.claims.heading}</h2>
+			<p class="mt-5 text-base leading-relaxed text-soft sm:text-lg">{copy.claims.lead}</p>
+		</div>
+
+		<div class="mt-10 overflow-x-auto rounded-xl border border-line bg-surface">
+			<table class="w-full min-w-[40rem] text-start text-sm">
+				<caption class="sr-only">{copy.claims.caption}</caption>
+				<thead class="bg-sunken text-xs tracking-wider text-soft uppercase">
+					<tr>
+						{copy.claims.columns.map((column) => <th scope="col" class="px-4 py-3 font-medium">{column}</th>)}
+					</tr>
+				</thead>
+				<tbody>
+					{
+						rows.map((row) => (
+							<tr class:list={['border-t border-line', row.lapsed && 'bg-warn-bg']}>
+								<td class="px-4 py-3 font-mono text-[0.8125rem]">{row.property}</td>
+								<td class:list={['px-4 py-3', row.lapsed && 'text-soft line-through']}>{row.value}</td>
+								<td class="px-4 py-3">{row.source}</td>
+								<td class:list={['px-4 py-3 font-medium', row.lapsed || row.trust === 'unverified' ? 'text-warn' : 'text-ok']}>
+									{row.trust}
+									{row.lapsed && copy.claims.lapsed}
+								</td>
+								<td class="px-4 py-3 whitespace-nowrap text-soft">{row.seen}</td>
+							</tr>
+						))
+					}
+				</tbody>
+			</table>
+		</div>
+
+		<dl class="mt-8 grid gap-6 sm:grid-cols-3 [&>*]:min-w-0">
+			{
+				trust.map((entry) => (
+					<div>
+						<dt class="font-mono text-sm font-medium">{entry.level}</dt>
+						<dd class="mt-1.5 text-sm leading-relaxed text-soft">{entry.meaning}</dd>
+					</div>
+				))
+			}
+		</dl>
+
+		<details class="group mt-10 max-w-3xl rounded-xl border border-line bg-surface">
+			<summary class="flex min-h-12 cursor-pointer list-none items-center justify-between gap-4 px-5 text-sm font-medium">
+				{copy.claims.details}
+				<span class="text-soft transition-transform group-open:rotate-180" aria-hidden="true">▾</span>
+			</summary>
+			<div class="grid gap-4 border-t border-line p-4 sm:p-5 [&>*]:min-w-0">
+				<CodeSample code={request} lang="http" label={copy.claims.request} />
+				<CodeSample code={examples.entityItem} lang="json" label="spec/fixtures/v1/examples/entity.item.json" badge="application/json" scroll />
+			</div>
+		</details>
+	</section>
+
+	<section aria-labelledby="who" class="border-t border-line bg-surface">
+		<div class="shell py-16 sm:py-24">
+			<p class={eyebrow}>{copy.who.eyebrow}</p>
+			<h2 id="who" class={heading}>{copy.who.heading}</h2>
+			<div class="mt-10 grid gap-10 md:grid-cols-3 [&>*]:min-w-0">
+				{
+					copy.who.audiences.map((audience) => (
+						<div class="border-t-2 border-ink pt-5">
+							<h3 class="text-base font-semibold tracking-tight">{audience.title}</h3>
+							<p class="mt-3 text-[0.9375rem] leading-relaxed text-soft">{audience.body}</p>
+						</div>
+					))
+				}
+			</div>
+			<p class="mt-12 max-w-3xl rounded-lg border border-line bg-bg p-5 text-sm leading-relaxed text-soft" set:html={rich(copy.who.passport, code)} />
+		</div>
+	</section>
+
+	<section aria-labelledby="status" class="border-t border-line">
+		<div class="shell grid gap-10 py-16 sm:py-20 lg:grid-cols-[1fr_2fr] [&>*]:min-w-0">
+			<div>
+				<p class={eyebrow}>{copy.status.eyebrow}</p>
+				<h2 id="status" class={heading}>{copy.status.heading}</h2>
+				<p class="mt-5 text-[0.9375rem] leading-relaxed text-soft">{all.common.status}</p>
+			</div>
+			<ul class="divide-y divide-line">
+				{
+					status.map((item, index) => (
+						<li class="grid gap-1 py-5 sm:grid-cols-[8rem_1fr] sm:gap-4">
+							<span class:list={['text-sm font-medium', index === 0 ? 'text-ok' : 'text-soft']}>{item.label}</span>
+							<p class="text-[0.9375rem] leading-relaxed">
+								<strong class="font-semibold">{item.title}</strong> <span class="text-soft" set:html={rich(item.body, code)} />
+							</p>
+						</li>
+					))
+				}
+			</ul>
+		</div>
+	</section>
+</Layout>

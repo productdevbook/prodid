@@ -1,4 +1,6 @@
+import { execFileSync } from 'node:child_process'
 import { readFileSync, writeFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 
 import { readSpecSections, type SpecReview } from '../src/lib/spec-sections.ts'
 
@@ -53,9 +55,8 @@ for (const entry of recording) {
 }
 if (untouched.length === 0) manifest.reviewed = new Date().toISOString().slice(0, 10)
 
-// Single-element arrays on one line, so re-recording does not fail the repository's format check.
-const serialized = JSON.stringify(manifest, null, '\t').replace(/\[\n\t+("[^"]*")\n\t+\]/g, '[$1]')
-writeFileSync(MANIFEST, `${serialized}\n`)
+writeFileSync(MANIFEST, `${JSON.stringify(manifest, null, '\t')}\n`)
+execFileSync('bunx', ['oxfmt', fileURLToPath(MANIFEST)], { stdio: 'ignore' })
 
 console.log(`Re-recorded ${recording.length} section(s):`)
 for (const entry of recording) console.log(`  #${entry.anchor} — quoted by ${entry.pages.join(', ')}`)
