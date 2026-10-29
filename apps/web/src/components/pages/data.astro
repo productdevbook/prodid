@@ -1,5 +1,6 @@
 ---
 import CodeSample from '@/components/code-sample.astro'
+import { CopyButtons } from '@/components/copy-buttons'
 import { DataTable } from '@/components/data-table'
 import PageHeader from '@/components/page-header.astro'
 import { Card } from '@/components/ui/card'
@@ -244,4 +245,5 @@ PRODID_OPERATOR=<your name> bun apps/batch/src/cli.ts load-dump ${LATEST}`
 			{code !== 'en' && <p class="mt-4 max-w-3xl text-[0.9375rem] leading-relaxed text-soft">{all.common.normative}</p>}
 		</div>
 	</section>
+	<CopyButtons client:idle copy={all.publish.own.copy} copied={all.publish.own.copied} />
 </Layout>

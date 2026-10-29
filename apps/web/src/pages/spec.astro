@@ -1,5 +1,5 @@
 ---
-import Disclosure from '@/components/disclosure.astro'
+import { Disclosure } from '@/components/disclosure'
 import SpecToc from '@/components/spec-toc.astro'
 import Layout from '@/layouts/base.astro'
 import { getEntry, render } from 'astro:content'
@@ -31,8 +31,8 @@ const files = Object.keys(
 			</article>
 
 			<aside class="mt-14 lg:order-last lg:mt-0">
-				<Disclosure class="lg:hidden">
-					<span slot="title">On this page</span>
+				<Disclosure client:visible className="lg:hidden">
+					<Fragment slot="title">On this page</Fragment>
 					<SpecToc headings={headings} />
 				</Disclosure>
 

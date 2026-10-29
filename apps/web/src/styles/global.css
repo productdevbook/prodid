@@ -482,3 +482,21 @@ yuva-chat {
 astro-static-slot {
 	display: contents;
 }
+
+.route-panel {
+	display: none;
+}
+
+.route-switch[data-route='own'] [data-route-panel='own'],
+.route-switch[data-route='delegated'] [data-route-panel='delegated'],
+.route-switch[data-route='hosted'] [data-route-panel='hosted'] {
+	display: block;
+}
+
+.route-switch:not([data-js]):has(.route-panel :target) .route-panel {
+	display: none;
+}
+
+.route-switch:not([data-js]):has(.route-panel :target) .route-panel:has(:target) {
+	display: block;
+}

@@ -1,0 +1,42 @@
+---
+import { Check } from 'lucide-react'
+
+import { Disclosure } from '@/components/disclosure'
+import { StepDone } from '@/components/step-done'
+
+interface Props {
+	n: string
+	title: string
+	lead?: string | undefined
+	details?: string | undefined
+	done: string
+}
+
+const { n, title, lead, details, done } = Astro.props
+const hasDetails = Astro.slots.has('details')
+---
+
+<li class="group/step relative min-w-0 ps-14 pb-12 before:absolute before:start-[1.125rem] before:top-11 before:bottom-2 before:w-px before:bg-border">
+	<span aria-hidden="true" class="absolute start-0 top-0 grid size-9 place-items-center rounded-full bg-brand font-mono text-sm font-medium text-bg">
+		<span class="group-data-[done]/step:hidden">{n}</span>
+		<Check className="hidden size-4 group-data-[done]/step:block" />
+	</span>
+	<h3 class="pt-1 text-lg leading-snug font-semibold tracking-tight" set:html={title} />
+	{lead && <p class="mt-2 text-base leading-relaxed text-soft" set:html={lead} />}
+	<div class="mt-5 grid gap-3 [&>*]:min-w-0">
+		<slot />
+	</div>
+	{
+		hasDetails && (
+			<Disclosure client:visible className="mt-5 shadow-none" triggerClassName="min-h-11 text-[0.8125rem]">
+				<Fragment slot="title">{details}</Fragment>
+				<div class="grid gap-5 [&>*]:min-w-0">
+					<slot name="details" />
+				</div>
+			</Disclosure>
+		)
+	}
+	<div class="mt-5">
+		<StepDone client:visible label={done} />
+	</div>
+</li>
