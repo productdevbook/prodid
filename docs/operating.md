@@ -501,13 +501,14 @@ from `apps/edge` with:
 bunx wrangler tail prodid-edge --format json --search dead-letter
 ```
 
-or search the Worker's logs in the Cloudflare dashboard for `dead-letter`. The two shapes:
+or search the Worker's logs in the Cloudflare dashboard for `dead-letter`. The shapes:
 
 ```
 {"event":"crawl.dead-letter","reason":"held back by the crawler's own limits 13 times","domain":"example.com","step":"discover","crawl":null,"deferrals":12}
 {"event":"crawl.dead-letter","reason":"failed on every retry of prodid-crawl","domain":"example.com","step":"discover","crawl":null,"deferrals":0}
 {"event":"media.dead-letter","url_sha256":"<hex>","source":"example.com","reason":"held back by the crawler's own limits 13 times","attempts":13}
 {"event":"media.dead-letter","url_sha256":"<hex>","source":"example.com","reason":"failed on every retry of prodid-media-ingest","attempts":0}
+{"event":"notify.dead-letter","reason":"failed on every retry of prodid-notify","source":"<source id>","lapsed_at":"2026-09-19T08:00:00.000Z"}
 ```
 
 - `held back by the crawler's own limits` is the crawler's own rate limit, not the publisher:
@@ -516,6 +517,9 @@ or search the Worker's logs in the Cloudflare dashboard for `dead-letter`. The t
 - `failed on every retry of …` is a message that failed on each of its three queue retries.
 - A media line names the URL only by its SHA-256 (`url_sha256`); the publisher's URL is never
   logged. `attempts` counts deferrals.
+- A notify line is a lapse notice the mail service refused on every retry. `source` is the
+  source's id and the contact is never logged: read the name and the kept `contact` of that
+  `source` row in the database, then send the notice by hand as *A lapsed publisher* says.
 
 To re-drive a crawl, ping the domain:
 
@@ -540,9 +544,18 @@ The status says it: `"lapsed":true` with `lapsed_at`, and `last_crawl.outcome` i
 curl -s https://prodid.org/source/<name>
 ```
 
-The index does not send the lapse notice yet (chapter 02, *Lapse notification*). Until it does,
-write to the publisher yourself, at the `publisher.contact` of their document, and say no more
-than the status says, in this order:
+The index sends the lapse notice itself (chapter 02, *Lapse notification*): when a source with a
+kept `publisher.contact` lapses, by a definite negative, by seven days of transport failure, or by
+the cron's sweep, one message goes on `prodid-notify`, and its consumer sends one plain-text mail
+from `notify@prodid.org` through the `MAIL` binding, with the subject
+`prodid: <name> stopped publishing`. It records `source.notified_lapse_at`, so a source that stays
+lapsed is told once, and a lapse that clears and starts again is told again. A source whose last
+accepted document had no contact gets nothing. A send that fails is retried three times, then
+lands in `prodid-notify-dlq` as a `notify.dead-letter` line (see *Reading dead letters*) with
+`notified_lapse_at` left unset.
+
+For a dead-lettered notice, write to the publisher yourself, at the `publisher.contact` of their
+document, and say no more than the status says, in this order, as the mail does:
 
 1. the source name and when the lapse started (`lapsed_at`, UTC);
 2. the outcome: `definite-negative` means discovery ended with no acceptable document (no record,
