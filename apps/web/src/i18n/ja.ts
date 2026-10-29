@@ -14,7 +14,6 @@ export const ja: Copy = {
 			data: 'データ',
 			dataShort: 'データ',
 		},
-		github: 'GitHub のソースコード',
 		toDark: 'ダークテーマに切り替え',
 		toLight: 'ライトテーマに切り替え',
 		language: '言語',
@@ -23,6 +22,15 @@ export const ja: Copy = {
 		normative: '仕様は英語でのみ公開されており、英語の本文が規範となります。',
 		imageAlt:
 			'prodid：パブリッシャーは自分のドメインで製品について宣言し、オープンなインデックスがすべてのコードを永続的な識別子に結び付け、誰でもインデックス全体をダウンロードできます。',
+		support: {
+			label: 'prodid を支援する',
+			heading: 'prodid はオープンソースです。成長を手伝ってください。',
+			body: 'リポジトリにスターを付けて見つけてもらいやすくしたり、問題を知らせたり、修正を送ったり、GitHub アカウントなしでここからメッセージを送ったりしてください。',
+			star: 'GitHub でスター',
+			stars: (count: string) => `スター ${count}`,
+			contribute: '貢献する',
+			chat: 'メッセージを送る',
+		},
 		footer: {
 			tagline: 'あらゆる物理的な製品のための、オープンな識別とデータのレイヤー。',
 			label: 'フッター',

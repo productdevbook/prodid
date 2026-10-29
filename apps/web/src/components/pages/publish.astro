@@ -429,7 +429,7 @@ const body = 'mt-1 text-[0.9375rem] leading-relaxed text-soft'
 				<p class="mt-8 text-[0.9375rem] leading-relaxed text-soft" set:html={r(copy.checklist.rules)} />
 				{code !== 'en' && <p class="mt-4 text-[0.9375rem] leading-relaxed text-soft">{all.common.normative}</p>}
 				<p class="mt-6 rounded-lg border border-line bg-surface p-5 text-[0.9375rem] leading-relaxed text-soft">
-					<strong class="font-medium text-ink">{copy.checklist.status}</strong>
+					<strong class="font-medium text-ink">{copy.checklist.status}</strong>{' '}
 					{`${all.common.status} ${copy.checklist.formats}`}
 				</p>
 			</div>

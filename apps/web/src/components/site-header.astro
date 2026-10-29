@@ -1,17 +1,23 @@
 ---
+import GithubMark from '@/components/github-mark.astro'
+import StarMark from '@/components/star-mark.astro'
 import Wordmark from '@/components/wordmark.astro'
 import { copyFor } from '@/i18n'
 import { LOCALES, type LocaleCode, localeOf, type PageKey, pagePath } from '@/i18n/locales'
+import { formatStars, REPOSITORY } from '@/lib/github'
 
 interface Props {
 	active?: 'spec' | 'publish' | 'data' | undefined
 	code: LocaleCode
 	page?: PageKey | undefined
+	stars?: number | undefined
 }
 
-const { active, code, page } = Astro.props
+const { active, code, page, stars } = Astro.props
 const copy = copyFor(code).common
 const current = localeOf(code)
+const starCount = stars === undefined ? undefined : formatStars(stars, current.hreflang)
+const starLabel = starCount === undefined ? copy.support.star : `${copy.support.star}, ${copy.support.stars(starCount)}`
 
 const links = [
 	{ key: 'spec', href: '/spec', label: copy.nav.spec, short: copy.nav.specShort },
@@ -20,8 +26,6 @@ const links = [
 ] as const
 
 const languages = LOCALES.map((entry) => ({ ...entry, href: pagePath(entry.code, page ?? 'home') }))
-
-const REPOSITORY = 'https://github.com/productdevbook/prodid'
 ---
 
 <header class="sticky top-0 z-40 border-b border-line bg-bg">
@@ -30,7 +34,7 @@ const REPOSITORY = 'https://github.com/productdevbook/prodid'
 			<Wordmark />
 		</a>
 		<nav aria-label={copy.primary} class="flex min-w-0 items-center gap-3 sm:gap-6">
-			<ul class="flex min-w-0 items-center gap-3 text-sm sm:gap-6">
+			<ul class="flex items-center gap-2.5 text-[0.8125rem] sm:gap-6 sm:text-sm">
 				{
 					links.map((link) => (
 						<li>
@@ -65,10 +69,11 @@ const REPOSITORY = 'https://github.com/productdevbook/prodid'
 							<path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3Z"></path>
 						</svg>
 						<span class="sr-only">{copy.language}:</span>
-						<span class="uppercase">{current.code}</span>
+						<span class="hidden uppercase sm:inline">{current.code}</span>
+						<span class="sr-only sm:hidden">{current.name}</span>
 					</summary>
 					<ul
-						class="absolute end-0 top-full z-50 mt-2 grid w-44 gap-px rounded-lg border border-line bg-surface p-1 text-sm shadow-[0_8px_24px_-12px_rgb(0_0_0/0.25)]"
+						class="absolute end-0 top-full z-50 mt-2 grid w-52 gap-px rounded-lg border border-line bg-surface p-1 text-sm shadow-[0_8px_24px_-12px_rgb(0_0_0/0.25)]"
 					>
 						{
 							languages.map((entry) => (
@@ -89,18 +94,25 @@ const REPOSITORY = 'https://github.com/productdevbook/prodid'
 								</li>
 							))
 						}
+						<li class="mt-1 border-t border-line pt-1 sm:hidden">
+							<a href={REPOSITORY} aria-label={starLabel} class="flex items-center gap-2 rounded-md px-3 py-2 text-ink hover:bg-sunken">
+								<GithubMark class="size-4 shrink-0" />
+								<StarMark class="size-4 shrink-0 text-soft" />
+								<span>{copy.support.star}</span>
+								{starCount !== undefined && <span class="ms-auto font-mono text-xs text-soft">{starCount}</span>}
+							</a>
+						</li>
 					</ul>
 				</details>
 				<a
 					href={REPOSITORY}
-					aria-label={copy.github}
-					class="hidden size-10 place-items-center rounded-md text-soft hover:bg-sunken hover:text-ink sm:grid"
+					aria-label={starLabel}
+					class="me-1 hidden h-9 items-center gap-1.5 rounded-md border border-line px-2.5 text-xs font-medium text-soft hover:border-accent hover:text-ink sm:inline-flex"
 				>
-					<svg viewBox="0 0 24 24" class="size-[1.15rem]" fill="currentColor" aria-hidden="true">
-						<path
-							d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.68 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.41-2.69 5.38-5.25 5.67.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"
-						></path>
-					</svg>
+					<GithubMark class="size-4 shrink-0" />
+					<StarMark class="size-4 shrink-0" />
+					<span class="hidden whitespace-nowrap lg:inline">{copy.support.star}</span>
+					{starCount !== undefined && <span class="border-s border-line ps-1.5 font-mono">{starCount}</span>}
 				</a>
 				<button
 					type="button"

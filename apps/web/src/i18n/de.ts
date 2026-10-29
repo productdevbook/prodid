@@ -14,7 +14,6 @@ export const de: Copy = {
 			data: 'Daten',
 			dataShort: 'Daten',
 		},
-		github: 'Quellcode auf GitHub',
 		toDark: 'Zum dunklen Design wechseln',
 		toLight: 'Zum hellen Design wechseln',
 		language: 'Sprache',
@@ -23,6 +22,15 @@ export const de: Copy = {
 		normative: 'Die Spezifikation erscheint nur auf Englisch, und der englische Text ist der maßgebliche.',
 		imageAlt:
 			'prodid: Publisher veröffentlichen Produktangaben auf ihren eigenen Domains, ein offener Index verbindet jeden Code mit einer dauerhaften Kennung, und jeder kann den gesamten Index herunterladen.',
+		support: {
+			label: 'prodid unterstützen',
+			heading: 'prodid ist Open Source. Hilf mit, dass es wächst.',
+			body: 'Gib dem Repository einen Stern, damit andere es finden, sag uns, was falsch ist, schick eine Korrektur oder schreib uns hier, ganz ohne GitHub-Konto.',
+			star: 'Stern auf GitHub geben',
+			stars: (count: string) => `${count} Sterne`,
+			contribute: 'Mitmachen',
+			chat: 'Schreib uns',
+		},
 		footer: {
 			tagline: 'Eine offene Identitäts- und Datenschicht für jedes physische Produkt.',
 			label: 'Fußzeile',

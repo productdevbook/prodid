@@ -13,7 +13,6 @@ export const en = {
 			data: 'Data',
 			dataShort: 'Data',
 		},
-		github: 'Source on GitHub',
 		toDark: 'Switch to dark theme',
 		toLight: 'Switch to light theme',
 		language: 'Language',
@@ -21,6 +20,15 @@ export const en = {
 		normative: 'The specification is published in English only, and the English text is the normative one.',
 		imageAlt:
 			'prodid: publishers state product facts on their own domains, one open index joins every code to a permanent identifier, and anyone can download the whole index.',
+		support: {
+			label: 'Support prodid',
+			heading: 'prodid is open source. Help it grow.',
+			body: 'Star the repository so others find it, tell us what is wrong, send a fix, or write to us here without a GitHub account.',
+			star: 'Star on GitHub',
+			stars: (count: string) => `${count} stars`,
+			contribute: 'Contribute',
+			chat: 'Write to us',
+		},
 		footer: {
 			tagline: 'An open identity and data layer for every physical product.',
 			label: 'Footer',

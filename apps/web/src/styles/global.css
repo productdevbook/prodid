@@ -247,6 +247,38 @@
 	unicode-bidi: plaintext;
 }
 
+/* The widget follows prefers-color-scheme on its own; these keep it on the theme the reader picked. */
+yuva-chat {
+	--yuva-bg: var(--surface);
+	--yuva-deep: var(--sunken);
+	--yuva-fg: var(--ink);
+	--yuva-muted: var(--soft);
+	--yuva-faint: var(--soft);
+	--yuva-border: var(--line);
+	--yuva-strong: var(--rule);
+	--yuva-ok: var(--ok);
+	--yuva-warn: var(--warn);
+	--yuva-font: var(--font-sans);
+}
+
+:root[data-theme='light'] yuva-chat {
+	--yuva-info: #2563eb;
+	--yuva-danger: #dc2626;
+	--yuva-brand: var(--yuva-accent);
+	--yuva-wash: color-mix(in srgb, var(--yuva-accent) 9%, var(--yuva-bg));
+	--yuva-shadow: 0 12px 40px rgb(15 23 42 / 0.18);
+	color-scheme: light;
+}
+
+:root[data-theme='dark'] yuva-chat {
+	--yuva-info: #60a5fa;
+	--yuva-danger: #f87171;
+	--yuva-brand: color-mix(in srgb, var(--yuva-accent) 60%, #ffffff);
+	--yuva-wash: color-mix(in srgb, var(--yuva-accent) 18%, var(--yuva-bg));
+	--yuva-shadow: 0 12px 40px rgb(0 0 0 / 0.5);
+	color-scheme: dark;
+}
+
 .prose pre {
 	margin-top: 1.5em;
 	margin-bottom: 1.5em;

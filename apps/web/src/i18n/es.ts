@@ -14,7 +14,6 @@ export const es: Copy = {
 			data: 'Datos',
 			dataShort: 'Datos',
 		},
-		github: 'Código fuente en GitHub',
 		toDark: 'Cambiar al tema oscuro',
 		toLight: 'Cambiar al tema claro',
 		language: 'Idioma',
@@ -23,6 +22,15 @@ export const es: Copy = {
 		normative: 'La especificación se publica solo en inglés, y el texto en inglés es el normativo.',
 		imageAlt:
 			'prodid: los publicadores declaran datos de producto en sus propios dominios, un índice abierto une cada código a un identificador permanente y cualquiera puede descargar el índice completo.',
+		support: {
+			label: 'Apoya prodid',
+			heading: 'prodid es de código abierto. Ayúdalo a crecer.',
+			body: 'Dale una estrella al repositorio para que otros lo encuentren, cuéntanos qué está mal, envía una corrección o escríbenos aquí sin cuenta de GitHub.',
+			star: 'Dar una estrella en GitHub',
+			stars: (count: string) => `${count} estrellas`,
+			contribute: 'Contribuir',
+			chat: 'Escríbenos',
+		},
 		footer: {
 			tagline: 'Una capa abierta de identidad y datos para cada producto físico.',
 			label: 'Pie de página',

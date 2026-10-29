@@ -14,7 +14,7 @@ const common = copyFor(code).common
 const copy = common.footer
 ---
 
-<footer class="mt-24 border-t border-line">
+<footer class="border-t border-line">
 	<div class="shell flex flex-col gap-8 py-10 sm:flex-row sm:justify-between">
 		<div class="max-w-sm">
 			<Wordmark class="text-[0.95rem]" />
@@ -58,7 +58,7 @@ const copy = common.footer
 	<div class="shell border-t border-line py-6">
 		<p class="max-w-3xl text-xs leading-relaxed text-soft" set:html={rich(copy.licence, code)} />
 	</div>
-	<div class="shell pb-6">
+	<div class="shell pb-24">
 		<yuva-status page="prodid" server="https://app.useyuva.com" components class="block [--yuva-status-font:var(--font-sans)] [--yuva-status-gutter:0]"></yuva-status>
 	</div>
 </footer>

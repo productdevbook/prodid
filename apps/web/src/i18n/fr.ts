@@ -14,7 +14,6 @@ export const fr: Copy = {
 			data: 'Données',
 			dataShort: 'Données',
 		},
-		github: 'Code source sur GitHub',
 		toDark: 'Passer au thème sombre',
 		toLight: 'Passer au thème clair',
 		language: 'Langue',
@@ -23,6 +22,15 @@ export const fr: Copy = {
 		normative: 'La spécification est publiée en anglais uniquement, et c’est le texte anglais qui fait foi.',
 		imageAlt:
 			'prodid : les éditeurs publient les informations produit sur leurs propres domaines, un index ouvert relie chaque code à un identifiant permanent, et chacun peut télécharger l’index entier.',
+		support: {
+			label: 'Soutenir prodid',
+			heading: 'prodid est open source. Aidez-le à grandir.',
+			body: 'Mettez une étoile au dépôt pour que d’autres le trouvent, signalez ce qui ne va pas, envoyez un correctif ou écrivez-nous ici, sans compte GitHub.',
+			star: 'Mettre une étoile sur GitHub',
+			stars: (count: string) => `${count} étoiles`,
+			contribute: 'Contribuer',
+			chat: 'Nous écrire',
+		},
 		footer: {
 			tagline: 'Une couche ouverte d’identité et de données pour chaque produit physique.',
 			label: 'Pied de page',

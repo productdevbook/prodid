@@ -1,8 +1,10 @@
 ---
 import SiteFooter from '@/components/site-footer.astro'
 import SiteHeader from '@/components/site-header.astro'
+import SupportBand from '@/components/support-band.astro'
 import { copyFor } from '@/i18n'
 import { LOCALES, type LocaleCode, localeOf, type PageKey, pagePath } from '@/i18n/locales'
+import { fetchStars } from '@/lib/github'
 import '@/styles/global.css'
 
 interface Props {
@@ -17,6 +19,7 @@ interface Props {
 
 const { title, description, active, noindex = false, notFound = false, code = 'en', page } = Astro.props
 const current = localeOf(code)
+const stars = await fetchStars()
 const common = copyFor(code).common
 const alternates =
 	page === undefined
@@ -99,16 +102,23 @@ const structured = JSON.stringify({
 		>
 			{common.skip}
 		</a>
-		<SiteHeader active={active} code={code} page={page} />
+		<SiteHeader active={active} code={code} page={page} stars={stars} />
 		<main id="main" tabindex="-1" class="flex-1">
 			<slot />
 		</main>
+		<SupportBand code={code} stars={stars} />
 		<SiteFooter code={code} />
+		<yuva-chat channel="yuva_pk_kFulj0vBzBy26IPPw8HANzRa" server="https://app.useyuva.com" locale={current.hreflang}></yuva-chat>
 		<script>
 			import { createAnalytics } from 'useyuva/analytics'
 
+			import { loadChat } from '@/lib/chat'
+
 			const analytics = createAnalytics({ server: 'https://app.useyuva.com', key: 'yuva_ak_qsOqNT6-hgJHzXppLQwkCUxK' })
 			if (document.body.dataset.notFound !== undefined) analytics.notFound()
+
+			if ('requestIdleCallback' in window) requestIdleCallback(() => void loadChat(), { timeout: 4000 })
+			else setTimeout(() => void loadChat(), 2000)
 		</script>
 	</body>
 </html>

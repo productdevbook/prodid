@@ -14,7 +14,6 @@ export const pt: Copy = {
 			data: 'Dados',
 			dataShort: 'Dados',
 		},
-		github: 'Código-fonte no GitHub',
 		toDark: 'Mudar para o tema escuro',
 		toLight: 'Mudar para o tema claro',
 		language: 'Idioma',
@@ -23,6 +22,15 @@ export const pt: Copy = {
 		normative: 'A especificação é publicada apenas em inglês, e o texto em inglês é o normativo.',
 		imageAlt:
 			'prodid: publicadores declaram dados de produto nos próprios domínios, um índice aberto liga cada código a um identificador permanente e qualquer pessoa pode baixar o índice inteiro.',
+		support: {
+			label: 'Apoie o prodid',
+			heading: 'O prodid é código aberto. Ajude-o a crescer.',
+			body: 'Dê uma estrela ao repositório para que outros o encontrem, conte o que está errado, envie uma correção ou escreva para nós aqui, sem conta no GitHub.',
+			star: 'Dar uma estrela no GitHub',
+			stars: (count: string) => `${count} estrelas`,
+			contribute: 'Contribuir',
+			chat: 'Fale conosco',
+		},
 		footer: {
 			tagline: 'Uma camada aberta de identidade e dados para cada produto físico.',
 			label: 'Rodapé',

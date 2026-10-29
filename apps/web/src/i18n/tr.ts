@@ -14,7 +14,6 @@ export const tr: Copy = {
 			data: 'Veri',
 			dataShort: 'Veri',
 		},
-		github: 'GitHub’daki kaynak kod',
 		toDark: 'Koyu temaya geç',
 		toLight: 'Açık temaya geç',
 		language: 'Dil',
@@ -23,6 +22,15 @@ export const tr: Copy = {
 		normative: 'Şartname yalnızca İngilizce yayımlanır ve bağlayıcı metin İngilizce olanıdır.',
 		imageAlt:
 			'prodid: yayıncılar ürün bilgilerini kendi alan adlarında yayımlar, tek bir açık dizin her kodu kalıcı bir kimliğe bağlar ve dizinin tamamını herkes indirebilir.',
+		support: {
+			label: 'prodid’yi destekle',
+			heading: 'prodid açık kaynak. Büyümesine yardım et.',
+			body: 'Başkaları da bulsun diye depoyu yıldızla, yanlış olanı bize bildir, bir düzeltme gönder ya da GitHub hesabın olmadan buradan bize yaz.',
+			star: 'GitHub’da yıldızla',
+			stars: (count: string) => `${count} yıldız`,
+			contribute: 'Katkıda bulun',
+			chat: 'Bize yaz',
+		},
 		footer: {
 			tagline: 'Her fiziksel ürün için açık bir kimlik ve veri katmanı.',
 			label: 'Alt bilgi',
