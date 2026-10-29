@@ -77,6 +77,7 @@ function build(sql: Sql, clock: TestClock): Edge {
 		mediaDead,
 		notify,
 		mail,
+		status: null,
 		caps: { ...DEFAULT_CAPS },
 		now: clock.now,
 		crawlIntervalMs: 6 * 3_600_000,
@@ -151,9 +152,10 @@ function build(sql: Sql, clock: TestClock): Edge {
 			notify.sent.length = 0
 			mail.sent.length = 0
 			mail.failures = 0
+			services.status = null
 			// `media` belongs here too: it is keyed by digest and shared by every source, so a row
 			// left behind — a blocked hash above all — decides the next test's answer.
-			await sql`truncate authority, claim, record, grouping, identifier, merge, entity, crawl, feed, source, media restart identity cascade`
+			await sql`truncate dead_letter, authority, claim, record, grouping, identifier, merge, entity, crawl, feed, source, media restart identity cascade`
 		},
 	}
 	return edge

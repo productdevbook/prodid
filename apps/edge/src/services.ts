@@ -6,6 +6,7 @@ import { type ObjectStore, r2Store } from './media/store'
 import { type Caps, DEFAULT_CAPS } from './net/guard'
 import { LiveNetwork } from './net/live'
 import type { Network } from './net/types'
+import { type StatusPush, yuvaStatus } from './status'
 
 /**
  * What one crawl carries between its messages. A crawl is one `crawl` row from discovery to
@@ -120,6 +121,8 @@ export interface Services {
 	mediaDead: MediaDeadLetters
 	notify: NotifyProducer
 	mail: Mailer
+	/** The owner's "Dead letters" status component; null when its address is not set. */
+	status: StatusPush | null
 	caps: Caps
 	/** The only clock. Nothing below this reads the wall clock. */
 	now: () => Date
@@ -164,6 +167,7 @@ export function productionServices(env: Env): Services {
 		mediaDead: mediaDeadLetters(env.MEDIA_DLQ),
 		notify: notifyProducer(env.NOTIFY),
 		mail: mailer(env.MAIL),
+		status: yuvaStatus(env.YUVA_STATUS_DEAD_LETTERS_URL, (url, init) => fetch(url, init)),
 		caps: DEFAULT_CAPS,
 		now: () => new Date(),
 		crawlIntervalMs: Number(env.CRAWL_INTERVAL_MINUTES) * 60_000,

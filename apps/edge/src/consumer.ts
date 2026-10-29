@@ -4,9 +4,10 @@ import { countMediaFailure, finalizeStaleCrawls, lapseSweep, QUEUE_LEASE_MS, tou
 import { type CrawlStep, runDiscover, runFeedStep, runFinalize } from './crawl/run'
 import { POLICY } from './limits/policy'
 import { runMediaStep } from './media/ingest'
-import { enqueueNotices } from './notify'
+import { consumeNotify, consumeNotifyDeadLetter, enqueueNotices } from './notify'
 import { claimDueSources } from './schedule'
-import type { CrawlDeadLetter, CrawlMessage, MediaDeadLetter, MediaMessage, Services } from './services'
+import type { CrawlDeadLetter, CrawlMessage, MediaDeadLetter, MediaMessage, NotifyMessage, Services } from './services'
+import { DEAD_LETTER_QUEUES, recoverStatus, reportDeadLetters } from './status'
 
 /** A limiter that cannot be reached is the crawler's own limit saying no, not the publisher failing. */
 export class LimiterUnavailable extends Error {}
@@ -150,10 +151,58 @@ export async function consumeMediaDeadLetter(body: MediaDeadLetter | MediaMessag
 	)
 }
 
+export type QueueBody = CrawlMessage | MediaMessage | MediaDeadLetter | CrawlDeadLetter | NotifyMessage
+
+export interface Delivery {
+	body: QueueBody
+	ack(): void
+	retry(): void
+}
+
+/** Each message is acknowledged or retried on its own; a dead letter batch then tells the owner. */
+export async function consumeBatch(services: Services, queue: string, messages: readonly Delivery[]): Promise<void> {
+	for (const message of messages) {
+		try {
+			await dispatch(services, queue, message.body)
+			message.ack()
+		} catch (error) {
+			console.error('queue message failed', queue, error)
+			message.retry()
+		}
+	}
+	if (DEAD_LETTER_QUEUES.includes(queue)) {
+		await reportDeadLetters(
+			services,
+			queue,
+			messages.map((message) => message.body),
+		)
+	}
+}
+
+function dispatch(services: Services, queue: string, body: QueueBody): Promise<void> {
+	if (queue === 'prodid-media-ingest') return consumeMedia(services, body as MediaMessage)
+	if (queue === 'prodid-media-dlq') return consumeMediaDeadLetter(body as MediaDeadLetter | MediaMessage)
+	if (queue === 'prodid-notify') return consumeNotify(services, body as NotifyMessage).then(() => undefined)
+	if (queue === 'prodid-notify-dlq') {
+		consumeNotifyDeadLetter(body as NotifyMessage)
+		return Promise.resolve()
+	}
+	if (queue === 'prodid-crawl-dlq') {
+		consumeDeadLetter(body as CrawlDeadLetter | CrawlMessage)
+		return Promise.resolve()
+	}
+	return consumeCrawl(services, body as CrawlMessage).then(() => undefined)
+}
+
 export async function runScheduled(services: Services): Promise<void> {
 	await claimDueSources(services)
 	const stale = await finalizeStaleCrawls(services.sql, { now: services.now(), olderThanMs: QUEUE_LEASE_MS })
 	await enqueueNotices(services, stale.notices)
 	const swept = await lapseSweep(services.sql, { now: services.now() })
 	await enqueueNotices(services, swept.notices)
+	try {
+		await recoverStatus(services)
+	} catch (error) {
+		console.error('status recovery failed', error)
+	}
 }
