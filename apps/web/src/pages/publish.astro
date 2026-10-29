@@ -110,6 +110,16 @@ Content-Type: application/json
 
 const wellKnown = 'https://acme.example/.well-known/prodid.json'
 
+const checkFiles = `git clone https://github.com/productdevbook/prodid
+cd prodid
+bun install --frozen-lockfile
+curl -fsSo prodid.json https://acme.example/.well-known/prodid.json
+curl -fsSo items.ndjson https://acme.example/prodid/items.ndjson
+bun apps/batch/src/cli.ts check prodid.json items.ndjson
+
+prodid.json: ok, 1 record
+items.ndjson: ok, 3 records`
+
 const mediaCaps = [
 	{ what: 'One image', cap: '20 MiB' },
 	{ what: 'One document', cap: '50 MiB' },
@@ -823,6 +833,21 @@ const checklist = [
 						))
 					}
 				</ul>
+				<h3 class="mt-12 text-lg font-semibold tracking-tight">Check your files before you ping</h3>
+				<p class="mt-3 text-[0.9375rem] leading-relaxed text-soft">
+					<code class="chip">prodid-batch check</code> validates your discovery document and each feed exactly as the index
+					would, with no token and without asking the index anything. It runs from a clone of the repository with{' '}
+					<a href="https://bun.sh" class="rounded-sm text-accent underline underline-offset-4">Bun</a> 1.4.4. Give it the
+					files themselves: a path ending in <code class="chip">.json</code> is read as one document, any other path as an
+					NDJSON feed.
+				</p>
+				<CodeSample class="mt-6" code={checkFiles} lang="bash" label="validate what you serve, as the index will" />
+				<p class="mt-4 text-[0.9375rem] leading-relaxed text-soft">
+					A file with no problem prints <code class="chip">ok</code> and the number of records the index would take from it.
+					Otherwise it prints one line per problem, as <code class="chip">items.ndjson:12: message</code> with the feed line
+					it is on, and exits non-zero. It reads the files, not your DNS or your server, so the TXT record, the content type
+					and the caching headers in the list above are still yours to check.
+				</p>
 				<p class="mt-8 text-[0.9375rem] leading-relaxed text-soft">
 					The rules a record is validated against are in the{' '}
 					<a href="/spec" class="rounded-sm text-accent underline underline-offset-4">specification</a>, the schemas are
