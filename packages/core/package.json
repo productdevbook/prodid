@@ -33,6 +33,6 @@
 	"devDependencies": {
 		"@prodid/spec": "workspace:*",
 		"esbuild": "0.28.2",
-		"tsdown": "0.23.3"
+		"tsdown": "0.23.4"
 	}
 }
