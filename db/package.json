@@ -22,6 +22,6 @@
 		"check:ci": "bun run test/smoke.ts && bun run test/race.ts"
 	},
 	"dependencies": {
-		"postgres": "3.4.9"
+		"postgres": "4.1.0"
 	}
 }
