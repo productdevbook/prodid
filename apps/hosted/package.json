@@ -21,7 +21,7 @@
 	},
 	"dependencies": {
 		"@prodid/core": "workspace:*",
-		"hono": "4.13.14"
+		"hono": "4.13.16"
 	},
 	"devDependencies": {
 		"@prodid/batch": "workspace:*",
